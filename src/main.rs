@@ -27,6 +27,7 @@ mod mipmaps;
 mod meshes;
 mod camera;
 mod cursor_lock;
+mod pipelines;
 
 pub fn main() {
     let event_loop = EventLoop::new();

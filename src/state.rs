@@ -8,7 +8,7 @@ use winit::{
 };
 use async_std::task::block_on;
 
-use crate::{texture::{self, Texture}, vertices::block_vertex::BlockVertex, meshes::Meshes};
+use crate::{texture::{self, Texture}, vertices::block_vertex::BlockVertex, meshes::Meshes, pipelines::{bind_group_layout::{texture::get_texture_bind_group_layout, camera::get_camera_bind_group_layout}, new_pipeline}};
 
 const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4, /* padding */ 0];
 pub const IS_LINE: bool = false;
@@ -40,9 +40,6 @@ pub struct State {
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    num_indices: u32,
     diffuse_texture: texture::Texture,
     diffuse_bind_group: wgpu::BindGroup,
     window: Window,
@@ -147,28 +144,7 @@ impl State {
         // let diffuse_texture = texture::Texture::image_array_arr(&device, &queue, &[
         //     "./assets/blocks/1t_block.png","./assets/blocks/1t_block.png"], None).unwrap();
 
-        let texture_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2Array,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-                label: Some("texture_bind_group_layout"),
-            });
+        let texture_bind_group_layout = get_texture_bind_group_layout(&device, wgpu::TextureViewDimension::D2Array);
 
         let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &texture_bind_group_layout,
@@ -197,21 +173,7 @@ impl State {
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             }
         );
-        let camera_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }
-            ],
-            label: Some("camera_bind_group_layout"),
-        });
+        let camera_bind_group_layout = get_camera_bind_group_layout(&device);
         let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &camera_bind_group_layout,
             entries: &[
@@ -225,81 +187,17 @@ impl State {
 
         let multisampled_framebuffer =
             texture::Texture::create_multisampled_framebuffer(&device, &config, sample_count);
-
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[
-                    &texture_bind_group_layout,
-                    &camera_bind_group_layout
-                ],
-                push_constant_ranges: &[],
-            });
-
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture", sample_count);
-        println!("You change face culling!!!!!! AND TOPOLOGY");
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[BlockVertex::desc()],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState {
-                        color: wgpu::BlendComponent::REPLACE,
-                        alpha: wgpu::BlendComponent::REPLACE,
-                    }),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
 
-            primitive: wgpu::PrimitiveState {
-                topology: PRIMITIVE_TOPOLOGY,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-                // or Features::POLYGON_MODE_POINT
-                polygon_mode: wgpu::PolygonMode::Fill,
-                // Requires Features::DEPTH_CLIP_CONTROL
-                unclipped_depth: false,
-                // Requires Features::CONSERVATIVE_RASTERIZATION
-                conservative: false,
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: texture::Texture::DEPTH_FORMAT,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less, // 1.
-                stencil: wgpu::StencilState::default(), // 2.
-                bias: wgpu::DepthBiasState::default(),
-            }),
-            multisample: wgpu::MultisampleState {
-                count: sample_count,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            // If the pipeline will be used with a multiview render pass, this
-            // indicates how many array layers the attachments will have.
-            multiview: None,
-        });
-
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: &[],
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: &[],
-            usage: wgpu::BufferUsages::INDEX,
-        });
-        let num_indices = INDICES.len() as u32;
+        let render_pipeline = new_pipeline(
+            &device, 
+            &[&texture_bind_group_layout,
+             &camera_bind_group_layout],
+            &[BlockVertex::desc()],
+            &shader,
+            config.format,
+            PRIMITIVE_TOPOLOGY,
+            sample_count);
 
         Self {
             surface,
@@ -308,9 +206,6 @@ impl State {
             config,
             size,
             render_pipeline,
-            vertex_buffer,
-            index_buffer,
-            num_indices,
             diffuse_texture,
             diffuse_bind_group,
             window,
@@ -341,10 +236,6 @@ impl State {
     }
     pub fn update(&mut self, proj_view: &[[f32; 4]; 4]) {
         self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(proj_view));
-    }
-
-    pub fn update_block_buffers(&mut self, block_buffer: &Vec<BlockVertex>, indexes: &Vec<u16>) {
-        todo!();
     }
 
     pub fn render(&mut self, meshes: &Meshes) -> Result<(), wgpu::SurfaceError> {
