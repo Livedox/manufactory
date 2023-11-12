@@ -578,7 +578,7 @@ impl State {
         self.queue.write_buffer(&self.transport_belt_buffer, 0, &time.current().to_le_bytes());
     }
 
-    pub fn render<const N: usize>(&mut self, sun: &Sun<N>, player: &mut Player, gui_controller: &GuiController, meshes: &Meshes, time: &Time, block_id: &mut u32, debug_data: &str) -> Result<(), wgpu::SurfaceError> {
+    pub fn render<const N: usize>(&mut self, indices: &[usize], sun: &Sun<N>, player: &mut Player, gui_controller: &GuiController, meshes: &Meshes, time: &Time, block_id: &mut u32, debug_data: &str) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -657,13 +657,20 @@ impl State {
             //Render blocks
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(1, &self.diffuse_bind_group, &[]);
-            meshes.meshes().iter().for_each(|mesh| {
-                if let Some(mesh) = mesh {
+            indices.iter().for_each(|i| {
+                if let Some(mesh) = &meshes.meshes()[*i] {
                     render_pass.set_vertex_buffer(0, mesh.block_vertex_buffer.slice(..));
                     render_pass.set_index_buffer(mesh.block_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
                     render_pass.draw_indexed(0..mesh.block_index_count, 0, 0..1);
                 }
             });
+            // meshes.meshes().iter().for_each(|mesh| {
+            //     if let Some(mesh) = mesh {
+            //         render_pass.set_vertex_buffer(0, mesh.block_vertex_buffer.slice(..));
+            //         render_pass.set_index_buffer(mesh.block_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            //         render_pass.draw_indexed(0..mesh.block_index_count, 0, 0..1);
+            //     }
+            // });
             //Render transport belt
             render_pass.set_pipeline(&self.transport_belt_pipeline);
             render_pass.set_bind_group(3, &self.transport_belt_bind_group, &[]);
@@ -700,8 +707,8 @@ impl State {
             // Render Models
             render_pass.set_pipeline(&self.model_pipeline);
             // render_pass.set_bind_group(2, &self.camera_bind_group, &[]);
-            meshes.meshes().iter().for_each(|mesh| {
-                let Some(mesh) = mesh else {return};
+            indices.iter().for_each(|i| {
+                let Some(mesh) = &meshes.meshes()[*i] else {return};
 
                 mesh.models.iter().for_each(|(name, (instance, len))| {
                     let Some(model) = self.models.get(name) else {return};
@@ -714,6 +721,20 @@ impl State {
                     render_pass.draw(0..model.vertex_count as u32, 0..*len as u32);
                 });
             });
+            // meshes.meshes().iter().for_each(|mesh| {
+            //     let Some(mesh) = mesh else {return};
+
+            //     mesh.models.iter().for_each(|(name, (instance, len))| {
+            //         let Some(model) = self.models.get(name) else {return};
+
+            //         render_pass.set_bind_group(1, &model.texture, &[]);
+
+            //         render_pass.set_vertex_buffer(0, model.vertex_buffer.slice(..));
+            //         render_pass.set_vertex_buffer(1, instance.slice(..));
+
+            //         render_pass.draw(0..model.vertex_count as u32, 0..*len as u32);
+            //     });
+            // });
 
 
             if let Some(selection_vertex_buffer) = &self.selection_vertex_buffer {

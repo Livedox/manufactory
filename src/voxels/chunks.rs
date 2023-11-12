@@ -6,7 +6,7 @@ use crate::{graphic::render::{VoxelRenderer}, vertices::{block_vertex::BlockVert
 
 use super::{chunk::{Chunk, CHUNK_SIZE, CHUNK_BITS, CHUNK_BIT_SHIFT}, voxel::Voxel, voxel_data::{VoxelAdditionalData, Drill, VoxelData, MultiBlock}};
 
-pub const WORLD_HEIGHT: usize = 16; // In chunks
+pub const WORLD_HEIGHT: usize = 1; // In chunks
 
 #[derive(Debug)]
 pub struct Chunks {

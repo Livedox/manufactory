@@ -6,7 +6,9 @@ pub struct Camera {
     base_up: glm::Vec4,
     base_right: glm::Vec4,
 
-    fov: f32,
+    pub(super) fov: f32,
+    pub(super) near: f32,
+    pub(super) far: f32,
     pub(super) position: glm::Vec3,
     pub(super) front: glm::Vec3,
     pub(super) up: glm::Vec3,
@@ -15,7 +17,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(position: glm::Vec3, fov: f32) -> Camera {
+    pub fn new(position: glm::Vec3, fov: f32, near: f32, far: f32) -> Camera {
         let identity = glm::Mat4::identity();
         let base_front = glm::vec4(0.0, 0.0, -1.0, 1.0);
         let base_right = glm::vec4(1.0, 0.0, 0.0, 1.0);
@@ -36,6 +38,8 @@ impl Camera {
             base_front,
             base_right,
             base_up,
+            near,
+            far
         }
     }
 
@@ -52,7 +56,7 @@ impl Camera {
 
 
     pub fn projection(&self, width: f32, height: f32) -> glm::Mat4 {
-        glm::perspective(width/height, self.fov, 0.1, 1000.)
+        glm::perspective(width/height, self.fov, self.near, self.far)
     }
 
 
@@ -67,6 +71,8 @@ impl Camera {
 
     pub fn position(&self) -> &glm::Vec3 { &self.position }
     pub fn front(&self) -> &glm::Vec3 { &self.front }
+    pub fn up(&self) -> &glm::Vec3 { &self.up }
+    pub fn right(&self) -> &glm::Vec3 { &self.right }
     pub fn position_array(&self) -> [f32; 3] {
         [self.position.x, self.position.y, self.position.z]
     }

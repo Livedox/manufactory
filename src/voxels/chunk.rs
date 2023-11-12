@@ -7,6 +7,7 @@ use crate::{light::light_map::LightMap, direction::Direction, recipes::{recipe::
 use super::{voxel::{self, Voxel}, voxel_data::{VoxelData, VoxelAdditionalData}, chunks::Chunks, block::blocks::BLOCKS};
 
 pub const CHUNK_SIZE: usize = 32; // must be a power of two
+pub const HALF_CHUNK_SIZE: usize = CHUNK_SIZE/2;
 pub const CHUNK_SQUARE: usize = CHUNK_SIZE.pow(2);
 pub const CHUNK_VOLUME: usize = CHUNK_SIZE.pow(3);
 pub const CHUNK_BIT_SHIFT: usize = CHUNK_SIZE.ilog2() as usize;
@@ -67,6 +68,9 @@ impl Chunk {
                 voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 5;
                 voxels_data.remove(&((y*CHUNK_SIZE+z)*CHUNK_SIZE+x));
                 // sun_map[x][z] = false;
+            }
+            if real_y < 1 {
+                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 10;
             }
         }
 

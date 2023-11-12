@@ -3,7 +3,7 @@ use std::time::Instant;
 use crate::{input_event::{input_service::{InputService, Key}, KeypressState}, my_time::Time};
 use nalgebra_glm as glm;
 
-use super::camera::Camera;
+use super::{camera::Camera, frustum::Frustum};
 
 pub struct CameraController {
     yaw: f32,
@@ -15,11 +15,11 @@ pub struct CameraController {
 impl CameraController {
     const SPEED: f32 = 14.0;
     const SENSETIV: f32 = 0.3;
-    pub fn new(position: glm::Vec3, fov: f32) -> Self {
+    pub fn new(position: glm::Vec3, fov: f32, near: f32, far: f32) -> Self {
         Self {
             yaw: 0.0,
             pitch: 0.0,
-            camera: Camera::new(position, fov)
+            camera: Camera::new(position, fov, near, far)
         }
     }
 
@@ -60,4 +60,13 @@ impl CameraController {
     pub fn front(&self) -> &glm::Vec3 {&self.camera.front()}
     pub fn position_array(&self) -> [f32; 3] {self.camera.position_array()}
     pub fn front_array(&self) -> [f32; 3] {self.camera.front_array()}
+    pub fn up(&self) -> &glm::Vec3 {&self.camera.up()}
+    pub fn right(&self) -> &glm::Vec3 {&self.camera.right()}
+    pub fn near(&self) -> f32 {self.camera.near}
+    pub fn far(&self) -> f32 {self.camera.far}
+    pub fn fov(&self) -> f32 {self.camera.fov}
+
+    pub fn new_frustum(&self, aspect: f32) -> Frustum {
+        Frustum::new(&self, aspect)
+    }
 }

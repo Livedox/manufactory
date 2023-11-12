@@ -1,5 +1,6 @@
 use std::{iter, time::{Instant, Duration, self}, cell::RefCell, rc::Rc, borrow::Borrow, collections::{BinaryHeap, HashMap}};
 
+use camera::frustum::Frustum;
 use direction::Direction;
 use graphic::render_selection::render_selection;
 use gui::gui_controller::{self, GuiController};
@@ -8,7 +9,7 @@ use light::light_solver::LightSolver;
 use player::player::Player;
 use recipes::{recipe::{Recipes, Recipe}, recipes::{all_recipe, RECIPES}, storage::Storage, item::Item};
 use world::{World, global_xyz::GlobalXYZ, sun::{Sun, Color}};
-use crate::{vertices::animated_model_instance::AnimatedModelInstance, light::light::Light};
+use crate::{vertices::animated_model_instance::AnimatedModelInstance, light::light::Light, voxels::chunk::HALF_CHUNK_SIZE};
 use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, voxel_data::{VoxelBox, PlayerUnlockableStorage}, block::{blocks::BLOCKS, block_type::BlockType}};
 use wgpu::util::DeviceExt;
 use winit::{
@@ -39,6 +40,21 @@ mod model;
 mod direction;
 mod world;
 
+pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
+    let mut indices = vec![];
+    for (i, c) in chunks.chunks.iter().enumerate() {
+        let Some(c) = c else {continue};
+
+        let x = c.xyz.0 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+        let y = c.xyz.1 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+        let z = c.xyz.2 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+        if frustum.is_cube_in(&glm::vec3(x, y, z), HALF_CHUNK_SIZE as f32) {
+            indices.push(i);
+        }
+    }
+    indices
+}
+
 pub fn main() {
     let sun = Sun::new(
         60,
@@ -60,7 +76,7 @@ pub fn main() {
     let window = Rc::new(WindowBuilder::new().build(&event_loop).unwrap());
     let mut block_id = 4;
 
-    let mut camera = camera::camera_controller::CameraController::new(glm::vec3(0.0, 0.0, 0.0), 1.2);
+    let mut camera = camera::camera_controller::CameraController::new(glm::vec3(0.0, 0.0, 0.0), 1.2, 0.1, 1000.0);
     let mut meshes = meshes::Meshes::new();
     let mut input = input_event::input_service::InputService::new();
     let mut time = my_time::Time::new();
@@ -78,7 +94,7 @@ pub fn main() {
     drop(inventory);
 
     let mut voxel_renderer = graphic::render::VoxelRenderer {};
-    let mut world = World::new(5, WORLD_HEIGHT as i32, 5);
+    let mut world = World::new(3, WORLD_HEIGHT as i32, 3);
     loop { if !world.chunks.load_visible() {break;} };
     world.chunks.set(0, 0, 0, 0, None);
     world.chunks.set(10, 10, 10, 0, None);
@@ -138,6 +154,9 @@ pub fn main() {
                     gui_controller.set_cursor_lock(!gui_controller.is_cursor());
                     if !gui_controller.toggle_inventory() {player.open_storage = None};
                 }
+
+                let indices = frustum(&mut world.chunks, &camera.new_frustum(state.size.width as f32/state.size.height as f32));
+
                 let chunks_ptr = &mut world.chunks as *mut Chunks;
                 world.chunks.chunks.iter_mut().enumerate().for_each(|(index, chunk)| {
                     let mut inst: Vec<u8> = vec![];
@@ -252,7 +271,7 @@ pub fn main() {
                 }
                 
 
-                match state.render(&sun, &mut player, &gui_controller, &meshes, &time, &mut block_id, &debug_data) {
+                match state.render(&indices, &sun, &mut player, &gui_controller, &meshes, &time, &mut block_id, &debug_data) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                         state.resize(state.size)

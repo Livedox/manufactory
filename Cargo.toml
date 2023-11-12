@@ -26,7 +26,7 @@ russimp = { version = "=2.0.5", features = ["prebuilt"] }
 
 [profile.dev]
 opt-level = 1
-debug = 1
+debug = true
 
 [profile.release]
-debug = 1
+debug = true
