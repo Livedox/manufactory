@@ -2,7 +2,7 @@ use crate::voxels::chunk::{CHUNK_VOLUME, CHUNK_SIZE};
 
 #[derive(Debug)]
 pub struct LightMap {
-    map: [u16; CHUNK_VOLUME],
+    pub map: [u16; CHUNK_VOLUME],
 }
 
 impl LightMap {
@@ -13,6 +13,10 @@ impl LightMap {
     fn get_index(local: (u8, u8, u8)) -> usize {
         let (x, y, z) = (local.0 as u16, local.1 as u16, local.2 as u16);
         ((y * CHUNK_SIZE as u16 + z) * CHUNK_SIZE as u16 + x) as usize
+    }
+
+    pub fn get_light(&self, local: (u8, u8, u8)) -> u16 {
+        self.map[LightMap::get_index(local)]
     }
 
     pub fn get(&self, local: (u8, u8, u8), channel: u8) -> u16 { 
@@ -31,7 +35,7 @@ impl LightMap {
         (self.map[LightMap::get_index(local)] >> 8) & 0xF
     }
 
-    pub fn get_sun(&mut self, local: (u8, u8, u8)) -> u16 {
+    pub fn get_sun(&self, local: (u8, u8, u8)) -> u16 {
         (self.map[LightMap::get_index(local)] >> 12) & 0xF
     }
 

@@ -12,17 +12,18 @@ pub fn new_pipeline(
     shader: &ShaderModule,
     format: TextureFormat,
     topology: PrimitiveTopology,
-    sample_count: u32
+    sample_count: u32,
+    label: &str,
 ) -> RenderPipeline {
     let render_pipeline_layout =
         device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Render Pipeline Layout"),
+            label: Some(&format!("Render Pipeline Layout ({})", label)),
             bind_group_layouts,
             push_constant_ranges: &[],
         });
 
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("Render Pipeline"),
+        label: Some(&format!("Render Pipeline ({})", label)),
         layout: Some(&render_pipeline_layout),
         vertex: wgpu::VertexState {
             module: shader,
@@ -45,7 +46,7 @@ pub fn new_pipeline(
         primitive: wgpu::PrimitiveState {
             topology,
             strip_index_format: None,
-            front_face: wgpu::FrontFace::Ccw,
+            front_face: wgpu::FrontFace::Cw,
             cull_mode: Some(wgpu::Face::Back),
             // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
             // or Features::POLYGON_MODE_POINT

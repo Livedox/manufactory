@@ -10,7 +10,8 @@ impl CursorLock {
 
     pub fn update(&mut self, window: &Window) {
         if !self.is_cursor {
-            let position = PhysicalPosition::new(window.inner_size().width as f32/2., window.inner_size().height as f32/2.);
+            let size = window.inner_size();
+            let position = PhysicalPosition::new(size.width as f32/2.0, size.height as f32/2.0);
             window.set_cursor_position(position).unwrap();
         };
     }

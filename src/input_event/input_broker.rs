@@ -10,6 +10,7 @@ pub(super) struct InputBroker {
     instant: Instant,
     keys: [State; INPUT_LENGTH],
     prev_id: Option<usize>,
+    wheel: i8,
     pub(super) delta: (f32, f32),
     pub(super) coords: (f32, f32),
 }
@@ -23,6 +24,7 @@ impl InputBroker {
             prev_id: None,
             delta: (0.0, 0.0),
             coords: (0.0, 0.0),
+            wheel: 0,
         }
     }
 
@@ -37,16 +39,25 @@ impl InputBroker {
     }
 
 
-    pub(super) fn is_buttons(&self, buttons: &[(usize, KeypressState)]) -> bool {
-        buttons.iter().all(|button| {
-            button.0 < INPUT_LENGTH && self.keys[button.0].state.is(button.1)
-        })
+    pub(super) fn is_button(&self, index: usize, state: KeypressState) -> bool {
+        index < INPUT_LENGTH && self.keys[index].state.is(state)
     }
 
+    pub(super) fn update_delta_mouse(&mut self) {
+        self.delta = (0.0, 0.0);
+    }
 
     pub(super) fn update(&mut self) {
         self.update_prev_key();
-        self.delta = (0.0, 0.0);
+        self.wheel = 0;
+    }
+
+    pub(super) fn set_wheel(&mut self, wheel: i8) {
+        self.wheel = wheel;
+    }
+
+    pub(super) fn wheel(&self) -> i8 {
+        self.wheel
     }
 
 
@@ -79,6 +90,7 @@ impl InputBroker {
                     new_state = KeypressState::JustTriplePressed;
                 }
             }
+
             self.keys[id].state = new_state;
             self.keys[id].last_press_state = new_state;
             self.keys[id].last_press_time = now;

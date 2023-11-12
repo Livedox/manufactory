@@ -1,6 +1,6 @@
-use std::{collections::VecDeque, sync::Arc, cell::RefCell};
+use std::{collections::VecDeque, rc::Rc, cell::RefCell};
 
-use crate::voxels::{chunks::Chunks, chunk::{CHUNK_SIZE}, block::{LightPermeability, BLOCKS}};
+use crate::voxels::{chunks::Chunks, chunk::{CHUNK_SIZE}, block::{light_permeability::LightPermeability, blocks::BLOCKS}};
 
 
 const PERMEABILITYS: [LightPermeability; 6] = [
@@ -38,30 +38,26 @@ impl LightEntry {
     }
 }
 
-
 pub struct LightSolver {
     add_queue: VecDeque<LightEntry>,
     remove_queue: VecDeque<LightEntry>,
-    chunks: Arc<RefCell<Chunks>>,
     channel: u8,
 }
 
 
 impl LightSolver {
-    pub fn new(chunks: Arc<RefCell<Chunks>>, channel: u8) -> LightSolver {
+    pub fn new(channel: u8) -> LightSolver {
         LightSolver {
             add_queue: VecDeque::new(),
             remove_queue: VecDeque::new(),
-            chunks,
             channel
         }
     }
 
 
-    pub fn add_with_emission(&mut self, x: i32, y: i32, z: i32, emission: u8) {
+    pub fn add_with_emission(&mut self, chunks: &mut Chunks, x: i32, y: i32, z: i32, emission: u8) {
         if emission <= 1 { return; }
 
-        let mut chunks = self.chunks.borrow_mut();
         if let Some(chunk) = chunks.mut_chunk_by_global(x, y, z) {
             let entry = LightEntry::new(x, y, z, emission);
 
@@ -72,14 +68,13 @@ impl LightSolver {
         }
     }
 
-    pub fn add(&mut self, x: i32, y: i32, z: i32) {
-        let emission = self.chunks.borrow().light(x,y,z, self.channel) as u8;
-        self.add_with_emission(x, y, z, emission);
+    pub fn add(&mut self, chunks: &mut Chunks, x: i32, y: i32, z: i32) {
+        let emission = chunks.light(x,y,z, self.channel) as u8;
+        self.add_with_emission(chunks, x, y, z, emission);
     }
 
 
-    pub fn remove(&mut self, x: i32, y: i32, z: i32) {
-        let mut chunks = self.chunks.borrow_mut();
+    pub fn remove(&mut self, chunks: &mut Chunks, x: i32, y: i32, z: i32) {
         if let Some(chunk) = chunks.mut_chunk_by_global(x, y, z) {
             let local = Chunks::u8_local_coords(x, y, z);
             
@@ -91,66 +86,70 @@ impl LightSolver {
     }
 
 
-    pub fn solve(&mut self) {
-        while !self.remove_queue.is_empty() {
-            let entry = self.remove_queue.pop_front();
+    pub fn solve(&mut self, chunks: &mut Chunks) {
+        self.solve_remove_queue(chunks);
+        self.solve_add_queue(chunks);
+    }
 
-            if let Some(entry) = entry {
-                for i in 0..6 {
-                    let x: i32 = entry.x + COORDS[i*3];
-                    let y: i32 = entry.y + COORDS[i*3+1];
-                    let z: i32 = entry.z + COORDS[i*3+2];
-                    let mut chunks = self.chunks.borrow_mut();
-                    let light = chunks.light(x, y, z, self.channel) as u8;
-                    let chunk = chunks.mut_chunk_by_global(x, y, z);
-                    
-                    if let Some(chunk) = chunk {
-                        let nentry = LightEntry::new(x, y, z, light); 
-                        if light != 0 && entry.light != 0 && light == entry.light-1 {
-                            self.remove_queue.push_back(nentry);
-                            chunk.lightmap.set(Chunks::u8_local_coords(x, y, z), 0, self.channel);
-                            chunk.modified = true;
-                        } else if light >= entry.light {
-                            self.add_queue.push_back(nentry);
-                        }
-                    }
+
+    fn solve_remove_queue(&mut self, chunks: &mut Chunks) {
+        while let Some(entry) = self.remove_queue.pop_front() {
+            for i in 0..6 {
+                let x: i32 = entry.x + COORDS[i*3];
+                let y: i32 = entry.y + COORDS[i*3+1];
+                let z: i32 = entry.z + COORDS[i*3+2];
+                let light = chunks.light(x, y, z, self.channel) as u8;
+                let chunk = chunks.mut_chunk_by_global(x, y, z);
+                let Some(chunk) = chunk else {continue};
+
+                let nentry = LightEntry::new(x, y, z, light); 
+                if light != 0 && entry.light != 0 && light == entry.light-1 {
+                    self.remove_queue.push_back(nentry);
+                    chunk.lightmap.set(Chunks::u8_local_coords(x, y, z), 0, self.channel);
+                    chunk.modified = true;
+                } else if light >= entry.light {
+                    self.add_queue.push_back(nentry);
                 }
             }
         }
+    }
 
 
-        while !self.add_queue.is_empty() {
-            let entry = self.add_queue.pop_front();
+    fn solve_add_queue(&mut self, chunks: &mut Chunks) {
+        while let Some(entry) = self.add_queue.pop_front() {
+            if entry.light <= 1 { continue; }
 
-            if let Some(entry) = entry {
-                if entry.light <= 1 { continue; }
-                let mut chunks = self.chunks.borrow_mut();
-                let entry_voxel_id = if let Some(voxel) = chunks.voxel_global(entry.x, entry.y, entry.z) {voxel.id} else {0};
-                for (i, side) in PERMEABILITYS.iter().enumerate() {
-                    let x = entry.x + COORDS[i*3];
-                    let y = entry.y + COORDS[i*3+1];
-                    let z = entry.z + COORDS[i*3+2];
-                    
-                    let light = chunks.light(x, y, z, self.channel);
-                    let voxel = chunks.voxel_global(x, y, z);
+            let entry_id = chunks
+                .voxel_global(entry.x, entry.y, entry.z)
+                .map_or(0, |v| v.id);
 
-                    let id = if let Some(voxel) = voxel {voxel.id} else {0};
+            for (i, side) in PERMEABILITYS.iter().enumerate() {
+                let x = entry.x + COORDS[i*3];
+                let y = entry.y + COORDS[i*3+1];
+                let z = entry.z + COORDS[i*3+2];
+                let light = chunks.light(x, y, z, self.channel);
+                let id = chunks.voxel_global(x, y, z).map_or(0, |v| v.id);
+                let Some(chunk) = chunks.mut_chunk_by_global(x, y, z) else {continue};
 
-                    let chunk = chunks.mut_chunk_by_global(x, y, z);
-
-                    if let Some(chunk) = chunk {
-                        let is = BLOCKS[id as usize].light_permeability.check_permeability(&BLOCKS[entry_voxel_id as usize].light_permeability, side)
-                        || ((BLOCKS[entry_voxel_id as usize].emission[0] > 0
-                        || BLOCKS[entry_voxel_id as usize].emission[1] > 0
-                        || BLOCKS[entry_voxel_id as usize].emission[2] > 0) && BLOCKS[id as usize].light_permeability.check_permeability(&LightPermeability::ALL, side));
-                        if is && (light+2) < entry.light as u16 {
-                            self.add_queue.push_back(LightEntry::new(x, y, z, entry.light-1));
-                            chunk.lightmap.set(Chunks::u8_local_coords(x, y, z), (entry.light-1).into(), self.channel);
-                            chunk.modified = true;
-                        }
-                    }
+                
+                if Self::check_light_passing(entry_id, id, side) && (light+2) <= entry.light as u16 {
+                    self.add_queue.push_back(LightEntry::new(x, y, z, entry.light-1));
+                    chunk.lightmap.set(Chunks::u8_local_coords(x, y, z), (entry.light-1).into(), self.channel);
+                    chunk.modified = true;
                 }
             }
         }
+    }
+
+
+    fn check_light_passing(entry_id: u32, id: u32, side: &LightPermeability) -> bool {
+        let entry_id = entry_id as usize;
+        let id = id as usize;
+        BLOCKS()[id].light_permeability().check_permeability(&BLOCKS()[entry_id].light_permeability(), side)
+        ||
+        (
+            BLOCKS()[entry_id].emission().iter().any(|e| *e > 0) &&
+            BLOCKS()[id].light_permeability().check_permeability(&LightPermeability::ALL, side)
+        )
     }
 }

@@ -14,7 +14,6 @@ pub struct Camera {
     pub(super) rotation: glm::Mat4
 }
 
-
 impl Camera {
     pub fn new(position: glm::Vec3, fov: f32) -> Camera {
         let identity = glm::Mat4::identity();
@@ -68,4 +67,10 @@ impl Camera {
 
     pub fn position(&self) -> &glm::Vec3 { &self.position }
     pub fn front(&self) -> &glm::Vec3 { &self.front }
+    pub fn position_array(&self) -> [f32; 3] {
+        [self.position.x, self.position.y, self.position.z]
+    }
+    pub fn front_array(&self) -> [f32; 3] {
+        [self.front.x, self.front.y, self.front.z]
+    }
 }

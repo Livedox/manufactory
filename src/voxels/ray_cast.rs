@@ -1,22 +1,22 @@
-use super::{voxel::Voxel, chunks::Chunks};
+use super::{voxel::Voxel, chunks::Chunks, block::blocks::BLOCKS};
 
 use nalgebra_glm as glm;
 
-pub fn ray_cast<'a>(
-    chunks: &'a Chunks,
-    origin: &glm::Vec3,
-    direction: &glm::Vec3,
+pub fn ray_cast(
+    chunks: &Chunks,
+    origin: &[f32; 3],
+    direction: &[f32; 3],
     radius: f32
 )
--> Option<(f32, f32, f32, Option<&'a Voxel>, glm::TVec3<f32>)>
+-> Option<(f32, f32, f32, Option<Voxel>, glm::TVec3<f32>)>
 {
-    let px = origin.x;
-    let py = origin.y;
-    let pz = origin.z;
+    let px = origin[0];
+    let py = origin[1];
+    let pz = origin[2];
 
-    let dx = direction.x;
-    let dy = direction.y;
-    let dz = direction.z;
+    let dx = direction[0];
+    let dy = direction[1];
+    let dz = direction[2];
 
     let mut t = 0.0;
     let mut ix = px.floor();
@@ -44,12 +44,21 @@ pub fn ray_cast<'a>(
     while t <= radius {
         let voxel = chunks.voxel_global(ix as i32, iy as i32, iz as i32);
         let id = if let Some(voxel) = voxel {voxel.id} else {0};
-        if id != 0 {
+        let mut condition = id != 0;
+        let block = &BLOCKS()[id as usize];
+        if block.is_voxel_size() {
+            let min_p = block.min_point();
+            let min = [ix + min_p.0, iy + min_p.1, iz + min_p.2];
+            let max_p = block.max_point();
+            let max = [ix+max_p.0, iy+max_p.1, iz+max_p.2];
+            condition = condition && intersect_ray_rectangular_parallelepiped(origin, direction, &min, &max);
+        }
+        if condition {
             let mut face = glm::vec3(0.0, 0.0, 0.0);
 			if stepped_index == 0 { face.x = -stepx };
 			if stepped_index == 1 { face.y = -stepy };
 			if stepped_index == 2 { face.z = -stepz };
-            return Some((ix, iy, iz, voxel, face));
+            return Some((ix, iy, iz, voxel.clone().copied(), face));
         }
 
         if tx_max < ty_max {
@@ -64,7 +73,8 @@ pub fn ray_cast<'a>(
 				tz_max += tz_delta;
 				stepped_index = 2;
 			}
-		} else if ty_max < tz_max {
+		} else {
+            if ty_max < tz_max {
   				iy += stepy;
   				t = ty_max;
   				ty_max += ty_delta;
@@ -75,6 +85,30 @@ pub fn ray_cast<'a>(
   				tz_max += tz_delta;
   				stepped_index = 2;
   			}
+        }
     }
     None
+}
+
+fn intersect_ray_rectangular_parallelepiped(
+    origin: &[f32; 3],
+    direction: &[f32; 3],
+    min_point: &[f32; 3],
+    max_point: &[f32; 3]
+) -> bool {
+    let mut tmin = f32::MIN;
+    let mut tmax = f32::MAX;
+
+    for i in 0..3 {
+        if direction[i].abs() >= f32::EPSILON {
+            let lo = (min_point[i] - origin[i]) / direction[i];
+            let hi = (max_point[i] - origin[i]) / direction[i];
+            tmin = tmin.max(lo.min(hi));
+            tmax = tmax.min(lo.max(hi));
+        } else if origin[i] < min_point[i] || origin[i] > max_point[i] {
+            return false;
+        }
+    }
+
+    (tmin <= tmax) && (tmax > 0.0)
 }

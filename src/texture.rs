@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use anyhow::*;
 use bytemuck::{Zeroable, Pod};
+use egui::TextureId;
 use image::{GenericImageView, RgbaImage, ImageFormat, DynamicImage};
 use wgpu::{TextureDimension, TextureViewDimension, PipelineLayout};
 
@@ -13,33 +14,24 @@ pub struct Texture {
 }
 
 impl Texture {
-    pub fn from_bytes(
+    pub fn image(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        bytes: &[u8],
-        label: &str,
+        src: &str,
     ) -> Result<Self> {
-        let img = image::load_from_memory(bytes)?;
-        Self::from_image(device, queue, &img, Some(label))
-    }
-
-    pub fn from_image(
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        img: &image::DynamicImage,
-        label: Option<&str>,
-    ) -> Result<Self> {
-        let rgba = img.to_rgba8();
-        let dimensions = img.dimensions();
+        let img = image::open(src).expect(&format!("{}", src));
+        let (width, height) = (img.width(), img.height());
+        
+        if width != height { panic!("Use square textures") }
 
         let size = wgpu::Extent3d {
-            width: dimensions.0,
-            height: dimensions.1,
+            width,
+            height,
             depth_or_array_layers: 1,
         };
         let format = wgpu::TextureFormat::Rgba8UnormSrgb;
         let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label,
+            label: Some("Texture object"),
             size,
             mip_level_count: 1,
             sample_count: 1,
@@ -56,11 +48,11 @@ impl Texture {
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
             },
-            &rgba,
+            img.as_flat_samples_u8().unwrap().samples,
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(4 * dimensions.0),
-                rows_per_image: Some(dimensions.1),
+                bytes_per_row: Some(4 * width),
+                rows_per_image: Some(height),
             },
             size,
         );
@@ -70,7 +62,7 @@ impl Texture {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
+            mag_filter: wgpu::FilterMode::Nearest,
             min_filter: wgpu::FilterMode::Nearest,
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
@@ -229,5 +221,90 @@ impl Texture {
         device
             .create_texture(multisampled_frame_descriptor)
             .create_view(&wgpu::TextureViewDescriptor::default())
+    }
+}
+
+
+pub struct TextureAtlas {
+    pub texture_id: egui::TextureId,
+    pub uv_size: f32,
+    pub row_count: f32,
+}
+
+
+impl TextureAtlas {
+    pub fn new(
+        render_pass: &mut egui_wgpu_backend::RenderPass,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        src: &str,
+        row_count: u32
+    ) -> Self {
+        let img = image::open(src).unwrap();
+        let (width, height) = (img.width(), img.height());
+        
+        if width != height { panic!("Use square textures") }
+        if width & (width-1) != 0 { panic!("Image resolution must be a multiple of a power of two")}
+
+        let size = wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        };
+        let format = wgpu::TextureFormat::Rgba8UnormSrgb;
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("Texture atlas"),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        queue.write_texture(
+            wgpu::ImageCopyTexture {
+                aspect: wgpu::TextureAspect::All,
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+            },
+            img.as_flat_samples_u8().unwrap().samples,
+            wgpu::ImageDataLayout {
+                offset: 0,
+                bytes_per_row: Some(4 * width),
+                rows_per_image: Some(height),
+            },
+            size,
+        );
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let texture_id = render_pass.egui_texture_from_wgpu_texture(device, &view, wgpu::FilterMode::Nearest);
+        Self {
+            texture_id,
+            uv_size: 1.0 / row_count as f32,
+            row_count: row_count as f32,
+        }
+    }
+
+
+    pub fn u(&self, id: u32) -> f32 {
+        (id as f32 % self.row_count).trunc()*self.uv_size
+    }
+
+    pub fn v(&self, id: u32) -> f32 {
+        (id as f32 / self.row_count).trunc()*self.uv_size
+    }
+
+    pub fn uv(&self, id: u32) -> (f32, f32) {
+        (self.u(id), self.v(id))
+    }
+
+
+    pub fn uv_rect(&self, id: u32) -> (f32, f32, f32, f32) {
+        let uv = self.uv(id);
+        (uv.0, uv.1, uv.0+self.uv_size, uv.1+self.uv_size)
     }
 }
