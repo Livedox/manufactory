@@ -1,6 +1,6 @@
-use crate::{voxels::block::{self}, world::xyz::XYZ};
+use crate::world::xyz::XYZ;
 
-use super::{interaction::{BlockInteraction, BlockItem}, block_type::BlockType, light_permeability::LightPermeability};
+use super::{interaction::BlockInteraction, block_type::BlockType, light_permeability::LightPermeability};
 
 pub struct BlockBelt {
     pub id: u32,

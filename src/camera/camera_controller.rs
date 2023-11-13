@@ -1,6 +1,4 @@
-use std::time::Instant;
-
-use crate::{input_event::{input_service::{InputService, Key}, KeypressState}, my_time::Time};
+use crate::input_event::{input_service::{InputService, Key}, KeypressState};
 use nalgebra_glm as glm;
 
 use super::{camera::Camera, frustum::Frustum};
@@ -56,17 +54,17 @@ impl CameraController {
     pub fn proj_view(&self, width: f32, height: f32) -> glm::Mat4 {
         self.camera.proj_view(width, height)
     }
-    pub fn position(&self) -> &glm::Vec3 {&self.camera.position()}
-    pub fn front(&self) -> &glm::Vec3 {&self.camera.front()}
+    pub fn position(&self) -> &glm::Vec3 {self.camera.position()}
+    pub fn front(&self) -> &glm::Vec3 {self.camera.front()}
     pub fn position_array(&self) -> [f32; 3] {self.camera.position_array()}
     pub fn front_array(&self) -> [f32; 3] {self.camera.front_array()}
-    pub fn up(&self) -> &glm::Vec3 {&self.camera.up()}
-    pub fn right(&self) -> &glm::Vec3 {&self.camera.right()}
+    pub fn up(&self) -> &glm::Vec3 {self.camera.up()}
+    pub fn right(&self) -> &glm::Vec3 {self.camera.right()}
     pub fn near(&self) -> f32 {self.camera.near}
     pub fn far(&self) -> f32 {self.camera.far}
     pub fn fov(&self) -> f32 {self.camera.fov}
 
     pub fn new_frustum(&self, aspect: f32) -> Frustum {
-        Frustum::new(&self, aspect)
+        Frustum::new(self, aspect)
     }
 }

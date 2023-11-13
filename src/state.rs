@@ -1,19 +1,15 @@
-use std::{iter, time::Duration, collections::HashMap, rc::Rc, cell::RefCell};
+use std::{iter, collections::HashMap, rc::Rc};
 
 use egui::{FontDefinitions, vec2};
-use egui_demo_lib::DemoWindows;
+
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::{Platform, PlatformDescriptor};
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags};
-use winit::{
-    event::*,
-    event_loop::{ControlFlow, EventLoop},
-    window::{Window, WindowBuilder},
-};
+use winit::window::Window;
 use async_std::task::block_on;
-use nalgebra_glm as glm;
 
-use crate::{texture::{self, Texture, TextureAtlas}, vertices::{block_vertex::BlockVertex, model_vertex::ModelVertex, model_instance::ModelInstance, animated_model_instance::AnimatedModelInstance, animated_model_vertex::AnimatedModelVertex, selection_vertex::SelectionVertex}, meshes::Meshes, pipelines::{bind_group_layout::{texture::get_texture_bind_group_layout, camera::get_camera_bind_group_layout}, new_pipeline}, gui::gui_controller::{GuiController, self}, player::{inventory::{PlayerInventory}, player::Player}, my_time::Time, recipes::{recipe::{Recipe, RecipeCategory, Recipes}, item::Item, storage::Storage}, model::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, voxels::{chunks::Chunks, voxel_data::PlayerUnlockableStorage}, world::sun::Sun};
+
+use crate::{texture::{self, Texture, TextureAtlas}, vertices::{block_vertex::BlockVertex, model_vertex::ModelVertex, model_instance::ModelInstance, animated_model_instance::AnimatedModelInstance, animated_model_vertex::AnimatedModelVertex, selection_vertex::SelectionVertex}, meshes::Meshes, pipelines::{bind_group_layout::{texture::get_texture_bind_group_layout, camera::get_camera_bind_group_layout}, new_pipeline}, gui::gui_controller::GuiController, player::player::Player, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, world::sun::Sun};
 
 pub const IS_LINE: bool = false;
 const PRIMITIVE_TOPOLOGY: wgpu::PrimitiveTopology = match IS_LINE {
@@ -161,8 +157,8 @@ impl State {
         println!("Sample count X{}", sample_count);
 
         let egui_platform = Platform::new(PlatformDescriptor {
-            physical_width: size.width as u32,
-            physical_height: size.height as u32,
+            physical_width: size.width,
+            physical_height: size.height,
             scale_factor: window.scale_factor(),
             font_definitions: FontDefinitions::default(),
             style: Default::default(),
@@ -205,7 +201,7 @@ impl State {
             "./assets/debug/12.png",
             "./assets/debug/13.png",
             "./assets/debug/14.png",
-            "./assets/debug/15.png",], None, sample_count).unwrap();
+            "./assets/debug/15.png",], None).unwrap();
 
         let texture_bind_group_layout = get_texture_bind_group_layout(&device, wgpu::TextureViewDimension::D2Array);
 
@@ -569,7 +565,7 @@ impl State {
             self.multisampled_framebuffer =
                 texture::Texture::create_multisampled_framebuffer(&self.device, &self.config, self.sample_count);
             
-            self.queue.write_buffer(&self.crosshair_u_ar_buffer, 0, &((new_size.height as f32/new_size.width as f32)).to_le_bytes());
+            self.queue.write_buffer(&self.crosshair_u_ar_buffer, 0, &(new_size.height as f32/new_size.width as f32).to_le_bytes());
             self.queue.write_buffer(&self.crosshair_u_scale_buffer, 0, &(600.0/new_size.height as f32).to_le_bytes());
         }
     }
@@ -593,7 +589,7 @@ impl State {
             .draw_inventory(ctx, player, 2)
             // .draw_hotbar(ctx, player, 2)
             .draw_debug(ctx, debug_data, block_id)
-            .draw_active_recieps(ctx, player, time);
+            .draw_active_recieps(ctx, player);
 
         let window = if gui_controller.is_cursor() {Some(self.window.as_ref())} else {None};
         let full_output = self.egui_platform.end_frame(window);
@@ -693,7 +689,7 @@ impl State {
                 render_pass.set_bind_group(3, bind_group, &[]);
                 mesh.animated_models.iter().for_each(|(name, (instance, len))| {
                     let Some(animated_model) = self.animated_models.get(name) else { return; };
-                    if mesh.animated_models.len() > 0 {
+                    if !mesh.animated_models.is_empty() {
                         render_pass.set_bind_group(1, &animated_model.texture, &[]);
                         render_pass.set_vertex_buffer(0, animated_model.vertex_buffer.slice(..));
     

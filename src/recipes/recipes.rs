@@ -1,4 +1,4 @@
-use std::{time::Duration, cell::OnceCell, sync::OnceLock};
+use std::{time::Duration, sync::OnceLock};
 
 use crate::recipes::item::Item;
 use crate::recipes::recipe::{Recipe, RecipeCrafter, RecipeCategory};

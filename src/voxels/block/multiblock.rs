@@ -1,4 +1,4 @@
-use crate::{voxels::block::{self}, world::{World, global_xyz::GlobalXYZ}, player::player::Player, direction::Direction};
+use crate::{world::{World, global_xyz::GlobalXYZ}, player::player::Player, direction::Direction};
 
 use super::{interaction::BlockInteraction, block_type::BlockType, light_permeability::LightPermeability};
 

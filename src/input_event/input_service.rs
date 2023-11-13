@@ -1,8 +1,6 @@
 use winit::event::{Event, WindowEvent, ElementState, DeviceEvent};
 
-use crate::my_time::Time;
-
-use super::{input_broker::{InputBroker}, KeypressState, InputOffset};
+use super::{input_broker::InputBroker, KeypressState, InputOffset};
 
 pub type Key = winit::event::VirtualKeyCode;
 pub type Mouse = winit::event::MouseButton;
@@ -11,12 +9,11 @@ pub type Mouse = winit::event::MouseButton;
 #[derive(Debug)]
 pub struct InputService {
     input_broker: InputBroker,
-    delta_mouse: (Vec<f32>, Vec<f32>),
 }
 
 
 impl InputService {
-    pub fn new() -> Self { Self { input_broker: InputBroker::new(), delta_mouse: (vec![], vec![]) } }
+    pub fn new() -> Self { Self { input_broker: InputBroker::new() } }
     pub fn delta(&self) -> &(f32, f32) { &self.input_broker.delta }
     pub fn coords(&self) -> &(f32, f32) { &self.input_broker.coords }
 
@@ -34,7 +31,7 @@ impl InputService {
     }
 
     pub fn is_mouse(&self, mouse: &Mouse, state: KeypressState) -> bool {
-        self.input_broker.is_button(Self::to_mouse_id(&mouse), state)
+        self.input_broker.is_button(Self::to_mouse_id(mouse), state)
     }
 
     pub fn update_delta_mouse(&mut self) {
@@ -68,22 +65,23 @@ impl InputService {
                         self.input_broker.set_coords(position.x as f32, position.y as f32);
                     },
                     WindowEvent::MouseWheel { delta, .. } => {
-                        match delta {
-                            winit::event::MouseScrollDelta::LineDelta(_, y) => {
-                                self.input_broker.set_wheel(*y as i8)
-                            },
-                            _ => ()
+                        if let winit::event::MouseScrollDelta::LineDelta(_, y) = delta {
+                            self.input_broker.set_wheel(*y as i8);
                         }
                     },
                     _ => {}
             }}
-            Event::DeviceEvent { event, .. } => match event {
-                DeviceEvent::MouseMotion { delta } => {
-                    self.input_broker.set_delta(delta.0 as f32, delta.1 as f32);
-                },
-               _ => {}
+            Event::DeviceEvent { event, .. } => if let DeviceEvent::MouseMotion { delta } = event {
+                self.input_broker.set_delta(delta.0 as f32, delta.1 as f32);
             }
             _ => {}
         }
+    }
+}
+
+
+impl Default for InputService {
+    fn default() -> Self {
+        Self::new()
     }
 }

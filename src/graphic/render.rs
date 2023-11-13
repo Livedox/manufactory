@@ -8,9 +8,9 @@ enum Direction{Top, Left}
 
 use std::collections::HashMap;
 
-use crate::{voxels::{chunk::{CHUNK_SIZE, CHUNK_SQUARE, CHUNK_VOLUME}, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType, light_permeability::LightPermeability}}, vertices::{block_vertex::BlockVertex}, state::IS_LINE, model::animated_model::AnimatedModel};
+use crate::{voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType, light_permeability::LightPermeability}}, vertices::block_vertex::BlockVertex, state::IS_LINE};
 
-use super::complex_object::{new_transport_belt, ComplexObjectGroup, ComplexObjectPart, ComplexObjectSide};
+use super::complex_object::{ComplexObjectPart, ComplexObjectSide};
 
 type GreedyVertices = [[Vec<[BlockVertex; 4]>; CHUNK_SIZE]; CHUNK_SIZE];
 struct GreedMesh {
@@ -102,7 +102,7 @@ fn get_block_vertex(x: f32, y: f32, z: f32, u: f32, v: f32, layer: f32, light: &
     BlockVertex {
         position: [x, y, z],
         uv: [u, v],
-        layer: layer,
+        layer,
         v_light: [light[0], light[1], light[2], light[3]]}
 }
 
@@ -116,7 +116,7 @@ impl Buffer {
             BlockVertex {
                 position: [x, y, z],
                 uv: [u, v],
-                layer: layer,
+                layer,
                 v_light: [light[0], light[1], light[2], light[3]]});
         self.index_buffer.push(current_index);
         current_index
@@ -177,7 +177,7 @@ fn push_complex_vertices(
     let layer = side.texture_layer as f32;
     let ld = light_handler.light_default((xyz.0, xyz.1, xyz.2));
     side.vertex_groups.iter().for_each(|group| {
-        let vertices: Vec<BlockVertex> = (0..4).into_iter().map(|i| {
+        let vertices: Vec<BlockVertex> = (0..4).map(|i| {
             get_block_vertex(
                 xyz.0 as f32 + group.x(rotation_index, i),
                 xyz.1 as f32 + group.y(rotation_index, i),
@@ -203,7 +203,7 @@ fn render_complex_side(
      (&part.positive_x, [3,2,0,2,1,0]), (&part.negative_x, [0,1,2,0,2,3]),
      (&part.positive_z, [3,2,0,2,1,0]), (&part.negative_z, [0,1,2,0,2,3])]
         .iter().for_each(|(side, indices)| {
-            push_complex_vertices(buffer, &light_handler, side, indices, xyz, rotation_index);
+            push_complex_vertices(buffer, light_handler, side, indices, xyz, rotation_index);
         });
 }
 
@@ -213,7 +213,7 @@ impl VoxelRenderer {
         let mut buffer = Buffer::new();
 
         let mut transport_belt_buffer = Buffer::new();
-        let light_handler = LightHandler::new(&chunks);
+        let light_handler = LightHandler::new(chunks);
         let chunk = chunks.chunks[chunk_index].as_ref().unwrap();
         let mut models = HashMap::<String, Vec<([f32; 3], [f32; 4], u32)>>::new();
         let mut animated_models_data = HashMap::<String, Vec<([f32; 3], [f32; 4], f32, u32)>>::new();

@@ -1,7 +1,7 @@
 pub mod interaction;
 pub mod block_default;
 pub mod block_type;
-pub mod constructor;
+pub mod block_builder;
 pub mod block_player;
 pub mod blocks;
 pub mod light_permeability;

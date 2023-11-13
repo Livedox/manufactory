@@ -1,10 +1,8 @@
-use std::{cell::RefCell, rc::Rc};
-
 use itertools::Itertools;
 
-use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage, recipe::{Recipe, ActiveRecipe}, recipes::{RECIPES, all_recipe}}, direction::Direction};
+use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage}, direction::Direction};
 
-use super::{chunks::Chunks, chunk::Chunk, voxel_data::{VoxelAdditionalData, MultiBlock}};
+use super::chunks::Chunks;
 
 // PLEASE UPDATE THIS SHIT
 
@@ -66,28 +64,26 @@ impl TransportBelt {
                 .and_then(|voxel_data| voxel_data.additionally.transport_belt())
         }) else {return};
         
-        if self.item_progress[0] > 1.0 {
-            if dst.borrow_mut().put(&self.storage[0].0.unwrap(), TransportBeltSide::Left).is_none() {
-                self.item_progress[0] = self.item_progress[1];
-                self.item_progress[1] = self.item_progress[2];
-                self.item_progress[2] = 0.0;
+        if self.item_progress[0] > 1.0
+         && dst.borrow_mut().put(&self.storage[0].0.unwrap(), TransportBeltSide::Left).is_none() {
+            self.item_progress[0] = self.item_progress[1];
+            self.item_progress[1] = self.item_progress[2];
+            self.item_progress[2] = 0.0;
 
-                self.storage[0] = self.storage[1];
-                self.storage[1] = self.storage[2];
-                self.storage[2] = PossibleItem::new_none();
-            }; 
+            self.storage[0] = self.storage[1];
+            self.storage[1] = self.storage[2];
+            self.storage[2] = PossibleItem::new_none(); 
         }
 
-        if self.item_progress[3] > 1.0 {
-            if dst.borrow_mut().put(&self.storage[3].0.unwrap(), TransportBeltSide::Right).is_none() {
-                self.item_progress[3] = self.item_progress[4];
-                self.item_progress[4] = self.item_progress[5];
-                self.item_progress[5] = 0.0;
+        if self.item_progress[3] > 1.0 
+         && dst.borrow_mut().put(&self.storage[3].0.unwrap(), TransportBeltSide::Right).is_none() {
+            self.item_progress[3] = self.item_progress[4];
+            self.item_progress[4] = self.item_progress[5];
+            self.item_progress[5] = 0.0;
 
-                self.storage[3] = self.storage[4];
-                self.storage[4] = self.storage[5];
-                self.storage[5] = PossibleItem::new_none();
-            } 
+            self.storage[3] = self.storage[4];
+            self.storage[4] = self.storage[5];
+            self.storage[5] = PossibleItem::new_none();
         }
     }
 
@@ -98,26 +94,25 @@ impl TransportBelt {
                     return possible_item.try_add_item(item);
                 }
             }
-            return Some(Item::from(item));
         } else {
             for possible_item in self.storage[3..6].iter_mut(){
                 if possible_item.0.is_none() {
                     return possible_item.try_add_item(item);
                 }
             }
-            return Some(Item::from(item));
         }
+        Some(Item::from(item))
     }
 }
 
 
 
 impl Storage for TransportBelt {
-    fn storage<'a>(&'a self) -> &'a [PossibleItem] {
+    fn storage(&self) -> & [PossibleItem] {
         &self.storage
     }
 
-    fn mut_storage<'a>(&'a mut self) -> &'a mut [PossibleItem] {
+    fn mut_storage(&mut self) -> &mut [PossibleItem] {
         &mut self.storage
     }
 

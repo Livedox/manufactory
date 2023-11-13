@@ -53,11 +53,9 @@ impl ActiveRecipe {
     }
 
     pub fn update(&self, storage: &mut dyn Storage) -> bool {
-        if self.is_finished() {
-            if storage.is_space_exist(&self.recipe.result) {
-                storage.add(&self.recipe.result, false);
-                return true;
-            }
+        if self.is_finished() && storage.is_space_exist(&self.recipe.result) {
+            storage.add(&self.recipe.result, false);
+            return true;
         }
         false
     }
@@ -107,14 +105,14 @@ impl<'a> CraftStation<'a> {
             recipe.ingredients.iter().for_each(|item| {
                 ingredient_recipe
                     .entry(item.id())
-                    .and_modify(|v| v.push(&recipe))
-                    .or_insert(vec![&recipe]);
+                    .and_modify(|v| v.push(recipe))
+                    .or_insert(vec![recipe]);
             });
 
             result_recipe
                 .entry(recipe.id)
-                .and_modify(|v| v.push(&recipe))
-                .or_insert(vec![&recipe]);
+                .and_modify(|v| v.push(recipe))
+                .or_insert(vec![recipe]);
         });
 
         Self { all, ingredient_recipe, result_recipe }
@@ -125,16 +123,16 @@ impl<'a> CraftStation<'a> {
     }
 
     pub fn first_by_ingredient(&self, ingredient_id: u32) -> Option<&Recipe> {
-        self.get_by_ingredient(ingredient_id).and_then(|v| Some(v[0]))
+        self.get_by_ingredient(ingredient_id).map(|v| v[0])
     }
     pub fn first_by_result(&self, result_id: u32) -> Option<&Recipe> {
-        self.get_by_result(result_id).and_then(|v| Some(v[0]))
+        self.get_by_result(result_id).map(|v| v[0])
     }
     pub fn get_by_ingredient(&self, ingredient_id: u32) -> Option<&[&Recipe]> {
-        self.ingredient_recipe.get(&ingredient_id).and_then(|v| Some(v.as_slice()))
+        self.ingredient_recipe.get(&ingredient_id).map(|v| v.as_slice())
     }
     pub fn get_by_result(&self, result_id: u32) -> Option<&[&Recipe]> {
-        self.result_recipe.get(&result_id).and_then(|v| Some(v.as_slice()))
+        self.result_recipe.get(&result_id).map(|v| v.as_slice())
     }
 }
 

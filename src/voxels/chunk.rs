@@ -1,8 +1,8 @@
-use std::{collections::HashMap, rc::{Weak, Rc}, cell::RefCell};
+use std::{collections::HashMap, rc::Rc};
 
 use itertools::iproduct;
 
-use crate::{light::light_map::LightMap, direction::Direction, recipes::{recipe::Recipes}};
+use crate::{light::light_map::LightMap, direction::Direction};
 
 use super::{voxel::{self, Voxel}, voxel_data::{VoxelData, VoxelAdditionalData}, chunks::Chunks, block::blocks::BLOCKS};
 
@@ -11,7 +11,7 @@ pub const HALF_CHUNK_SIZE: usize = CHUNK_SIZE/2;
 pub const CHUNK_SQUARE: usize = CHUNK_SIZE.pow(2);
 pub const CHUNK_VOLUME: usize = CHUNK_SIZE.pow(3);
 pub const CHUNK_BIT_SHIFT: usize = CHUNK_SIZE.ilog2() as usize;
-pub const CHUNK_BITS: usize = CHUNK_SIZE - 1 as usize;
+pub const CHUNK_BITS: usize = CHUNK_SIZE - 1_usize;
 
 
 #[derive(Debug)]

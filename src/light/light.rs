@@ -47,12 +47,11 @@ impl Light {
             }
 
             for (ly, lz, lx) in iproduct!((0..CHUNK_SIZE-1).rev(), 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
-                if chunk.lightmap.get_sun((lx as u8, (ly+1) as u8, lz as u8)) == 15 {
-                    if BLOCKS()[chunk.voxel((lx as usize, ly as usize, lz as usize)).id as usize].id() == 0 {
-                        chunk.lightmap.set_sun((lx as u8, ly as u8, lz as u8), 15);
-                        let global = Chunks::global_coords((cx, cy, cz), (lx, ly, lz));
-                        self.solver_sun.add(unsafe {chunks_ptr.as_mut().unwrap()}, global.0, global.1, global.2);
-                    }
+                if chunk.lightmap.get_sun((lx as u8, (ly+1) as u8, lz as u8)) == 15
+                 && BLOCKS()[chunk.voxel((lx, ly, lz)).id as usize].id() == 0 {
+                    chunk.lightmap.set_sun((lx as u8, ly as u8, lz as u8), 15);
+                    let global = Chunks::global_coords((cx, cy, cz), (lx, ly, lz));
+                    self.solver_sun.add(unsafe {chunks_ptr.as_mut().unwrap()}, global.0, global.1, global.2);
                 }
             }
         }

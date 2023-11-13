@@ -1,5 +1,3 @@
-use std::{time::{Instant, Duration}, collections::HashMap};
-
 const STACK_SIZE: u32 = 100;
 
 #[derive(Debug, Clone, Copy)]
@@ -10,7 +8,7 @@ impl PossibleItem {
     pub fn new(id: u32, count: u32) -> Self {Self(Some(Item::new(id, count)))}
 
     pub fn try_add(&mut self, possible_item: &PossibleItem) -> Option<Item> {
-        possible_item.0.as_ref().and_then(|item| self.try_add_item(&item))
+        possible_item.0.as_ref().and_then(|item| self.try_add_item(item))
     }
 
 
@@ -25,18 +23,18 @@ impl PossibleItem {
     }
 
     pub fn try_sub(&mut self, possible_item: &PossibleItem) -> Option<Item> {
-        possible_item.0.as_ref().and_then(|item| self.try_sub_item(&item))
+        possible_item.0.as_ref().and_then(|item| self.try_sub_item(item))
     }
 
     pub fn try_sub_item(&mut self, item: &Item) -> Option<Item> {
-        let result = self.0.as_mut().map_or(Some(Item::from(item)), |i| i.try_sub(&item));
+        let result = self.0.as_mut().map_or(Some(Item::from(item)), |i| i.try_sub(item));
         self.clear_if_empty();
         result
     }
 
 
     pub fn try_take(&mut self, max_count: u32) -> Option<Item> {
-        let result = self.0.as_mut().and_then(|item| Some(item.take(max_count)));
+        let result = self.0.as_mut().map(|item| item.take(max_count));
         self.clear_if_empty();
         result
     }
@@ -44,7 +42,7 @@ impl PossibleItem {
 
     pub fn available_space(&self, item_id: u32) -> u32 {
         self.0.as_ref()
-            .and_then(|item| Some(item.available_space(item_id)))
+            .map(|item| item.available_space(item_id))
             .unwrap_or(STACK_SIZE)
     }
 
@@ -54,7 +52,7 @@ impl PossibleItem {
 
     pub fn residual_space(&self, item_id: u32) -> u32 {
         self.0.as_ref()
-            .and_then(|item| Some(item.available_space(item_id)))
+            .map(|item| item.available_space(item_id))
             .unwrap_or(0)
     }
 
@@ -108,7 +106,7 @@ impl Item {
         if self.id != item.id {return Some(Item::from(item))};
         let sub = self.count as i32 - item.count as i32;
         self.count = std::cmp::max(sub, 0i32) as u32;
-        if sub < 0 {return Some(Item::new(self.id, sub.abs() as u32))}
+        if sub < 0 {return Some(Item::new(self.id, sub.unsigned_abs()))}
         None
     }
 
@@ -126,7 +124,7 @@ impl Item {
 
     pub fn take(&mut self, max_count: u32) -> Item {
         self.try_sub(&Item::new(self.id, max_count))
-            .and_then(|i| Some(Item::new(self.id, max_count - i.count)))
+            .map(|i| Item::new(self.id, max_count - i.count))
             .unwrap_or(Item::new(self.id, max_count))
     }
 

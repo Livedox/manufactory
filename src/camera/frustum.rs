@@ -15,7 +15,7 @@ impl Plane {
     }
 
     pub fn signed_distance_to_plane(&self, point: &glm::Vec3) -> f32 {
-        return glm::dot(&self.normal, point) - self.distance;
+        glm::dot(&self.normal, point) - self.distance
     }
 }
 

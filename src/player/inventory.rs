@@ -1,6 +1,6 @@
-use std::{error::Error, collections::VecDeque, rc::Rc, ops::Range};
+use std::ops::Range;
 
-use crate::{recipes::{recipe::{Recipe, ActiveRecipe, RecipeCategory, RecipeCrafter}, item::PossibleItem, storage::Storage}, my_time::Time};
+use crate::recipes::{recipe::{Recipe, ActiveRecipe, RecipeCrafter}, item::PossibleItem, storage::Storage};
 
 
 #[derive(Debug)]
@@ -60,8 +60,8 @@ impl PlayerInventory {
         let pi = self.storage[index].0.take();
         if let Some(item) = &pi {
             for sitem_index in range {
-                if self.storage[sitem_index].is_possible_add(&item) {
-                    self.storage[sitem_index].try_add_item(&item);
+                if self.storage[sitem_index].is_possible_add(item) {
+                    self.storage[sitem_index].try_add_item(item);
                     return true;
                 }
             }
@@ -73,11 +73,11 @@ impl PlayerInventory {
 
 
 impl Storage for PlayerInventory {
-    fn storage<'a>(&'a self) -> &'a [PossibleItem] {
+    fn storage(&self) -> & [PossibleItem] {
         &self.storage
     }
 
-    fn mut_storage<'a>(&'a mut self) -> &'a mut [PossibleItem] {
+    fn mut_storage(&mut self) -> &mut [PossibleItem] {
         &mut self.storage
     }
 }

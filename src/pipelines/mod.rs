@@ -1,4 +1,3 @@
-pub mod object;
 pub mod bind_group_layout;
 
 use wgpu::{Device, BindGroupLayout, VertexBufferLayout, ShaderModule, TextureFormat, PrimitiveTopology, RenderPipeline};

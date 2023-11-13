@@ -1,11 +1,9 @@
 use egui::{Rect, RichText, Stroke, Rounding};
 
-use crate::{gui::theme::DEFAULT_THEME};
+use crate::gui::theme::DEFAULT_THEME;
 
 const WIDTH: f32 = 120.0;
 const HEIGHT: f32 = 60.0;
-const FONT_SIZE: f32 = 20.0;
-const BOTTOM_PADDING: f32 = 3.0;
 const STROKE_WIDTH: f32 = 2.0;
 
 

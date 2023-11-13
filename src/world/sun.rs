@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 #[derive(Debug)]
 pub struct Color(pub f32, pub f32, pub f32);
@@ -43,7 +43,7 @@ impl<const N: usize> Sun<N> {
         for i in (0..(self.sun.len()-1)).rev() {
             if time >= self.time_start[i] as f32 {
                 let end_progress = self.time_start[i + 1] - self.time_start[i];
-                let progress = (time - self.time_start[i] as f32) as f32 / end_progress as f32;
+                let progress = (time - self.time_start[i] as f32) / end_progress as f32;
                 return (self.sun[i].interpolation(&self.sun[i + 1], progress),
                     self.sky[i].interpolation(&self.sky[i + 1], progress));
             }

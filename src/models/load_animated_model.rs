@@ -9,7 +9,7 @@ use nalgebra_glm as glm;
 use russimp::{node::Node, bone::Bone, scene::{Scene, PostProcess}};
 
 fn get_armature_name(name: &str) -> String {
-    let mut armature_name = name.replace(".", "_");
+    let mut armature_name = name.replace('.', "_");
     if let Some(offset) = armature_name.find('|') {
         armature_name.drain(offset..);
     };
@@ -23,7 +23,7 @@ fn check_bone_name(name: &str, bone_name: &str) -> bool {
     &name[name.len() - bone_name.len()..] == bone_name
 }
 
-fn parse_node_children(correction: &glm::Mat4, node: &Node, bones: &Vec<Bone>, index: &mut usize) -> Option<Joint> {  
+fn parse_node_children(node: &Node, bones: &Vec<Bone>, index: &mut usize) -> Option<Joint> {  
     if *index >= bones.len() || !check_bone_name(&node.name[..], &bones[*index].name[..]) {
         *index -= 1;
         return None;
@@ -38,7 +38,7 @@ fn parse_node_children(correction: &glm::Mat4, node: &Node, bones: &Vec<Bone>, i
     let mut joint = Joint::new(*index, bones[*index].name.clone(), inverse_bind_transform);
     node.children.borrow().iter().for_each(|child| {
         *index += 1;
-        let child_joint = parse_node_children(correction, child.as_ref(), bones, index);
+        let child_joint = parse_node_children(child.as_ref(), bones, index);
         if let Some(child_joint) = child_joint {
             joint.add_child(child_joint);
         }
@@ -46,16 +46,16 @@ fn parse_node_children(correction: &glm::Mat4, node: &Node, bones: &Vec<Bone>, i
     Some(joint)
 }
 
-fn create_joint(correction: &glm::Mat4, root_node: &Node, bones: &Vec<Bone>, armature_name: &str) -> Result<Joint, String> {
+fn create_joint(root_node: &Node, bones: &Vec<Bone>, armature_name: &str) -> Result<Joint, String> {
     let binding = root_node.children
         .borrow();
     let armature_node = binding
         .iter()
         .find(|child| {child.name == armature_name})
-        .ok_or(format!("No armature with the name {:?} were found", armature_name).to_string())?;
+        .ok_or(format!("No armature with the name {:?} were found", armature_name))?;
 
     let node = &armature_node.children.borrow()[0];
-    parse_node_children(correction, node.as_ref(), bones, &mut 0).ok_or("Failed to create joint".to_string())
+    parse_node_children(node.as_ref(), bones, &mut 0).ok_or("Failed to create joint".to_string())
 }
 
 pub fn load_animated_model(
@@ -66,7 +66,7 @@ pub fn load_animated_model(
   src_texture: &str,
   name: &str
 ) -> AnimatedModel {
-    let texture = crate::model::load_texture::load_texture(device, queue, texture_layout, src_texture, name);
+    let texture = crate::models::load_texture::load_texture(device, queue, texture_layout, src_texture, name);
     let scene = Scene::from_file(src, vec![PostProcess::FlipUVs, PostProcess::MakeLeftHanded]).unwrap();
     let root = scene.root.unwrap();
     let bones = &scene.meshes[0].bones;
@@ -131,8 +131,8 @@ pub fn load_animated_model(
         }
     });
 
-    let joint = create_joint(&correction, &root, bones, &armature_name)
-        .expect(&format!("Model loading error ({:?})", src)); 
+    let joint = create_joint(&root, bones, &armature_name)
+        .unwrap_or_else(|_| panic!("Model loading error ({:?})", src)); 
     
     
     let mut bones_with_keyframes: Vec<BoneKeyFrames> = vec![];

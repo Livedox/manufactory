@@ -135,7 +135,7 @@ impl Animation {
         transforms.push(current_transform * joint.inverse_bind_transform());
 
         joint.children.iter().for_each(|child| {
-            self.calculate_transforms(transforms, &child, &current_transform, time);
+            self.calculate_transforms(transforms, child, &current_transform, time);
         });
     }
 }

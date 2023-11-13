@@ -1,4 +1,4 @@
-use crate::{player::player::Player, voxels::{chunks::Chunks}, direction::Direction, world::{World, global_xyz::GlobalXYZ, xyz::XYZ}, recipes::{storage::Storage, item::Item}};
+use crate::{player::player::Player, direction::Direction, world::{World, global_xyz::GlobalXYZ, xyz::XYZ}, recipes::item::Item};
 
 use super::{block_type::BlockType, light_permeability::LightPermeability};
 
@@ -20,10 +20,10 @@ pub trait BlockInteraction {
     fn ore(&self) -> Option<Item> {None}
 
 
-    fn on_block_break(&self, world: &mut World, player: &mut Player, xyz: &GlobalXYZ) {
+    fn on_block_break(&self, world: &mut World, _: &mut Player, xyz: &GlobalXYZ) {
         world.break_voxel(xyz);
     }
-    fn on_block_set(&self, world: &mut World, player: &mut Player, xyz: &GlobalXYZ, dir: &Direction) -> bool {
+    fn on_block_set(&self, world: &mut World, _: &mut Player, xyz: &GlobalXYZ, dir: &Direction) -> bool {
         if world.voxel(xyz).map(|v| v.id == 0).unwrap_or(true) {
             world.set_voxel(xyz, self.id(), dir);
             return true;

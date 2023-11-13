@@ -3,9 +3,8 @@ use std::{rc::{Rc, Weak}, cell::RefCell, borrow::BorrowMut};
 use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText, Ui};
 use winit::{window::Window, dpi::PhysicalPosition};
 
-use crate::{player::{inventory::{self, PlayerInventory}, player::Player, self}, recipes::{recipe::{Recipe, ActiveRecipe, Recipes}, storage::{Storage, self}, recipes::RECIPES}, texture::TextureAtlas, voxels::{voxel_data::{VoxelBox, Furnace, PlayerUnlockableStorage}, assembling_machine::{AssemblingMachine, self}}};
-use crate::my_time::Time;
-use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::{active_recipe, self}, assembling_machine_slot::assembling_machine_slot}, theme::DEFAULT_THEME, cursor_lock::CursorLock};
+use crate::{player::{inventory::PlayerInventory, player::Player}, recipes::{storage::Storage, recipes::RECIPES}, texture::TextureAtlas, voxels::{voxel_data::{VoxelBox, Furnace, PlayerUnlockableStorage}, assembling_machine::AssemblingMachine}};
+use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe, assembling_machine_slot::assembling_machine_slot}, theme::DEFAULT_THEME};
 
 pub fn add_to_storage(src: *mut dyn Storage, dst: *mut dyn Storage, index: usize) {
     let Some(add_item) = (unsafe {src.as_mut().unwrap().mut_storage()[index].0.take()}) else {
@@ -157,7 +156,7 @@ impl GuiController {
             .anchor(Align2::CENTER_BOTTOM, vec2(1.0, -1.0))
             .show(ctx, |ui| {
                 ui.set_visible(self.is_ui);
-                let storage = player.open_storage.as_mut().and_then(|op| Some(op.to_storage().upgrade().unwrap()));
+                let storage = player.open_storage.as_mut().map(|op| op.to_storage().upgrade().unwrap());
                 ui.horizontal_top(|ui| {
                     for (i, item) in player.inventory().borrow().storage().iter().take(10).enumerate() {
                         if ui.add(hotbar_slot(&self.items_atlas, item, player.active_slot == i)).drag_started() {
@@ -182,7 +181,7 @@ impl GuiController {
                         PlayerUnlockableStorage::AssemblingMachine(a) => self.draw_assembling_machine(ui, a, inventory_ptr),
                     }
                 }
-                let storage = player.open_storage.as_mut().and_then(|op| Some(op.to_storage().upgrade().unwrap()));
+                let storage = player.open_storage.as_mut().map(|op| op.to_storage().upgrade().unwrap());
                 let inventory_len = inventory.borrow().storage().len();
                 ui.horizontal(|ui| {        
                     ui.vertical(|ui| {
@@ -265,7 +264,7 @@ impl GuiController {
     }
 
 
-    pub fn draw_active_recieps(&self, ctx: &Context, player: &mut Player, time: &Time) -> &Self {
+    pub fn draw_active_recieps(&self, ctx: &Context, player: &mut Player) -> &Self {
         let binding = player.borrow_mut().inventory();
         let mut inventory = binding.as_ref().borrow_mut();
         let active = inventory.active_recipe();
@@ -277,7 +276,7 @@ impl GuiController {
                 ui.horizontal(|ui| {
                     active.iter().enumerate().for_each(|(i, recipe)| {
                         ui.add_space(5.0);
-                        if ui.add(active_recipe(&self.items_atlas, recipe, time)).drag_started() {
+                        if ui.add(active_recipe(&self.items_atlas, recipe)).drag_started() {
                             cancel_index = Some(i);
                         };
                     });

@@ -1,4 +1,4 @@
-use egui::{Rect, vec2, Stroke, TextureId, pos2, load::SizedTexture};
+use egui::{Rect, vec2, Stroke, pos2};
 
 use crate::{gui::theme::DEFAULT_THEME, recipes::recipe::Recipe, texture::TextureAtlas};
 

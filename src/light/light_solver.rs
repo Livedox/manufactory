@@ -1,6 +1,6 @@
-use std::{collections::VecDeque, rc::Rc, cell::RefCell};
+use std::collections::VecDeque;
 
-use crate::voxels::{chunks::Chunks, chunk::{CHUNK_SIZE}, block::{light_permeability::LightPermeability, blocks::BLOCKS}};
+use crate::voxels::{chunks::Chunks, block::{light_permeability::LightPermeability, blocks::BLOCKS}};
 
 
 const PERMEABILITYS: [LightPermeability; 6] = [

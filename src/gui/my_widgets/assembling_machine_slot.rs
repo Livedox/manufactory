@@ -1,6 +1,6 @@
 use egui::{Rect, RichText, vec2, Stroke, pos2, Color32};
 
-use crate::{gui::theme::DEFAULT_THEME, texture::TextureAtlas, recipes::{item::{Item, PossibleItem}, recipe::Recipe}};
+use crate::{gui::theme::DEFAULT_THEME, texture::TextureAtlas, recipes::{item::PossibleItem, recipe::Recipe}};
 
 const WIDTH: f32 = 50.0;
 const HEIGHT: f32 = 50.0;
@@ -48,7 +48,7 @@ fn assembling_machine_slot_ui(ui: &mut egui::Ui, texture_atlas: &TextureAtlas, i
                 || if !result {
                     recipe.ingredients
                         .get(slot_id)
-                        .and_then(|i| Some(i.id()))
+                        .map(|i| i.id())
                 } else {
                     Some(recipe.result.id())
                 },

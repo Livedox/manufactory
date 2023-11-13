@@ -1,8 +1,8 @@
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
 
 use russimp::scene::{Scene, PostProcess};
 
-use crate::{vertices::{model_vertex::ModelVertex}};
+use crate::vertices::model_vertex::ModelVertex;
 
 use super::{model::Model, load_texture::load_texture};
 

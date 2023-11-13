@@ -1,16 +1,12 @@
-use egui::{Rect, vec2, Stroke, TextureId, Pos2, pos2, Color32, epaint};
-use crate::{gui::theme::DEFAULT_THEME, recipes::recipe::{Recipe, ActiveRecipe}, texture::TextureAtlas};
-use crate::my_time::Time;
+use egui::{Rect, vec2, Stroke, Pos2, pos2, Color32, epaint};
+use crate::{gui::theme::DEFAULT_THEME, recipes::recipe::ActiveRecipe, texture::TextureAtlas};
 use std::f32::consts::PI;
 
 const WIDTH: f32 = 50.0;
 const HEIGHT: f32 = 50.0;
-const FONT_SIZE: f32 = 20.0;
-const BOTTOM_PADDING: f32 = 3.0;
-const STROKE_WIDTH: f32 = 2.0;
 
 
-fn active_recipe_ui(ui: &mut egui::Ui, texture_atlas: &TextureAtlas, active_recipe: &ActiveRecipe, time: &Time) -> egui::Response {
+fn active_recipe_ui(ui: &mut egui::Ui, texture_atlas: &TextureAtlas, active_recipe: &ActiveRecipe) -> egui::Response {
     let desired_size = egui::vec2(WIDTH, HEIGHT);
     let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::drag());
 
@@ -54,6 +50,6 @@ fn active_recipe_ui(ui: &mut egui::Ui, texture_atlas: &TextureAtlas, active_reci
 }
 
 
-pub fn active_recipe<'a>(texture_atlas: &'a TextureAtlas, active_recipe: &'a ActiveRecipe, time: &'a Time) -> impl egui::Widget+ 'a {
-    move |ui: &mut egui::Ui| active_recipe_ui(ui, texture_atlas, active_recipe, time)
+pub fn active_recipe<'a>(texture_atlas: &'a TextureAtlas, active_recipe: &'a ActiveRecipe) -> impl egui::Widget+ 'a {
+    move |ui: &mut egui::Ui| active_recipe_ui(ui, texture_atlas, active_recipe)
 }

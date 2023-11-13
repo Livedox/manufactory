@@ -7,9 +7,9 @@ pub fn load_texture(
   src: &str,
   name: &str
 ) -> wgpu::BindGroup {
-    let image = Texture::image(&device, &queue, src).unwrap();
+    let image = Texture::image(device, queue, src).unwrap();
     device.create_bind_group(&wgpu::BindGroupDescriptor {
-        layout: &texture_layout,
+        layout: texture_layout,
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,

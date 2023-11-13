@@ -65,3 +65,9 @@ impl LightMap {
         self.map[index] = (color & (!(0xF << (channel*4)))) | (value << (channel << 2));
     }
 }
+
+impl Default for LightMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}

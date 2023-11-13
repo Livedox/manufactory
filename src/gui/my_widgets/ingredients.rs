@@ -1,6 +1,6 @@
-use egui::{Rect, pos2, vec2, Stroke, RichText, TextStyle, Color32, Style, Context, Align2, epaint::Shadow, Rounding, Margin, Id};
+use egui::{Rect, pos2, vec2, RichText, Color32};
 
-use crate::{texture::TextureAtlas, recipes::recipe::Recipe, gui::theme::DEFAULT_THEME};
+use crate::{texture::TextureAtlas, recipes::recipe::Recipe};
 
 use crate::gui::my_widgets::container::container;
 

@@ -11,7 +11,7 @@ const STROKE_WIDTH: f32 = 2.0;
 
 fn hotbar_slot_ui(ui: &mut egui::Ui, texture_atlas: &TextureAtlas, item: &PossibleItem, is_active: bool) -> egui::Response {
     let desired_size = egui::vec2(WIDTH, HEIGHT);
-    let (rect, mut response) = ui.allocate_exact_size(desired_size, egui::Sense::drag());
+    let (rect, response) = ui.allocate_exact_size(desired_size, egui::Sense::drag());
 
     if ui.is_rect_visible(rect) {
         let left_top = rect.left_top();

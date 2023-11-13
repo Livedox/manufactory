@@ -1,23 +1,22 @@
-use std::{iter, time::{Instant, Duration, self}, cell::RefCell, rc::Rc, borrow::Borrow, collections::{BinaryHeap, HashMap}};
+use std::{time::Duration, rc::Rc, borrow::Borrow, collections::HashMap};
 
 use camera::frustum::Frustum;
 use direction::Direction;
 use graphic::render_selection::render_selection;
-use gui::gui_controller::{self, GuiController};
+use gui::gui_controller::GuiController;
 use input_event::KeypressState;
-use light::light_solver::LightSolver;
 use player::player::Player;
-use recipes::{recipe::{Recipes, Recipe}, recipes::{all_recipe, RECIPES}, storage::Storage, item::Item};
+use recipes::{storage::Storage, item::Item};
 use world::{World, global_xyz::GlobalXYZ, sun::{Sun, Color}};
-use crate::{vertices::animated_model_instance::AnimatedModelInstance, light::light::Light, voxels::chunk::HALF_CHUNK_SIZE};
-use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, voxel_data::{VoxelBox, PlayerUnlockableStorage}, block::{blocks::BLOCKS, block_type::BlockType}};
-use wgpu::util::DeviceExt;
+use crate::voxels::chunk::HALF_CHUNK_SIZE;
+use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::{blocks::BLOCKS, block_type::BlockType}};
+
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::{Window, WindowBuilder, Fullscreen}, dpi::PhysicalPosition,
+    window::WindowBuilder,
 };
-use itertools::{Itertools, iproduct};
+use itertools::Itertools;
 
 use crate::{input_event::input_service::{Key, Mouse}, voxels::ray_cast, my_time::Timer};
 use nalgebra_glm as glm;
@@ -36,7 +35,7 @@ mod pipelines;
 mod gui;
 mod recipes;
 mod player;
-mod model;
+mod models;
 mod direction;
 mod world;
 
@@ -81,8 +80,8 @@ pub fn main() {
     let mut input = input_event::input_service::InputService::new();
     let mut time = my_time::Time::new();
 
-    let mut state = state::State::new(window.clone(), &camera.proj_view(400.0 as f32, 400.0 as f32).into());
-    let mut gui_controller = GuiController::new(window.clone(), state.texture_atlas.clone());
+    let mut state = state::State::new(window.clone(), &camera.proj_view(400.0, 400.0).into());
+    let mut gui_controller = GuiController::new(window, state.texture_atlas.clone());
 
     let mut player = Player::new();
     let binding = player.inventory();
@@ -166,18 +165,15 @@ pub fn main() {
                         data.1.update(chunks_ptr);
                         let Some(progress) = data.1.additionally.as_ref().borrow().animation_progress() else {return};
                         let block_type = &BLOCKS()[data.1.id as usize].block_type();
-                        match block_type {
-                            BlockType::AnimatedModel {name} => {
-                                if let Some(animated_model) = animated_models.get_mut(name) {
-                                    animated_model.push(progress);
-                                } else {
-                                    animated_models.insert(name.to_string(), vec![progress]);
-                                }
-                            },
-                            _ => (),
+                        if let BlockType::AnimatedModel {name} = block_type {
+                            if let Some(animated_model) = animated_models.get_mut(name) {
+                                animated_model.push(progress);
+                            } else {
+                                animated_models.insert(name.to_string(), vec![progress]);
+                            }
                         }
                     });
-                    animated_models.iter().sorted_by_key(|(name, _)| name.clone()).for_each(|(name, progress_vec)| {
+                    animated_models.iter().sorted_by_key(|(name, _)| *name).for_each(|(name, progress_vec)| {
                         let model = state.animated_models.get(name).unwrap();
                         progress_vec.iter().for_each(|progress| {
                             inst.extend(model.calculate_bytes_transforms(None, *progress));
@@ -221,10 +217,10 @@ pub fn main() {
                     let result = ray_cast::ray_cast(&world.chunks, &camera.position_array(), &camera.front_array(), 10.0);
                     if let Some(result) = result {
                         let (x, y, z, voxel, norm) = ((result.0) as i32, (result.1) as i32, (result.2) as i32, result.3, result.4);
-                        let chunk_coords = Chunks::chunk_coords(x as i32, y as i32, z as i32);
-                        let local_coords = Chunks::local_coords(x as i32, y as i32, z as i32);
+                        let chunk_coords = Chunks::chunk_coords(x, y, z);
+                        let local_coords = Chunks::local_coords(x, y, z);
                         debug_data = format!("{:?} {:?}", result.3, world.chunks.chunk(chunk_coords).and_then(|c| c.voxel_data(local_coords)));
-                        let voxel_id = if voxel.is_some() { voxel.unwrap().id } else { 0 };
+                        let voxel_id = voxel.map_or(0, |v| v.id);
 
                         if voxel_id != 0 {
                             let min_point = BLOCKS()[voxel_id as usize].min_point();

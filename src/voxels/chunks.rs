@@ -1,10 +1,10 @@
-use std::{collections::HashMap, rc::Rc, cell::RefCell};
+use std::{collections::HashMap, rc::Rc};
 
 use itertools::iproduct;
 
-use crate::{graphic::render::{VoxelRenderer}, vertices::{block_vertex::BlockVertex}, model::animated_model::AnimatedModel, direction::Direction, recipes::recipe::Recipes, world::global_xyz::GlobalXYZ};
+use crate::{graphic::render::VoxelRenderer, vertices::block_vertex::BlockVertex, models::animated_model::AnimatedModel, direction::Direction, world::global_xyz::GlobalXYZ};
 
-use super::{chunk::{Chunk, CHUNK_SIZE, CHUNK_BITS, CHUNK_BIT_SHIFT}, voxel::Voxel, voxel_data::{VoxelAdditionalData, Drill, VoxelData, MultiBlock}};
+use super::{chunk::{Chunk, CHUNK_SIZE, CHUNK_BIT_SHIFT}, voxel::Voxel, voxel_data::{VoxelAdditionalData, VoxelData, MultiBlock}};
 
 pub const WORLD_HEIGHT: usize = 1; // In chunks
 
@@ -179,9 +179,9 @@ impl Chunks {
 
         let local = Self::local_coords(x, y, z);
     
-        let x_offset = (local.0 >= CHUNK_SIZE-1) as i32 - (local.0 <= 0) as i32;
-        let y_offset = (local.1 >= CHUNK_SIZE-1) as i32 - (local.1 <= 0) as i32;
-        let z_offset = (local.2 >= CHUNK_SIZE-1) as i32 - (local.2 <= 0) as i32;
+        let x_offset = (local.0 == CHUNK_SIZE-1) as i32 - (local.0 == 0) as i32;
+        let y_offset = (local.1 == CHUNK_SIZE-1) as i32 - (local.1 == 0) as i32;
+        let z_offset = (local.2 == CHUNK_SIZE-1) as i32 - (local.2 == 0) as i32;
         chunk.set_voxel_id(local, id, direction);
         chunk.modify();
         
@@ -305,7 +305,7 @@ impl Chunks {
         } else {
             (xyz.2+depth+1)..(xyz.2+1)
         };
-        coords.push(xyz.clone().into());
+        coords.push((*xyz).into());
         for (nx, nz, ny) in iproduct!(width_range, depth_range, height_range) {
             if nx == xyz.0 && ny == xyz.1 && nz == xyz.2 {continue};
             if !self.is_air_global(nx, ny, nz) {return None};

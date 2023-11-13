@@ -1,4 +1,4 @@
-use crate::{voxels::block::{self}, recipes::{item::Item, storage::Storage}, world::{World, global_xyz::GlobalXYZ}, player::player::Player};
+use crate::{recipes::{item::Item, storage::Storage}, world::{World, global_xyz::GlobalXYZ}, player::player::Player};
 
 use super::{interaction::{BlockInteraction, BlockItem}, block_type::BlockType, light_permeability::LightPermeability};
 

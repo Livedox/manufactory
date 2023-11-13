@@ -58,7 +58,7 @@ pub fn ray_cast(
 			if stepped_index == 0 { face.x = -stepx };
 			if stepped_index == 1 { face.y = -stepy };
 			if stepped_index == 2 { face.z = -stepz };
-            return Some((ix, iy, iz, voxel.clone().copied(), face));
+            return Some((ix, iy, iz, voxel.copied(), face));
         }
 
         if tx_max < ty_max {
@@ -73,18 +73,16 @@ pub fn ray_cast(
 				tz_max += tz_delta;
 				stepped_index = 2;
 			}
-		} else {
-            if ty_max < tz_max {
-  				iy += stepy;
-  				t = ty_max;
-  				ty_max += ty_delta;
-  				stepped_index = 1;
-  			} else {
-  				iz += stepz;
-  				t = tz_max;
-  				tz_max += tz_delta;
-  				stepped_index = 2;
-  			}
+		} else if ty_max < tz_max {
+            iy += stepy;
+            t = ty_max;
+            ty_max += ty_delta;
+            stepped_index = 1;
+        } else {
+            iz += stepz;
+            t = tz_max;
+            tz_max += tz_delta;
+            stepped_index = 2;
         }
     }
     None

@@ -1,5 +1,3 @@
-use crate::voxels::block::{self};
-
 use super::{interaction::BlockInteraction, block_type::BlockType, light_permeability::LightPermeability};
 
 

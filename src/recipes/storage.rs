@@ -1,11 +1,9 @@
-use egui::epaint::ahash::{HashMap, HashMapExt};
-
 use super::{item::{PossibleItem, Item}, recipe::{ActiveRecipe, Recipe}};
-use std::{fmt::Debug, cell::RefCell, rc::Rc, time::Instant};
+use std::{fmt::Debug, time::Instant};
 
 pub trait Storage {
-    fn storage<'a>(&'a self) -> &'a [PossibleItem];
-    fn mut_storage<'a>(&'a mut self) -> &'a mut [PossibleItem];
+    fn storage(&self) -> & [PossibleItem];
+    fn mut_storage(&mut self) -> &mut [PossibleItem];
 
     fn add_items(&mut self, items: &[Item]) {
         items.iter().for_each(|item| { self.add(item, false); });
@@ -30,13 +28,13 @@ pub trait Storage {
     fn remove_from_start(&mut self) -> Option<(Item, usize)> {
         let position = self.storage().iter().position(|item| item.0.is_some());
         let Some(position) = position else {return None};
-        self.mut_storage()[position].clear().and_then(|item| Some((item, position)))
+        self.mut_storage()[position].clear().map(|item| (item, position))
     }
 
     fn remove_from_end(&mut self) -> Option<(Item, usize)> {
         let position = self.storage().iter().rev().position(|item| item.0.is_some());
         let Some(position) = position else {return None};
-        self.mut_storage()[position].clear().and_then(|item| Some((item, position)))
+        self.mut_storage()[position].clear().map(|item| (item, position))
     }
     
     fn is_empty(&self) -> bool {self.storage().iter().all(|item| item.0.is_none())}
@@ -57,7 +55,7 @@ pub trait Storage {
     }
 
     fn is_items_exist(&self, items: &[Item]) -> bool {
-        items.iter().all(|item| self.is_item_exist(&item))
+        items.iter().all(|item| self.is_item_exist(item))
     }
 
     fn is_space_exist(&self, item: &Item) -> bool {

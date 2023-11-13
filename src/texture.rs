@@ -1,10 +1,4 @@
-use std::borrow::Cow;
-
-use anyhow::*;
-use bytemuck::{Zeroable, Pod};
-use egui::TextureId;
-use image::{GenericImageView, RgbaImage, ImageFormat, DynamicImage};
-use wgpu::{TextureDimension, TextureViewDimension, PipelineLayout};
+use image::DynamicImage;
 
 
 pub struct Texture {
@@ -18,8 +12,8 @@ impl Texture {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         src: &str,
-    ) -> Result<Self> {
-        let img = image::open(src).expect(&format!("{}", src));
+    ) -> Result<Self, ()> {
+        let img = image::open(src).expect(src);
         let (width, height) = (img.width(), img.height());
         
         if width != height { panic!("Use square textures") }
@@ -80,9 +74,8 @@ impl Texture {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         srcs: &[&str],
-        label: Option<&str>,
-        sample_count: u32
-    ) -> Result<Self> {
+        label: Option<&str>
+    ) -> Result<Self, ()> {
         const BASE_SIZE: u32 = 32;
         //Maximum mipmap_count is BASE_SIZE.ilog2() + 1 (img size 1px) but it's too small
         let mipmap_count = BASE_SIZE.ilog2();
@@ -168,7 +161,7 @@ impl Texture {
             label: Some(label),
             size,
             mip_level_count: 1,
-            sample_count: sample_count,
+            sample_count,
             dimension: wgpu::TextureDimension::D2,
             format: Self::DEPTH_FORMAT,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT // 3.

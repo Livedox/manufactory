@@ -1,4 +1,4 @@
-use std::{rc::{Rc, Weak}, cell::RefCell};
+use std::{rc::Rc, cell::RefCell};
 
 use crate::{recipes::{storage::Storage, items::ITEMS, item_interaction::ItemInteraction}, voxels::voxel_data::PlayerUnlockableStorage, world::{World, global_xyz::GlobalXYZ}, direction::Direction};
 

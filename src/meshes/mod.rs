@@ -1,10 +1,10 @@
-use std::{collections::HashMap, fmt::format, borrow::BorrowMut};
+use std::collections::HashMap;
 
 use itertools::Itertools;
-use wgpu::{util::DeviceExt, Buffer};
-use nalgebra_glm as glm;
+use wgpu::util::DeviceExt;
 
-use crate::{graphic::render::VoxelRenderer, voxels::chunks::Chunks, vertices::{model_instance::ModelInstance, animated_model_vertex::AnimatedModelVertex, animated_model_instance::AnimatedModelInstance}, model::animated_model::AnimatedModel};
+
+use crate::{graphic::render::VoxelRenderer, voxels::chunks::Chunks, vertices::{model_instance::ModelInstance, animated_model_instance::AnimatedModelInstance}, models::animated_model::AnimatedModel};
 
 #[derive(Debug)]
 pub struct Mesh {
@@ -69,14 +69,14 @@ impl Meshes {
 
         let mut animation: Vec<u8> = vec![];
         let mut start_matrix: u32 = 0;
-        mesh.2.iter().sorted_by_key(|(name, _)| name.clone()).for_each(|(name, data)| {
+        mesh.2.iter().sorted_by_key(|(name, _)| *name).for_each(|(name, data)| {
             let mut animated_model_instances = Vec::<AnimatedModelInstance>::new();
             let animated_model = all_animated_models.get(name).unwrap();
             data.iter().for_each(|(position, light, progress, rotation_index)| {
                 animated_model_instances.push(AnimatedModelInstance {
-                    position: position.clone(),
+                    position: *position,
                     start_matrix,
-                    light: light.clone(),
+                    light: *light,
                     rotation_matrix_index: *rotation_index,
                 });
                 let transforms = animated_model.calculate_transforms(None, *progress);
@@ -87,17 +87,17 @@ impl Meshes {
             });
             animated_models.insert(name.to_string(), (device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some(&format!("Model ({}) instance buffer (Chunk: {})", name, index)),
-                contents: bytemuck::cast_slice(&animated_model_instances.as_slice()),
+                contents: bytemuck::cast_slice(animated_model_instances.as_slice()),
                 usage: wgpu::BufferUsages::VERTEX,
             }), data.len()));
         });
 
         let mut animated_model_buffer = None;
         let mut animated_model_bind_group = None;
-        if animation.len() > 0 {
+        if !animation.is_empty() {
             animated_model_buffer = Some(device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some(&format!("Transformation matrices storage buffer (Chunk: {})", index)),
-                contents: &animation.as_slice(),
+                contents: animation.as_slice(),
                 usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             }));
             animated_model_bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -114,11 +114,11 @@ impl Meshes {
         mesh.3.iter().for_each(|(name, positions)| {
             let mut model_instances = Vec::<ModelInstance>::new();
             positions.iter().for_each(|(position, light, rotation_index)| {
-                model_instances.push(ModelInstance { position: position.clone(), light: light.clone(), rotation_index: *rotation_index })
+                model_instances.push(ModelInstance { position: *position, light: *light, rotation_index: *rotation_index })
             });
             models.insert(name.to_string(), (device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some(&format!("Model ({}) instance buffer (Chunk: {})", name, index)),
-                contents: bytemuck::cast_slice(&model_instances.as_slice()),
+                contents: bytemuck::cast_slice(model_instances.as_slice()),
                 usage: wgpu::BufferUsages::VERTEX,
             }), positions.len()));
         }); 

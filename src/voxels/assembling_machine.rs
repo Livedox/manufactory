@@ -1,8 +1,6 @@
-use std::{cell::RefCell, rc::Rc};
+use crate::recipes::{item::{PossibleItem, Item}, storage::Storage, recipe::{Recipe, ActiveRecipe}, recipes::RECIPES};
 
-use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage, recipe::{Recipe, ActiveRecipe}, recipes::{RECIPES}}, gui::my_widgets::active_recipe};
-
-use super::{chunks::Chunks, chunk::Chunk, voxel_data::{VoxelAdditionalData, MultiBlock}};
+use super::voxel_data::MultiBlock;
 
 const INGREDIENT_LENGTH: usize = 3;
 const RESULT_LENGTH: usize = 1;
@@ -42,15 +40,15 @@ impl AssemblingMachine {
         (result, ingredients)
     }
 
-    pub fn update(&mut self, chunks: *mut Chunks) {
+    pub fn update(&mut self) {
         if self.active_recipe.is_none() && self.selected_recipe.is_some() {
-            self.active_recipe = self.start_recipe(&self.selected_recipe.unwrap());
+            self.active_recipe = self.start_recipe(self.selected_recipe.unwrap());
         }
 
         let Some(active_recipe) = &self.active_recipe else {return};
         if !(active_recipe.is_finished() && self.storage()[3].is_possible_add(&active_recipe.recipe.result)) {return};
         
-        let add_item = active_recipe.recipe.result.clone();
+        let add_item = active_recipe.recipe.result;
         self.mut_storage()[3].try_add_item(&add_item);
         self.active_recipe = None;
     }
@@ -59,11 +57,11 @@ impl AssemblingMachine {
 
 
 impl Storage for AssemblingMachine {
-    fn storage<'a>(&'a self) -> &'a [PossibleItem] {
+    fn storage(&self) -> &[PossibleItem] {
         &self.storage
     }
 
-    fn mut_storage<'a>(&'a mut self) -> &'a mut [PossibleItem] {
+    fn mut_storage(&mut self) -> &mut [PossibleItem] {
         &mut self.storage
     }
 
@@ -88,7 +86,7 @@ impl Storage for AssemblingMachine {
         let mut added_item = Item::from(item);
         let Some(recipe) = self.selected_recipe else {return Some(added_item)};
         for (index, possible_item) in self.mut_storage()[0..INGREDIENT_LENGTH].iter_mut().enumerate() {
-            if recipe.ingredients.get(index).and_then(|i| Some(i.id())) == Some(item.id()) {
+            if recipe.ingredients.get(index).map(|i| i.id()) == Some(item.id()) {
                 let remainder = possible_item.try_add_item(&added_item);
                 let Some(remainder) = remainder else {return None};
                 added_item = remainder;

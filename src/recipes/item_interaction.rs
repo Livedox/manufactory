@@ -1,4 +1,4 @@
-use crate::{player::player::Player, voxels::{chunks::Chunks, block::blocks::BLOCKS}, direction::Direction, world::{World, global_xyz::GlobalXYZ}, recipes::{storage::Storage, item::Item}};
+use crate::{player::player::Player, voxels::block::blocks::BLOCKS, direction::Direction, world::{World, global_xyz::GlobalXYZ}, recipes::{storage::Storage, item::Item}};
 
 pub trait ItemInteraction {
     fn id(&self) -> u32;

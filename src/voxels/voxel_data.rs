@@ -1,7 +1,6 @@
-use std::{fmt::Debug, cell::{RefCell, RefMut}, rc::{Rc, Weak}, collections::HashMap, time::{Duration, Instant}};
-use wgpu::Instance;
+use std::{cell::RefCell, rc::{Rc, Weak}, time::{Duration, Instant}};
 
-use crate::{direction::{Direction, self}, voxels::chunk::Chunk, recipes::{recipe::{Recipes, ActiveRecipe}, storage::Storage, item::{PossibleItem, Item}, recipes::RECIPES}, player};
+use crate::{direction::Direction, voxels::chunk::Chunk, recipes::{recipe::ActiveRecipe, storage::Storage, item::{PossibleItem, Item}, recipes::RECIPES}};
 
 use super::{chunks::Chunks, assembling_machine::AssemblingMachine, transport_belt::TransportBelt, block::blocks::BLOCKS};
 
@@ -107,7 +106,7 @@ impl VoxelAdditionalData {
             Self::Drill(d) => d.borrow_mut().update(chunks),
             Self::Cowboy(o) => o.borrow_mut().update(),
             Self::Furnace(f) => f.borrow_mut().update(),
-            Self::AssemblingMachine(a) => a.borrow_mut().update(chunks),
+            Self::AssemblingMachine(a) => a.borrow_mut().update(),
             Self::TransportBelt(c) => c.borrow_mut().update(coords, chunks),
             Self::Empty | Self::VoxelBox(_) => (),
         }
@@ -228,6 +227,12 @@ impl Cowboy {
     }
 }
 
+impl Default for Cowboy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 
 #[derive(Debug, Clone)]
 pub struct VoxelBox {
@@ -243,12 +248,18 @@ impl VoxelBox {
 }
 
 impl Storage for VoxelBox {
-    fn storage<'a>(&'a self) -> &'a [PossibleItem] {
+    fn storage(&self) -> &[PossibleItem] {
         &self.storage
     }
 
-    fn mut_storage<'a>(&'a mut self) -> &'a mut [PossibleItem] {
+    fn mut_storage(&mut self) -> &mut [PossibleItem] {
         &mut self.storage
+    }
+}
+
+impl Default for VoxelBox {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -289,27 +300,33 @@ impl Furnace {
 
 
 impl Storage for Furnace {
-    fn storage<'a>(&'a self) -> &'a [PossibleItem] {
+    fn storage(&self) -> &[PossibleItem] {
         &self.storage
     }
 
-    fn mut_storage<'a>(&'a mut self) -> &'a mut [PossibleItem] {
+    fn mut_storage(&mut self) -> &mut [PossibleItem] {
         &mut self.storage
     }
 
     fn take_first_existing(&mut self, max_count: u32) -> Option<(Item, usize)> {
-        self.mut_storage()[1].try_take(max_count).and_then(|i| Some((i, 1)))
+        self.mut_storage()[1].try_take(max_count).map(|i| (i, 1))
     }
 
     fn add(&mut self, item: &Item, _: bool) -> Option<Item> {
         if RECIPES().furnace.get_by_ingredient(item.id()).is_some() {
             return self.mut_storage()[0].try_add_item(item);
         }
-        Some(item.clone())
+        Some(*item)
     }
 
     fn is_item_exist(&self, item: &Item) -> bool {
         self.storage[0].contains(item.id()) >= item.count
+    }
+}
+
+impl Default for Furnace {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -375,11 +392,11 @@ impl Drill {
 
 
 impl Storage for Drill {
-    fn storage<'a>(&'a self) -> &'a [PossibleItem] {
+    fn storage(&self) -> &[PossibleItem] {
         &self.storage
     }
 
-    fn mut_storage<'a>(&'a mut self) -> &'a mut [PossibleItem] {
+    fn mut_storage(&mut self) -> &mut [PossibleItem] {
         &mut self.storage
     }
 }
