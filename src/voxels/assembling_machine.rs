@@ -1,4 +1,4 @@
-use crate::recipes::{item::{PossibleItem, Item}, storage::Storage, recipe::{Recipe, ActiveRecipe}, recipes::RECIPES};
+use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage, recipe::{Recipe, ActiveRecipe}, recipes::RECIPES}, world::global_coords::GlobalCoords};
 
 use super::voxel_data::MultiBlock;
 
@@ -11,7 +11,7 @@ const TOTAL_LENGTH: usize = INGREDIENT_LENGTH+RESULT_LENGTH;
 pub struct AssemblingMachine {
     storage: [PossibleItem; TOTAL_LENGTH],
 
-    structure_coordinates: Vec<(i32, i32, i32)>,
+    structure_coordinates: Vec<GlobalCoords>,
 
     selected_recipe: Option<&'static Recipe>,
     active_recipe: Option<ActiveRecipe>,
@@ -19,7 +19,7 @@ pub struct AssemblingMachine {
 
 
 impl AssemblingMachine {
-    pub fn new(structure_coordinates: Vec<(i32, i32, i32)>) -> Self {
+    pub fn new(structure_coordinates: Vec<GlobalCoords>) -> Self {
         Self {
             storage: [PossibleItem::new_none(); TOTAL_LENGTH],
             structure_coordinates,
@@ -106,11 +106,11 @@ impl Storage for AssemblingMachine {
 
 
 impl MultiBlock for AssemblingMachine {
-    fn structure_coordinates(&self) -> &[(i32, i32, i32)] {
+    fn structure_coordinates(&self) -> &[GlobalCoords] {
         &self.structure_coordinates
     }
 
-    fn mut_structure_coordinates(&mut self) -> &mut [(i32, i32, i32)] {
+    fn mut_structure_coordinates(&mut self) -> &mut [GlobalCoords] {
         &mut self.structure_coordinates
     }
 }

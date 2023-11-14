@@ -1,4 +1,4 @@
-use std::{iter, collections::HashMap, rc::Rc};
+use std::{iter, collections::HashMap, rc::Rc, sync::Arc};
 
 use egui::{FontDefinitions, vec2};
 
@@ -39,7 +39,7 @@ pub struct State {
     model_pipeline: wgpu::RenderPipeline,
     diffuse_texture: texture::Texture,
     diffuse_bind_group: wgpu::BindGroup,
-    window: Rc<Window>,
+    window: Arc<Window>,
     camera_bind_group: wgpu::BindGroup,
     camera_buffer: wgpu::Buffer,
 
@@ -70,14 +70,14 @@ pub struct State {
     sun_bind_group: wgpu::BindGroup,
     sun_buffer: wgpu::Buffer,
 
-    pub texture_atlas: Rc<TextureAtlas>,
+    pub texture_atlas: Arc<TextureAtlas>,
 
     pub selection_vertex_buffer: Option<wgpu::Buffer>,
     selection_pipeline: wgpu::RenderPipeline,
 }
 
 impl State {
-    pub fn new(window: Rc<Window>, proj_view: &[[f32; 4]; 4]) -> Self {
+    pub fn new(window: Arc<Window>, proj_view: &[[f32; 4]; 4]) -> Self {
         let size = window.inner_size();
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
@@ -531,7 +531,7 @@ impl State {
             animated_model_buffer,
             animated_model_layout,
 
-            texture_atlas: Rc::new(texture_atlas),
+            texture_atlas: Arc::new(texture_atlas),
 
             transport_belt_pipeline,
             transport_belt_bind_group,
@@ -583,7 +583,7 @@ impl State {
         //Egui
         self.egui_platform.begin_frame();
 
-        player.inventory().borrow_mut().update_recipe();
+        player.inventory().lock().unwrap().update_recipe();
         let ctx = &self.egui_platform.context();
         gui_controller
             .draw_inventory(ctx, player, 2)
@@ -654,7 +654,7 @@ impl State {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(1, &self.diffuse_bind_group, &[]);
             indices.iter().for_each(|i| {
-                if let Some(mesh) = &meshes.meshes()[*i] {
+                if let Some(Some(mesh)) = &meshes.meshes().get(*i) {
                     render_pass.set_vertex_buffer(0, mesh.block_vertex_buffer.slice(..));
                     render_pass.set_index_buffer(mesh.block_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
                     render_pass.draw_indexed(0..mesh.block_index_count, 0, 0..1);
@@ -704,7 +704,7 @@ impl State {
             render_pass.set_pipeline(&self.model_pipeline);
             // render_pass.set_bind_group(2, &self.camera_bind_group, &[]);
             indices.iter().for_each(|i| {
-                let Some(mesh) = &meshes.meshes()[*i] else {return};
+                let Some(Some(mesh)) = &meshes.meshes().get(*i) else {return};
 
                 mesh.models.iter().for_each(|(name, (instance, len))| {
                     let Some(model) = self.models.get(name) else {return};

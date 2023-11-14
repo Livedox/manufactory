@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage}, direction::Direction};
+use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage}, direction::Direction, world::global_coords::GlobalCoords};
 
 use super::chunks::Chunks;
 
@@ -37,7 +37,7 @@ impl TransportBelt {
         2
     }
 
-    pub fn update(&mut self, coords: &(i32, i32, i32), chunks: *mut Chunks) {
+    pub fn update(&mut self, coords: GlobalCoords, chunks: *mut Chunks) {
         if self.storage[0].0.is_some() {self.item_progress[0] += 0.1;}
         if self.storage[3].0.is_some() {self.item_progress[3] += 0.1;}
 
@@ -57,15 +57,16 @@ impl TransportBelt {
             checking_progress = *progress - 0.33;
         });
 
+        let dst_coords = GlobalCoords(coords.0+self.direction[0] as i32, coords.1, coords.2+self.direction[2] as i32);
         let Some(dst) = (unsafe {
             chunks.as_mut().unwrap()
-                .mut_chunk_by_global(coords.0+self.direction[0] as i32, coords.1, coords.2+self.direction[2] as i32)
-                .and_then(|chunk| chunk.mut_voxel_data(Chunks::local_coords(coords.0+self.direction[0] as i32, coords.1, coords.2+self.direction[2] as i32)))
+                .mut_chunk(dst_coords)
+                .and_then(|chunk| chunk.mut_voxel_data(dst_coords.into()))
                 .and_then(|voxel_data| voxel_data.additionally.transport_belt())
         }) else {return};
         
         if self.item_progress[0] > 1.0
-         && dst.borrow_mut().put(&self.storage[0].0.unwrap(), TransportBeltSide::Left).is_none() {
+         && dst.lock().unwrap().put(&self.storage[0].0.unwrap(), TransportBeltSide::Left).is_none() {
             self.item_progress[0] = self.item_progress[1];
             self.item_progress[1] = self.item_progress[2];
             self.item_progress[2] = 0.0;
@@ -76,7 +77,7 @@ impl TransportBelt {
         }
 
         if self.item_progress[3] > 1.0 
-         && dst.borrow_mut().put(&self.storage[3].0.unwrap(), TransportBeltSide::Right).is_none() {
+         && dst.lock().unwrap().put(&self.storage[3].0.unwrap(), TransportBeltSide::Right).is_none() {
             self.item_progress[3] = self.item_progress[4];
             self.item_progress[4] = self.item_progress[5];
             self.item_progress[5] = 0.0;

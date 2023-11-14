@@ -1,6 +1,6 @@
 use itertools::iproduct;
 
-use crate::voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::blocks::BLOCKS};
+use crate::{voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::blocks::BLOCKS}, world::chunk_coords::ChunkCoords};
 
 use super::light_solver::LightSolver;
 const MAX_LIGHT: u16 = 15;
@@ -10,6 +10,7 @@ const SIDE_COORDS_OFFSET: [(i32, i32, i32); 6] = [
     (0,0,1), (0,0,-1),
 ];
 
+#[derive(Debug)]
 pub struct Light {
     solver_red: LightSolver,
     solver_green: LightSolver,
@@ -40,7 +41,7 @@ impl Light {
 
             if let Some(top_chunk) = unsafe {chunks_ptr.as_ref().unwrap().chunk((cx, cy+1, cz))} {
                 for (lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE) {
-                    if top_chunk.sun_map[lx][lz] && top_chunk.lightmap.get_sun((lx as u8, 0, lz as u8)) == 15 {
+                    if top_chunk.lightmap.get_sun((lx as u8, 0, lz as u8)) == 15 {
                         chunk.lightmap.set_sun((lx as u8, (CHUNK_SIZE-1) as u8, lz as u8), 15);
                     }
                 }
@@ -48,9 +49,9 @@ impl Light {
 
             for (ly, lz, lx) in iproduct!((0..CHUNK_SIZE-1).rev(), 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
                 if chunk.lightmap.get_sun((lx as u8, (ly+1) as u8, lz as u8)) == 15
-                 && BLOCKS()[chunk.voxel((lx, ly, lz)).id as usize].id() == 0 {
+                 && BLOCKS()[chunk.voxel((lx as u8, ly as u8, lz as u8).into()).id as usize].id() == 0 {
                     chunk.lightmap.set_sun((lx as u8, ly as u8, lz as u8), 15);
-                    let global = Chunks::global_coords((cx, cy, cz), (lx, ly, lz));
+                    let global = ChunkCoords(cx, cy, cz).to_global((lx as u8, ly as u8, lz as u8).into());
                     self.solver_sun.add(unsafe {chunks_ptr.as_mut().unwrap()}, global.0, global.1, global.2);
                 }
             }
@@ -61,8 +62,8 @@ impl Light {
 
     pub fn on_chunk_loaded(&mut self, chunks: &mut Chunks, cx: i32, cy: i32, cz: i32) {
         for (ly, lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
-            let xyz = Chunks::global_coords((cx, cy, cz), (lx, ly, lz));
-            let id = chunks.voxel_global(xyz.0, xyz.1, xyz.2).map_or(0, |v| v.id as usize);
+            let xyz = ChunkCoords(cx, cy, cz).to_global((lx as u8, ly as u8, lz as u8).into());
+            let id = chunks.voxel_global(xyz).map_or(0, |v| v.id as usize);
             let emission = &BLOCKS()[id].emission();
             if emission.iter().any(|e| *e > 0) {
                 self.add_with_emission_rgb(chunks, xyz.0, xyz.1, xyz.2, emission);
@@ -78,7 +79,7 @@ impl Light {
             let x = cx*CHUNK_SIZE as i32 + lx;
             let y = cy*CHUNK_SIZE as i32 + ly;
             let z = cz*CHUNK_SIZE as i32 + lz;
-            if chunks.get_light(x, y, z) > 0 {
+            if chunks.get_light((x, y, z).into()) > 0 {
                 self.add_rgbs(chunks, x, y, z);
             }
             self.solve_rgbs(chunks);
@@ -90,9 +91,9 @@ impl Light {
         self.remove_rgb(chunks, x, y, z);
         self.solve_rgb(chunks);
 
-        if chunks.get_sun(x, y+1, z) == MAX_LIGHT {
+        if chunks.get_sun((x, y+1, z).into()) == MAX_LIGHT || (y+1) as usize == WORLD_HEIGHT*CHUNK_SIZE {
             for i in (0..=y).rev() {
-                if chunks.voxel_global(x, i, z).map_or(true, |v| v.id != 0) {break};
+                if chunks.voxel_global((x, i, z).into()).map_or(true, |v| v.id != 0) {break};
                 self.solver_sun.add_with_emission(chunks, x, i, z, MAX_LIGHT as u8);
             }
         }
@@ -111,7 +112,7 @@ impl Light {
         self.solver_sun.solve(chunks);
 
         for ny in (0..y).rev() {
-            if chunks.voxel_global(x, ny, z).map_or(0, |v| v.id) != 0 {break};
+            if chunks.voxel_global((x, ny, z).into()).map_or(0, |v| v.id) != 0 {break};
             self.solver_sun.remove(chunks, x, ny, z);
             self.solver_sun.solve(chunks);
         }

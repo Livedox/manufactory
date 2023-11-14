@@ -1,4 +1,4 @@
-use crate::world::xyz::XYZ;
+use crate::world::coords::Coords;
 
 use super::{interaction::BlockInteraction, block_type::BlockType, light_permeability::LightPermeability};
 
@@ -17,11 +17,11 @@ impl BlockInteraction for BlockBelt {
     fn block_type(&self) -> &BlockType {&self.block_type}
     fn is_additional_data(&self) -> bool {self.is_additional_data}
 
-    fn min_point(&self) -> &XYZ {
-        &XYZ(0.0, 0.0, 0.0)
+    fn min_point(&self) -> &Coords {
+        &Coords(0.0, 0.0, 0.0)
     }
-    fn max_point(&self) -> &XYZ {
-        &XYZ(1.0, 0.25, 1.0)
+    fn max_point(&self) -> &Coords {
+        &Coords(1.0, 0.25, 1.0)
     }
     fn is_voxel_size(&self) -> bool {true}
 }

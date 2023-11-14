@@ -1,14 +1,14 @@
 #[derive(Clone, Copy)]
 enum Axis {X = 0, Y = 1, Z = 2}
 impl Axis {
-    pub fn to_usize(&self) -> usize {*self as usize}
+    pub fn to_usize(self) -> usize {self as usize}
 }
 
 enum Direction{Top, Left}
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::{Arc, Mutex}};
 
-use crate::{voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType, light_permeability::LightPermeability}}, vertices::block_vertex::BlockVertex, state::IS_LINE};
+use crate::{voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType, light_permeability::LightPermeability}}, vertices::block_vertex::BlockVertex, state::IS_LINE, world::World};
 
 use super::complex_object::{ComplexObjectPart, ComplexObjectSide};
 
@@ -207,234 +207,288 @@ fn render_complex_side(
         });
 }
 
-pub struct VoxelRenderer {}
-impl VoxelRenderer {
-    pub fn render_test(&mut self, chunk_index: usize, chunks: &mut Chunks) -> (Vec<BlockVertex>, Vec<u16>, HashMap::<String, Vec<([f32; 3], [f32; 4], f32, u32)>>, HashMap<String, Vec<([f32; 3], [f32; 4], u32)>>, Vec<BlockVertex>, Vec<u16>) {
-        let mut buffer = Buffer::new();
+pub struct ModelRenderResult {
+    pub position: [f32; 3],
+    pub light: [f32; 4],
+    pub rotation_index: u32,
+}
 
-        let mut transport_belt_buffer = Buffer::new();
-        let light_handler = LightHandler::new(chunks);
-        let chunk = chunks.chunks[chunk_index].as_ref().unwrap();
-        let mut models = HashMap::<String, Vec<([f32; 3], [f32; 4], u32)>>::new();
-        let mut animated_models_data = HashMap::<String, Vec<([f32; 3], [f32; 4], f32, u32)>>::new();
+pub struct AnimatedModelRenderResult {
+    pub position: [f32; 3],
+    pub light: [f32; 4],
+    pub progress: f32,
+    pub rotation_index: u32,
+}
 
-        for ly in 0..CHUNK_SIZE {
-            let mut greedy_vertices_top = GreedMesh::new();
-            let mut greedy_vertices_bottom = GreedMesh::new();
-            for lz in 0..CHUNK_SIZE {
-                for lx in 0..CHUNK_SIZE {
-                    let id = chunk.voxel((lx, ly, lz)).id;
-                    if id == 0 { continue };
-                    let (x, y, z) = Chunks::global_coords(chunk.xyz, (lx, ly, lz));
+pub struct RenderResult {
+    pub chunk_index: usize,
+    pub block_vertices: Vec<BlockVertex>,
+    pub block_indices: Vec<u16>,
+    pub belt_vertices: Vec<BlockVertex>,
+    pub belt_indices: Vec<u16>,
 
-                    let block = &BLOCKS()[id as usize];
-                    
-                    let (nx, px, ny, py, nz, pz) = (x-1, x+1, y-1, y+1, z-1, z+1);
-                    let (gmx, gpx) = (x as f32, x as f32+1.0);
-                    let (gmy, gpy) = (y as f32, y as f32+1.0);
-                    let (gmz, gpz) = (z as f32, z as f32+1.0);
-                    let faces = match block.block_type() {
-                        BlockType::Block {faces} => faces,
-                        BlockType::Model {name} => {
-                            let rotation_index = chunk.voxels_data.get(&((ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx))
-                                .and_then(|vd| vd.rotation_index()).unwrap_or(0);
-                            let ld = light_handler.light_default((x, y, z));
-                            let data = ([x as f32, y as f32, z as f32], [ld[0], ld[1], ld[2], ld[3]], rotation_index);
-                            models.entry(name.to_owned())
-                                .and_modify(|v| v.push(data))
-                                .or_insert(vec![data]);
-                            continue;
-                        },
-                        BlockType::AnimatedModel {name} => {
-                            let e = chunk.voxels_data.get(&((ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx)).unwrap();
-                            let progress = e.additionally.animation_progress().expect("No animation progress");
-                            let rotation_index = e.rotation_index().unwrap_or(0);
-                            let ld = light_handler.light_default((x, y, z));
-                            let data = ([x as f32, y as f32, z as f32], [ld[0], ld[1], ld[2], ld[3]], progress, rotation_index);
-                            animated_models_data.entry(name.to_owned())
-                                .and_modify(|v| v.push(data))
-                                .or_insert(vec![data]);
-                            continue;
-                        },
-                        BlockType::None => {continue},
-                        BlockType::ComplexObject {cp} => {
-                            let vd = chunk.voxel_data((lx, ly, lz)).unwrap();
-                            let ri = vd.rotation_index().unwrap_or(0) as usize;
-                            cp.parts.iter().for_each(|parts| {
-                                match parts {
-                                    super::complex_object::ComplexObjectParts::Block(part) => {
-                                        render_complex_side(part, &mut buffer, &light_handler, (x, y, z), ri);
-                                    },
-                                    super::complex_object::ComplexObjectParts::TransportBelt(part) => {
-                                        render_complex_side(part, &mut transport_belt_buffer, &light_handler, (x, y, z), ri);
-                                    },
-                                }
-                            });
-                            
-                            continue;
-                        },
-                    };
-                    if !is_blocked(x, y+1, z, chunks, LightPermeability::UP, block.light_permeability()) {
-                        let layer = faces[3] as f32;
-
-                        let ld = light_handler.light_default((x, py, z));
-                        let l0 = light_handler.light_numbered(&ld, (nx,py,z), (nx,py,nz), (x,py,nz));
-                        let l1 = light_handler.light_numbered(&ld, (nx,py,z), (nx,py,pz), (x,py,pz));
-                        let l2 = light_handler.light_numbered(&ld, (px,py,z), (px,py,pz), (x,py,pz));
-                        let l3 = light_handler.light_numbered(&ld, (px,py,z), (px,py,nz), (x,py,nz));
-
-                        greedy_vertices_top.push(lz, lx, [
-                            get_block_vertex(gmx, gpy, gmz, 0., 0., layer, &l0),
-                            get_block_vertex(gmx, gpy, gpz, 0., 1., layer, &l1),
-                            get_block_vertex(gpx, gpy, gpz, 1., 1., layer, &l2),
-                            get_block_vertex(gpx, gpy, gmz, 1., 0., layer, &l3)
-                        ]);
-                    }
-                    if !is_blocked(x, y-1, z, chunks, LightPermeability::DOWN, block.light_permeability()) {
-                        let layer = faces[2] as f32;
-                
-                        let ld = light_handler.light_default((x, y-1, z));
-                        let l0 = light_handler.light_numbered(&ld, (x-1, y-1, z-1), (x-1, y-1, z), (x, y-1, z-1));
-                        let l1 = light_handler.light_numbered(&ld, (x+1, y-1, z+1), (x+1, y-1, z), (x, y-1, z+1));
-                        let l2 = light_handler.light_numbered(&ld, (x-1, y-1, z+1), (x-1, y-1, z), (x, y-1, z+1));
-                        let l3 = light_handler.light_numbered(&ld, (x+1, y-1, z-1), (x+1, y-1, z), (x, y-1, z-1));
-                
-                        greedy_vertices_bottom.push(lz, lx, [
-                            get_block_vertex(gmx, gmy, gmz, 0., 0., layer, &l0),
-                            get_block_vertex(gmx, gmy, gpz, 0., 1., layer, &l2),
-                            get_block_vertex(gpx, gmy, gpz, 1., 1., layer, &l1),
-                            get_block_vertex(gpx, gmy, gmz, 1., 0., layer, &l3),
-                        ]);
-                    }
-                }
-                
-            }
-            greedy_vertices_top.greed(&mut buffer, &Axis::Y, &[3,2,0,2,1,0]);
-            greedy_vertices_bottom.greed(&mut buffer, &Axis::Y, &[0,1,2,0,2,3]);
-        }
+    pub models: HashMap<String, Vec<ModelRenderResult>>,
+    pub animated_models: HashMap<String, Vec<AnimatedModelRenderResult>>,
+}
 
 
-        for lx in 0..CHUNK_SIZE {
-            let mut greedy_vertices_right = GreedMesh::new();
-            let mut greedy_vertices_left = GreedMesh::new();
-            for ly in 0..CHUNK_SIZE {
-                for lz in 0..CHUNK_SIZE {
-                    let id = chunk.voxel((lx, ly, lz)).id;
-                    if id == 0 { continue };
-                    let (x, y, z) = Chunks::global_coords(chunk.xyz, (lx, ly, lz));
+pub fn render(chunk_index: usize, world: &World) -> RenderResult {
+    let chunks = &world.chunks;
+    let mut buffer = Buffer::new();
 
-                    let block = &BLOCKS()[id as usize];
-                    
-                    let (nx, px, ny, py, nz, pz) = (x-1, x+1, y-1, y+1, z-1, z+1);
-                    let (gmx, gpx) = (x as f32, x as f32+1.0);
-                    let (gmy, gpy) = (y as f32, y as f32+1.0);
-                    let (gmz, gpz) = (z as f32, z as f32+1.0);
-                    let faces = match block.block_type() {
-                        BlockType::Block {faces} => faces,
-                        _ => continue
-                    };
-                    if !is_blocked(x+1, y, z, chunks, LightPermeability::RIGHT, block.light_permeability()) {
-                        let layer = faces[1] as f32;
+    let mut transport_belt_buffer = Buffer::new();
+    let light_handler = LightHandler::new(chunks);
+    let chunk = chunks.chunks[chunk_index].as_ref().unwrap();
+    let mut models = HashMap::<String, Vec<ModelRenderResult>>::new();
+    let mut animated_models_data = HashMap::<String, Vec<AnimatedModelRenderResult>>::new();
 
-                        let ld = light_handler.light_default((px, y, z));
-                        let l0 = light_handler.light_numbered(&ld, (px,ny,nz), (px,y,nz), (px,ny,z));
-                        let l1 = light_handler.light_numbered(&ld, (px,py,nz), (px,y,nz), (px,py,z));
-                        let l2 = light_handler.light_numbered(&ld, (px,py,pz), (px,y,pz), (px,py,z));
-                        let l3 = light_handler.light_numbered(&ld, (px,ny,pz), (px,y,pz), (px,ny,z));
-
-                        greedy_vertices_right.push(ly, lz, [
-                            get_block_vertex(gpx, gmy, gmz, 0., 0., layer, &l0),
-                            get_block_vertex(gpx, gpy, gmz, 0., 1., layer, &l1),
-                            get_block_vertex(gpx, gpy, gpz, 1., 1., layer, &l2),
-                            get_block_vertex(gpx, gmy, gpz, 1., 0., layer, &l3)
-                        ]);
-                    }
-                    if !is_blocked(x-1, y, z, chunks, LightPermeability::LEFT, block.light_permeability()) {
-                        let layer = faces[0] as f32;
-                
-                        let ld = light_handler.light_default((nx, y, z));
-                        let l0 = light_handler.light_numbered(&ld, (nx,ny,nz), (nx,y,nz), (nx,ny,z));
-                        let l1 = light_handler.light_numbered(&ld, (nx,py,pz), (nx,y,pz), (nx,py,z));
-                        let l2 = light_handler.light_numbered(&ld, (nx,py,nz), (nx,y,nz), (nx,py,z));
-                        let l3 = light_handler.light_numbered(&ld, (nx,ny,pz), (nx,y,pz), (nx,ny,z));
-                
-                        //change light l2 -> l1
-                        greedy_vertices_left.push(ly, lz, [
-                            get_block_vertex(gmx, gmy, gmz, 0., 0., layer, &l0),
-                            get_block_vertex(gmx, gpy, gmz, 0., 1., layer, &l2),
-                            get_block_vertex(gmx, gpy, gpz, 1., 1., layer, &l1),
-                            get_block_vertex(gmx, gmy, gpz, 1., 0., layer, &l3)
-                        ]);
-                    }
-                }
-                
-            }
-
-            greedy_vertices_right.greed(&mut buffer, &Axis::X, &[3,2,0,2,1,0]);
-            greedy_vertices_left.greed(&mut buffer, &Axis::X, &[0,1,2,0,2,3]);
-        }
-
-
+    for ly in 0..CHUNK_SIZE {
+        let mut greedy_vertices_top = GreedMesh::new();
+        let mut greedy_vertices_bottom = GreedMesh::new();
         for lz in 0..CHUNK_SIZE {
-            let mut greedy_vertices_front = GreedMesh::new();
-            let mut greedy_vertices_back = GreedMesh::new();
             for lx in 0..CHUNK_SIZE {
-                for ly in 0..CHUNK_SIZE {
-                    let id = chunk.voxel((lx, ly, lz)).id;
-                    if id == 0 { continue };
-                    let (x, y, z) = Chunks::global_coords(chunk.xyz, (lx, ly, lz));
+                let id = chunk.voxel((lx, ly, lz).into()).id;
+                if id == 0 { continue };
+                let (x, y, z) = chunk.xyz.to_global((lx, ly, lz).into()).into();
 
-                    let block = &BLOCKS()[id as usize];
-                    
-                    let (nx, px, ny, py, nz, pz) = (x-1, x+1, y-1, y+1, z-1, z+1);
-                    let (gmx, gpx) = (x as f32, x as f32+1.0);
-                    let (gmy, gpy) = (y as f32, y as f32+1.0);
-                    let (gmz, gpz) = (z as f32, z as f32+1.0);
-                    let faces = match block.block_type() {
-                        BlockType::Block {faces} => faces,
-                        _ => continue
-                    };
-                    if !is_blocked(x, y, z+1, chunks, LightPermeability::FRONT, block.light_permeability()) {
-                        let layer = faces[5] as f32;
-
-                        let ld = light_handler.light_default((x, y, pz));
-                        let l0 = light_handler.light_numbered(&ld, (nx,ny,pz), (x,ny,pz), (nx,y,pz));
-                        let l1 = light_handler.light_numbered(&ld, (px,py,pz), (x,py,pz), (px,y,pz));
-                        let l2 = light_handler.light_numbered(&ld, (nx,py,pz), (x,py,pz), (nx,y,pz));
-                        let l3 = light_handler.light_numbered(&ld, (px,ny,pz), (x,ny,pz), (px,y,pz));
-
-                        greedy_vertices_front.push(lx, ly, [
-                            get_block_vertex(gmx, gmy, gpz, 0., 0., layer, &l0),
-                            get_block_vertex(gpx, gmy, gpz, 0., 1., layer, &l3),
-                            get_block_vertex(gpx, gpy, gpz, 1., 1., layer, &l1),
-                            get_block_vertex(gmx, gpy, gpz, 1., 0., layer, &l2),
-                        ]);
-                    }
-                    if !is_blocked(x, y, z-1, chunks, LightPermeability::BACK, block.light_permeability()) {
-                        let layer = faces[4] as f32;
+                let block = &BLOCKS()[id as usize];
                 
-                        let ld = light_handler.light_default((x, y, nz));
-                        let l0 = light_handler.light_numbered(&ld, (nx,ny,nz), (x,ny,nz), (nx,y,nz));
-                        let l1 = light_handler.light_numbered(&ld, (nx,py,nz), (x,py,nz), (nx,y,nz));
-                        let l2 = light_handler.light_numbered(&ld, (px,py,nz), (x,py,nz), (px,y,nz));
-                        let l3 = light_handler.light_numbered(&ld, (px,ny,nz), (x,ny,nz), (px,y,nz));
-                
-                        greedy_vertices_back.push(lx, ly, [
-                            get_block_vertex(gmx, gmy, gmz, 0., 0., layer, &l0),
-                            get_block_vertex(gpx, gmy, gmz, 0., 1., layer, &l3),
-                            get_block_vertex(gpx, gpy, gmz, 1., 1., layer, &l2),
-                            get_block_vertex(gmx, gpy, gmz, 1., 0., layer, &l1),
-                        ]);
-                    }
+                let (nx, px, ny, py, nz, pz) = (x-1, x+1, y-1, y+1, z-1, z+1);
+                let (gmx, gpx) = (x as f32, x as f32+1.0);
+                let (gmy, gpy) = (y as f32, y as f32+1.0);
+                let (gmz, gpz) = (z as f32, z as f32+1.0);
+                let faces = match block.block_type() {
+                    BlockType::Block {faces} => faces,
+                    BlockType::None => {continue},
+                    BlockType::Model {name} => {
+                        let rotation_index = chunk.voxels_data.get(&((ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx))
+                            .and_then(|vd| vd.rotation_index()).unwrap_or(0);
+                        let ld = light_handler.light_default((x, y, z));
+                        let data = ModelRenderResult {
+                            position: [x as f32, y as f32, z as f32],
+                            light: [ld[0], ld[1], ld[2], ld[3]],
+                            rotation_index
+                        };
+                        if models.contains_key(name) {
+                            models.get_mut(name).unwrap().push(data);
+                        } else {
+                            models.insert(name.to_string(), vec![data]);
+                        }
+                        // Need to copy data
+                        // models.entry(name.to_owned())
+                        //     .and_modify(|v| v.push(data))
+                        //     .or_insert(vec![data]);
+                        continue;
+                    },
+                    BlockType::AnimatedModel {name} => {
+                        let e = chunk.voxels_data.get(&((ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx)).unwrap();
+                        let progress = e.additionally.animation_progress().expect("No animation progress");
+                        let rotation_index = e.rotation_index().unwrap_or(0);
+                        let ld = light_handler.light_default((x, y, z));
+                        let data = AnimatedModelRenderResult {
+                            position: [x as f32, y as f32, z as f32],
+                            light: [ld[0], ld[1], ld[2], ld[3]],
+                            progress,
+                            rotation_index
+                        };
+                        if animated_models_data.contains_key(name) {
+                            animated_models_data.get_mut(name).unwrap().push(data);
+                        } else {
+                            animated_models_data.insert(name.to_string(), vec![data]);
+                        }
+                        // Need to copy data
+                        // animated_models_data.entry(name.to_owned())
+                        //     .and_modify(|v| v.push(data))
+                        //     .or_insert(vec![data]);
+                        continue;
+                    },
+                    BlockType::ComplexObject {cp} => {
+                        let vd = chunk.voxel_data((lx, ly, lz).into()).unwrap();
+                        let ri = vd.rotation_index().unwrap_or(0) as usize;
+                        cp.parts.iter().for_each(|parts| {
+                            match parts {
+                                super::complex_object::ComplexObjectParts::Block(part) => {
+                                    render_complex_side(part, &mut buffer, &light_handler, (x, y, z), ri);
+                                },
+                                super::complex_object::ComplexObjectParts::TransportBelt(part) => {
+                                    render_complex_side(part, &mut transport_belt_buffer, &light_handler, (x, y, z), ri);
+                                },
+                            }
+                        });
+                        
+                        continue;
+                    },
+                };
+                if !is_blocked(x, y+1, z, chunks, LightPermeability::UP, block.light_permeability()) {
+                    let layer = faces[3] as f32;
+
+                    let ld = light_handler.light_default((x, py, z));
+                    let l0 = light_handler.light_numbered(&ld, (nx,py,z), (nx,py,nz), (x,py,nz));
+                    let l1 = light_handler.light_numbered(&ld, (nx,py,z), (nx,py,pz), (x,py,pz));
+                    let l2 = light_handler.light_numbered(&ld, (px,py,z), (px,py,pz), (x,py,pz));
+                    let l3 = light_handler.light_numbered(&ld, (px,py,z), (px,py,nz), (x,py,nz));
+
+                    greedy_vertices_top.push(lz, lx, [
+                        get_block_vertex(gmx, gpy, gmz, 0., 0., layer, &l0),
+                        get_block_vertex(gmx, gpy, gpz, 0., 1., layer, &l1),
+                        get_block_vertex(gpx, gpy, gpz, 1., 1., layer, &l2),
+                        get_block_vertex(gpx, gpy, gmz, 1., 0., layer, &l3)
+                    ]);
+                }
+                if !is_blocked(x, y-1, z, chunks, LightPermeability::DOWN, block.light_permeability()) {
+                    let layer = faces[2] as f32;
+            
+                    let ld = light_handler.light_default((x, y-1, z));
+                    let l0 = light_handler.light_numbered(&ld, (x-1, y-1, z-1), (x-1, y-1, z), (x, y-1, z-1));
+                    let l1 = light_handler.light_numbered(&ld, (x+1, y-1, z+1), (x+1, y-1, z), (x, y-1, z+1));
+                    let l2 = light_handler.light_numbered(&ld, (x-1, y-1, z+1), (x-1, y-1, z), (x, y-1, z+1));
+                    let l3 = light_handler.light_numbered(&ld, (x+1, y-1, z-1), (x+1, y-1, z), (x, y-1, z-1));
+            
+                    greedy_vertices_bottom.push(lz, lx, [
+                        get_block_vertex(gmx, gmy, gmz, 0., 0., layer, &l0),
+                        get_block_vertex(gmx, gmy, gpz, 0., 1., layer, &l2),
+                        get_block_vertex(gpx, gmy, gpz, 1., 1., layer, &l1),
+                        get_block_vertex(gpx, gmy, gmz, 1., 0., layer, &l3),
+                    ]);
                 }
             }
-
-            greedy_vertices_front.greed(&mut buffer, &Axis::Z, &[3,2,0,2,1,0]);
-            greedy_vertices_back.greed(&mut buffer, &Axis::Z, &[0,1,2,0,2,3]);
+            
         }
-        (buffer.buffer, buffer.index_buffer, animated_models_data, models, transport_belt_buffer.buffer, transport_belt_buffer.index_buffer)
+        greedy_vertices_top.greed(&mut buffer, &Axis::Y, &[3,2,0,2,1,0]);
+        greedy_vertices_bottom.greed(&mut buffer, &Axis::Y, &[0,1,2,0,2,3]);
+    }
+
+
+    for lx in 0..CHUNK_SIZE {
+        let mut greedy_vertices_right = GreedMesh::new();
+        let mut greedy_vertices_left = GreedMesh::new();
+        for ly in 0..CHUNK_SIZE {
+            for lz in 0..CHUNK_SIZE {
+                let id = chunk.voxel((lx, ly, lz).into()).id;
+                if id == 0 { continue };
+                let (x, y, z) = chunk.xyz.to_global((lx, ly, lz).into()).into();
+
+                let block = &BLOCKS()[id as usize];
+                
+                let (nx, px, ny, py, nz, pz) = (x-1, x+1, y-1, y+1, z-1, z+1);
+                let (gmx, gpx) = (x as f32, x as f32+1.0);
+                let (gmy, gpy) = (y as f32, y as f32+1.0);
+                let (gmz, gpz) = (z as f32, z as f32+1.0);
+                let faces = match block.block_type() {
+                    BlockType::Block {faces} => faces,
+                    _ => continue
+                };
+                if !is_blocked(x+1, y, z, chunks, LightPermeability::RIGHT, block.light_permeability()) {
+                    let layer = faces[1] as f32;
+
+                    let ld = light_handler.light_default((px, y, z));
+                    let l0 = light_handler.light_numbered(&ld, (px,ny,nz), (px,y,nz), (px,ny,z));
+                    let l1 = light_handler.light_numbered(&ld, (px,py,nz), (px,y,nz), (px,py,z));
+                    let l2 = light_handler.light_numbered(&ld, (px,py,pz), (px,y,pz), (px,py,z));
+                    let l3 = light_handler.light_numbered(&ld, (px,ny,pz), (px,y,pz), (px,ny,z));
+
+                    greedy_vertices_right.push(ly, lz, [
+                        get_block_vertex(gpx, gmy, gmz, 0., 0., layer, &l0),
+                        get_block_vertex(gpx, gpy, gmz, 0., 1., layer, &l1),
+                        get_block_vertex(gpx, gpy, gpz, 1., 1., layer, &l2),
+                        get_block_vertex(gpx, gmy, gpz, 1., 0., layer, &l3)
+                    ]);
+                }
+                if !is_blocked(x-1, y, z, chunks, LightPermeability::LEFT, block.light_permeability()) {
+                    let layer = faces[0] as f32;
+            
+                    let ld = light_handler.light_default((nx, y, z));
+                    let l0 = light_handler.light_numbered(&ld, (nx,ny,nz), (nx,y,nz), (nx,ny,z));
+                    let l1 = light_handler.light_numbered(&ld, (nx,py,pz), (nx,y,pz), (nx,py,z));
+                    let l2 = light_handler.light_numbered(&ld, (nx,py,nz), (nx,y,nz), (nx,py,z));
+                    let l3 = light_handler.light_numbered(&ld, (nx,ny,pz), (nx,y,pz), (nx,ny,z));
+            
+                    //change light l2 -> l1
+                    greedy_vertices_left.push(ly, lz, [
+                        get_block_vertex(gmx, gmy, gmz, 0., 0., layer, &l0),
+                        get_block_vertex(gmx, gpy, gmz, 0., 1., layer, &l2),
+                        get_block_vertex(gmx, gpy, gpz, 1., 1., layer, &l1),
+                        get_block_vertex(gmx, gmy, gpz, 1., 0., layer, &l3)
+                    ]);
+                }
+            }
+            
+        }
+
+        greedy_vertices_right.greed(&mut buffer, &Axis::X, &[3,2,0,2,1,0]);
+        greedy_vertices_left.greed(&mut buffer, &Axis::X, &[0,1,2,0,2,3]);
+    }
+
+
+    for lz in 0..CHUNK_SIZE {
+        let mut greedy_vertices_front = GreedMesh::new();
+        let mut greedy_vertices_back = GreedMesh::new();
+        for lx in 0..CHUNK_SIZE {
+            for ly in 0..CHUNK_SIZE {
+                let id = chunk.voxel((lx, ly, lz).into()).id;
+                if id == 0 { continue };
+                let (x, y, z) = chunk.xyz.to_global((lx, ly, lz).into()).into();
+
+                let block = &BLOCKS()[id as usize];
+                
+                let (nx, px, ny, py, nz, pz) = (x-1, x+1, y-1, y+1, z-1, z+1);
+                let (gmx, gpx) = (x as f32, x as f32+1.0);
+                let (gmy, gpy) = (y as f32, y as f32+1.0);
+                let (gmz, gpz) = (z as f32, z as f32+1.0);
+                let faces = match block.block_type() {
+                    BlockType::Block {faces} => faces,
+                    _ => continue
+                };
+                if !is_blocked(x, y, z+1, chunks, LightPermeability::FRONT, block.light_permeability()) {
+                    let layer = faces[5] as f32;
+
+                    let ld = light_handler.light_default((x, y, pz));
+                    let l0 = light_handler.light_numbered(&ld, (nx,ny,pz), (x,ny,pz), (nx,y,pz));
+                    let l1 = light_handler.light_numbered(&ld, (px,py,pz), (x,py,pz), (px,y,pz));
+                    let l2 = light_handler.light_numbered(&ld, (nx,py,pz), (x,py,pz), (nx,y,pz));
+                    let l3 = light_handler.light_numbered(&ld, (px,ny,pz), (x,ny,pz), (px,y,pz));
+
+                    greedy_vertices_front.push(lx, ly, [
+                        get_block_vertex(gmx, gmy, gpz, 0., 0., layer, &l0),
+                        get_block_vertex(gpx, gmy, gpz, 0., 1., layer, &l3),
+                        get_block_vertex(gpx, gpy, gpz, 1., 1., layer, &l1),
+                        get_block_vertex(gmx, gpy, gpz, 1., 0., layer, &l2),
+                    ]);
+                }
+                if !is_blocked(x, y, z-1, chunks, LightPermeability::BACK, block.light_permeability()) {
+                    let layer = faces[4] as f32;
+            
+                    let ld = light_handler.light_default((x, y, nz));
+                    let l0 = light_handler.light_numbered(&ld, (nx,ny,nz), (x,ny,nz), (nx,y,nz));
+                    let l1 = light_handler.light_numbered(&ld, (nx,py,nz), (x,py,nz), (nx,y,nz));
+                    let l2 = light_handler.light_numbered(&ld, (px,py,nz), (x,py,nz), (px,y,nz));
+                    let l3 = light_handler.light_numbered(&ld, (px,ny,nz), (x,ny,nz), (px,y,nz));
+            
+                    greedy_vertices_back.push(lx, ly, [
+                        get_block_vertex(gmx, gmy, gmz, 0., 0., layer, &l0),
+                        get_block_vertex(gpx, gmy, gmz, 0., 1., layer, &l3),
+                        get_block_vertex(gpx, gpy, gmz, 1., 1., layer, &l2),
+                        get_block_vertex(gmx, gpy, gmz, 1., 0., layer, &l1),
+                    ]);
+                }
+            }
+        }
+
+        greedy_vertices_front.greed(&mut buffer, &Axis::Z, &[3,2,0,2,1,0]);
+        greedy_vertices_back.greed(&mut buffer, &Axis::Z, &[0,1,2,0,2,3]);
+    }
+
+    RenderResult {
+        chunk_index,
+        block_vertices: buffer.buffer,
+        block_indices: buffer.index_buffer,
+        models: models,
+        animated_models: animated_models_data,
+        belt_vertices: transport_belt_buffer.buffer,
+        belt_indices: transport_belt_buffer.index_buffer,
     }
 }
+
 
 
 struct LightHandler<'a> {
@@ -447,24 +501,284 @@ impl<'a> LightHandler<'a> {
 
     pub fn light_default(&self, face: (i32, i32, i32)) -> Vec<f32> {
         (0..4).map(|item| {
-            self.chunks.light(face.0,face.1,face.2,item) as f32/15.0
+            self.chunks.light((face.0,face.1,face.2).into(),item) as f32/15.0
         }).collect::<Vec<f32>>()
     }
 
     pub fn light_numbered(&self, light_default: &[f32], c1: (i32, i32, i32), c2: (i32, i32, i32), c3: (i32, i32, i32)) -> Vec<f32> {
         light_default.iter().enumerate().map(|(i, light)| {
-            (self.chunks.light(c1.0,c1.1,c1.2,i as u8) as f32 +
-             self.chunks.light(c2.0,c2.1,c2.2,i as u8) as f32 +
-             self.chunks.light(c3.0,c3.1,c3.2,i as u8) as f32 +
+            (self.chunks.light((c1.0,c1.1,c1.2).into(),i as u8) as f32 +
+             self.chunks.light((c2.0,c2.1,c2.2).into(),i as u8) as f32 +
+             self.chunks.light((c3.0,c3.1,c3.2).into(),i as u8) as f32 +
              light*Self::COEFFICIENT) / 75.0
         }).collect::<Vec<f32>>()
     }
 }
 
 fn is_blocked(x: i32, y: i32, z: i32, chunks: &Chunks, side: LightPermeability, current: LightPermeability) -> bool {
-    if let Some(voxel) = chunks.voxel_global(x, y, z) {
+    if let Some(voxel) = chunks.voxel_global((x, y, z).into()) {
         let block = &BLOCKS()[voxel.id as usize];
         return((block.light_permeability() & side.get_opposite_side()).bits() == 0) && ((current & side).bits() == 0)
     }
     false
 }
+
+
+// pub fn render(chunk_index: usize, chunks: Arc<Mutex<World>>) -> RenderResult {
+//     let guard = chunks.lock().unwrap();
+//     let world: &World = &*guard;
+//     let chunks = &world.chunks;
+//     let mut buffer = Buffer::new();
+
+//     let mut transport_belt_buffer = Buffer::new();
+//     let light_handler = LightHandler::new(chunks);
+//     let chunk = chunks.chunks[chunk_index].as_ref().unwrap();
+//     let mut models = HashMap::<String, Vec<ModelRenderResult>>::new();
+//     let mut animated_models_data = HashMap::<String, Vec<AnimatedModelRenderResult>>::new();
+
+//     for ly in 0..CHUNK_SIZE {
+//         let mut greedy_vertices_top = GreedMesh::new();
+//         let mut greedy_vertices_bottom = GreedMesh::new();
+//         for lz in 0..CHUNK_SIZE {
+//             for lx in 0..CHUNK_SIZE {
+//                 let id = chunk.voxel((lx, ly, lz).into()).id;
+//                 if id == 0 { continue };
+//                 let (x, y, z) = chunk.xyz.to_global((lx, ly, lz).into()).into();
+
+//                 let block = &BLOCKS()[id as usize];
+                
+//                 let (nx, px, ny, py, nz, pz) = (x-1, x+1, y-1, y+1, z-1, z+1);
+//                 let (gmx, gpx) = (x as f32, x as f32+1.0);
+//                 let (gmy, gpy) = (y as f32, y as f32+1.0);
+//                 let (gmz, gpz) = (z as f32, z as f32+1.0);
+//                 let faces = match block.block_type() {
+//                     BlockType::Block {faces} => faces,
+//                     BlockType::None => {continue},
+//                     BlockType::Model {name} => {
+//                         let rotation_index = chunk.voxels_data.get(&((ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx))
+//                             .and_then(|vd| vd.rotation_index()).unwrap_or(0);
+//                         let ld = light_handler.light_default((x, y, z));
+//                         let data = ModelRenderResult {
+//                             position: [x as f32, y as f32, z as f32],
+//                             light: [ld[0], ld[1], ld[2], ld[3]],
+//                             rotation_index
+//                         };
+//                         if models.contains_key(name) {
+//                             models.get_mut(name).unwrap().push(data);
+//                         } else {
+//                             models.insert(name.to_string(), vec![data]);
+//                         }
+//                         // Need to copy data
+//                         // models.entry(name.to_owned())
+//                         //     .and_modify(|v| v.push(data))
+//                         //     .or_insert(vec![data]);
+//                         continue;
+//                     },
+//                     BlockType::AnimatedModel {name} => {
+//                         let e = chunk.voxels_data.get(&((ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx)).unwrap();
+//                         let progress = e.additionally.animation_progress().expect("No animation progress");
+//                         let rotation_index = e.rotation_index().unwrap_or(0);
+//                         let ld = light_handler.light_default((x, y, z));
+//                         let data = AnimatedModelRenderResult {
+//                             position: [x as f32, y as f32, z as f32],
+//                             light: [ld[0], ld[1], ld[2], ld[3]],
+//                             progress,
+//                             rotation_index
+//                         };
+//                         if animated_models_data.contains_key(name) {
+//                             animated_models_data.get_mut(name).unwrap().push(data);
+//                         } else {
+//                             animated_models_data.insert(name.to_string(), vec![data]);
+//                         }
+//                         // Need to copy data
+//                         // animated_models_data.entry(name.to_owned())
+//                         //     .and_modify(|v| v.push(data))
+//                         //     .or_insert(vec![data]);
+//                         continue;
+//                     },
+//                     BlockType::ComplexObject {cp} => {
+//                         let vd = chunk.voxel_data((lx, ly, lz).into()).unwrap();
+//                         let ri = vd.rotation_index().unwrap_or(0) as usize;
+//                         cp.parts.iter().for_each(|parts| {
+//                             match parts {
+//                                 super::complex_object::ComplexObjectParts::Block(part) => {
+//                                     render_complex_side(part, &mut buffer, &light_handler, (x, y, z), ri);
+//                                 },
+//                                 super::complex_object::ComplexObjectParts::TransportBelt(part) => {
+//                                     render_complex_side(part, &mut transport_belt_buffer, &light_handler, (x, y, z), ri);
+//                                 },
+//                             }
+//                         });
+                        
+//                         continue;
+//                     },
+//                 };
+//                 if !is_blocked(x, y+1, z, chunks, LightPermeability::UP, block.light_permeability()) {
+//                     let layer = faces[3] as f32;
+
+//                     let ld = light_handler.light_default((x, py, z));
+//                     let l0 = light_handler.light_numbered(&ld, (nx,py,z), (nx,py,nz), (x,py,nz));
+//                     let l1 = light_handler.light_numbered(&ld, (nx,py,z), (nx,py,pz), (x,py,pz));
+//                     let l2 = light_handler.light_numbered(&ld, (px,py,z), (px,py,pz), (x,py,pz));
+//                     let l3 = light_handler.light_numbered(&ld, (px,py,z), (px,py,nz), (x,py,nz));
+
+//                     greedy_vertices_top.push(lz, lx, [
+//                         get_block_vertex(gmx, gpy, gmz, 0., 0., layer, &l0),
+//                         get_block_vertex(gmx, gpy, gpz, 0., 1., layer, &l1),
+//                         get_block_vertex(gpx, gpy, gpz, 1., 1., layer, &l2),
+//                         get_block_vertex(gpx, gpy, gmz, 1., 0., layer, &l3)
+//                     ]);
+//                 }
+//                 if !is_blocked(x, y-1, z, chunks, LightPermeability::DOWN, block.light_permeability()) {
+//                     let layer = faces[2] as f32;
+            
+//                     let ld = light_handler.light_default((x, y-1, z));
+//                     let l0 = light_handler.light_numbered(&ld, (x-1, y-1, z-1), (x-1, y-1, z), (x, y-1, z-1));
+//                     let l1 = light_handler.light_numbered(&ld, (x+1, y-1, z+1), (x+1, y-1, z), (x, y-1, z+1));
+//                     let l2 = light_handler.light_numbered(&ld, (x-1, y-1, z+1), (x-1, y-1, z), (x, y-1, z+1));
+//                     let l3 = light_handler.light_numbered(&ld, (x+1, y-1, z-1), (x+1, y-1, z), (x, y-1, z-1));
+            
+//                     greedy_vertices_bottom.push(lz, lx, [
+//                         get_block_vertex(gmx, gmy, gmz, 0., 0., layer, &l0),
+//                         get_block_vertex(gmx, gmy, gpz, 0., 1., layer, &l2),
+//                         get_block_vertex(gpx, gmy, gpz, 1., 1., layer, &l1),
+//                         get_block_vertex(gpx, gmy, gmz, 1., 0., layer, &l3),
+//                     ]);
+//                 }
+//             }
+            
+//         }
+//         greedy_vertices_top.greed(&mut buffer, &Axis::Y, &[3,2,0,2,1,0]);
+//         greedy_vertices_bottom.greed(&mut buffer, &Axis::Y, &[0,1,2,0,2,3]);
+//     }
+
+
+//     for lx in 0..CHUNK_SIZE {
+//         let mut greedy_vertices_right = GreedMesh::new();
+//         let mut greedy_vertices_left = GreedMesh::new();
+//         for ly in 0..CHUNK_SIZE {
+//             for lz in 0..CHUNK_SIZE {
+//                 let id = chunk.voxel((lx, ly, lz).into()).id;
+//                 if id == 0 { continue };
+//                 let (x, y, z) = chunk.xyz.to_global((lx, ly, lz).into()).into();
+
+//                 let block = &BLOCKS()[id as usize];
+                
+//                 let (nx, px, ny, py, nz, pz) = (x-1, x+1, y-1, y+1, z-1, z+1);
+//                 let (gmx, gpx) = (x as f32, x as f32+1.0);
+//                 let (gmy, gpy) = (y as f32, y as f32+1.0);
+//                 let (gmz, gpz) = (z as f32, z as f32+1.0);
+//                 let faces = match block.block_type() {
+//                     BlockType::Block {faces} => faces,
+//                     _ => continue
+//                 };
+//                 if !is_blocked(x+1, y, z, chunks, LightPermeability::RIGHT, block.light_permeability()) {
+//                     let layer = faces[1] as f32;
+
+//                     let ld = light_handler.light_default((px, y, z));
+//                     let l0 = light_handler.light_numbered(&ld, (px,ny,nz), (px,y,nz), (px,ny,z));
+//                     let l1 = light_handler.light_numbered(&ld, (px,py,nz), (px,y,nz), (px,py,z));
+//                     let l2 = light_handler.light_numbered(&ld, (px,py,pz), (px,y,pz), (px,py,z));
+//                     let l3 = light_handler.light_numbered(&ld, (px,ny,pz), (px,y,pz), (px,ny,z));
+
+//                     greedy_vertices_right.push(ly, lz, [
+//                         get_block_vertex(gpx, gmy, gmz, 0., 0., layer, &l0),
+//                         get_block_vertex(gpx, gpy, gmz, 0., 1., layer, &l1),
+//                         get_block_vertex(gpx, gpy, gpz, 1., 1., layer, &l2),
+//                         get_block_vertex(gpx, gmy, gpz, 1., 0., layer, &l3)
+//                     ]);
+//                 }
+//                 if !is_blocked(x-1, y, z, chunks, LightPermeability::LEFT, block.light_permeability()) {
+//                     let layer = faces[0] as f32;
+            
+//                     let ld = light_handler.light_default((nx, y, z));
+//                     let l0 = light_handler.light_numbered(&ld, (nx,ny,nz), (nx,y,nz), (nx,ny,z));
+//                     let l1 = light_handler.light_numbered(&ld, (nx,py,pz), (nx,y,pz), (nx,py,z));
+//                     let l2 = light_handler.light_numbered(&ld, (nx,py,nz), (nx,y,nz), (nx,py,z));
+//                     let l3 = light_handler.light_numbered(&ld, (nx,ny,pz), (nx,y,pz), (nx,ny,z));
+            
+//                     //change light l2 -> l1
+//                     greedy_vertices_left.push(ly, lz, [
+//                         get_block_vertex(gmx, gmy, gmz, 0., 0., layer, &l0),
+//                         get_block_vertex(gmx, gpy, gmz, 0., 1., layer, &l2),
+//                         get_block_vertex(gmx, gpy, gpz, 1., 1., layer, &l1),
+//                         get_block_vertex(gmx, gmy, gpz, 1., 0., layer, &l3)
+//                     ]);
+//                 }
+//             }
+            
+//         }
+
+//         greedy_vertices_right.greed(&mut buffer, &Axis::X, &[3,2,0,2,1,0]);
+//         greedy_vertices_left.greed(&mut buffer, &Axis::X, &[0,1,2,0,2,3]);
+//     }
+
+
+//     for lz in 0..CHUNK_SIZE {
+//         let mut greedy_vertices_front = GreedMesh::new();
+//         let mut greedy_vertices_back = GreedMesh::new();
+//         for lx in 0..CHUNK_SIZE {
+//             for ly in 0..CHUNK_SIZE {
+//                 let id = chunk.voxel((lx, ly, lz).into()).id;
+//                 if id == 0 { continue };
+//                 let (x, y, z) = chunk.xyz.to_global((lx, ly, lz).into()).into();
+
+//                 let block = &BLOCKS()[id as usize];
+                
+//                 let (nx, px, ny, py, nz, pz) = (x-1, x+1, y-1, y+1, z-1, z+1);
+//                 let (gmx, gpx) = (x as f32, x as f32+1.0);
+//                 let (gmy, gpy) = (y as f32, y as f32+1.0);
+//                 let (gmz, gpz) = (z as f32, z as f32+1.0);
+//                 let faces = match block.block_type() {
+//                     BlockType::Block {faces} => faces,
+//                     _ => continue
+//                 };
+//                 if !is_blocked(x, y, z+1, chunks, LightPermeability::FRONT, block.light_permeability()) {
+//                     let layer = faces[5] as f32;
+
+//                     let ld = light_handler.light_default((x, y, pz));
+//                     let l0 = light_handler.light_numbered(&ld, (nx,ny,pz), (x,ny,pz), (nx,y,pz));
+//                     let l1 = light_handler.light_numbered(&ld, (px,py,pz), (x,py,pz), (px,y,pz));
+//                     let l2 = light_handler.light_numbered(&ld, (nx,py,pz), (x,py,pz), (nx,y,pz));
+//                     let l3 = light_handler.light_numbered(&ld, (px,ny,pz), (x,ny,pz), (px,y,pz));
+
+//                     greedy_vertices_front.push(lx, ly, [
+//                         get_block_vertex(gmx, gmy, gpz, 0., 0., layer, &l0),
+//                         get_block_vertex(gpx, gmy, gpz, 0., 1., layer, &l3),
+//                         get_block_vertex(gpx, gpy, gpz, 1., 1., layer, &l1),
+//                         get_block_vertex(gmx, gpy, gpz, 1., 0., layer, &l2),
+//                     ]);
+//                 }
+//                 if !is_blocked(x, y, z-1, chunks, LightPermeability::BACK, block.light_permeability()) {
+//                     let layer = faces[4] as f32;
+            
+//                     let ld = light_handler.light_default((x, y, nz));
+//                     let l0 = light_handler.light_numbered(&ld, (nx,ny,nz), (x,ny,nz), (nx,y,nz));
+//                     let l1 = light_handler.light_numbered(&ld, (nx,py,nz), (x,py,nz), (nx,y,nz));
+//                     let l2 = light_handler.light_numbered(&ld, (px,py,nz), (x,py,nz), (px,y,nz));
+//                     let l3 = light_handler.light_numbered(&ld, (px,ny,nz), (x,ny,nz), (px,y,nz));
+            
+//                     greedy_vertices_back.push(lx, ly, [
+//                         get_block_vertex(gmx, gmy, gmz, 0., 0., layer, &l0),
+//                         get_block_vertex(gpx, gmy, gmz, 0., 1., layer, &l3),
+//                         get_block_vertex(gpx, gpy, gmz, 1., 1., layer, &l2),
+//                         get_block_vertex(gmx, gpy, gmz, 1., 0., layer, &l1),
+//                     ]);
+//                 }
+//             }
+//         }
+
+//         greedy_vertices_front.greed(&mut buffer, &Axis::Z, &[3,2,0,2,1,0]);
+//         greedy_vertices_back.greed(&mut buffer, &Axis::Z, &[0,1,2,0,2,3]);
+//     }
+
+//     RenderResult {
+//         chunk_index,
+//         block_vertices: buffer.buffer,
+//         block_indices: buffer.index_buffer,
+//         models: models,
+//         animated_models: animated_models_data,
+//         belt_vertices: transport_belt_buffer.buffer,
+//         belt_indices: transport_belt_buffer.index_buffer,
+//     }
+// }

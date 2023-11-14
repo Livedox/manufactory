@@ -1,4 +1,4 @@
-use crate::{recipes::{item::Item, storage::Storage}, world::{World, global_xyz::GlobalXYZ}, player::player::Player};
+use crate::{recipes::{item::Item, storage::Storage}, world::{World, global_coords::GlobalCoords}, player::player::Player};
 
 use super::{interaction::{BlockInteraction, BlockItem}, block_type::BlockType, light_permeability::LightPermeability};
 
@@ -18,9 +18,9 @@ impl BlockInteraction for BlockOre {
     fn block_type(&self) -> &BlockType {&self.block_type}
     fn is_additional_data(&self) -> bool {self.is_additional_data}
 
-    fn on_block_break(&self, world: &mut World, player: &mut Player, xyz: &GlobalXYZ) {
+    fn on_block_break(&self, world: &mut World, player: &mut Player, xyz: &GlobalCoords) {
         world.break_voxel(xyz);
-        player.inventory().borrow_mut().add(&Item::new(self.item_id(), 1), true);
+        player.inventory().lock().unwrap().add(&Item::new(self.item_id(), 1), true);
     }
 
     fn ore(&self) -> Option<Item> {

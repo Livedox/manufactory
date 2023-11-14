@@ -1,10 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::{Mutex, Arc}};
 
 use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
 
-use crate::{graphic::render::VoxelRenderer, voxels::chunks::Chunks, vertices::{model_instance::ModelInstance, animated_model_instance::AnimatedModelInstance}, models::animated_model::AnimatedModel};
+use crate::{graphic::render::{render, AnimatedModelRenderResult, ModelRenderResult, RenderResult}, voxels::chunks::Chunks, vertices::{model_instance::ModelInstance, animated_model_instance::AnimatedModelInstance}, models::animated_model::AnimatedModel, world::World};
 
 #[derive(Debug)]
 pub struct Mesh {
@@ -26,6 +26,14 @@ pub struct Mesh {
 }
 
 
+pub struct MeshesRenderInput<'a> {
+    pub device: &'a wgpu::Device,
+    pub animated_model_layout: &'a wgpu::BindGroupLayout,
+    pub all_animated_models: &'a HashMap<String, AnimatedModel>,
+    pub render_result: RenderResult,
+}
+
+
 #[derive(Debug)]
 pub struct Meshes {
     meshes: Vec<Option<Mesh>>,
@@ -34,45 +42,47 @@ pub struct Meshes {
 impl Meshes {
     pub fn new() -> Self { Self {meshes: vec![]} }
 
-    pub fn render(&mut self, device: &wgpu::Device, animated_model_layout: &wgpu::BindGroupLayout, renderer: &mut VoxelRenderer, chunks: &mut Chunks, index: usize, all_animated_models: &HashMap<String, AnimatedModel>) {
-        let mesh = renderer.render_test(index, chunks);
+    pub fn render(&mut self, input: MeshesRenderInput) {
+        let MeshesRenderInput {device, animated_model_layout, all_animated_models, render_result} = input;
+        let index = render_result.chunk_index;
+
         let mut models = HashMap::<String, (wgpu::Buffer, usize)>::new();
         let mut animated_models = HashMap::<String, (wgpu::Buffer, usize)>::new();
 
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some(&format!("Block vertex Buffer (Chunk: {})", index)),
-            contents: bytemuck::cast_slice(&mesh.0),
+            contents: bytemuck::cast_slice(&render_result.block_vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some(&format!("Block index Buffer (Chunk: {})", index)),
-            contents: bytemuck::cast_slice(&mesh.1),
+            contents: bytemuck::cast_slice(&render_result.block_indices),
             usage: wgpu::BufferUsages::INDEX,
         });
 
         let transport_belt_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some(&format!("Transport belt vertex Buffer (Chunk: {})", index)),
-            contents: bytemuck::cast_slice(&mesh.4),
+            contents: bytemuck::cast_slice(&render_result.belt_vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
 
         let transport_belt_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some(&format!("Transport belt index buffer (Chunk: {})", index)),
-            contents: bytemuck::cast_slice(&mesh.5),
+            contents: bytemuck::cast_slice(&render_result.block_indices),
             usage: wgpu::BufferUsages::INDEX,
         });
 
 
         let mut animation: Vec<u8> = vec![];
         let mut start_matrix: u32 = 0;
-        mesh.2.iter().sorted_by_key(|(name, _)| *name).for_each(|(name, data)| {
+        render_result.animated_models.iter().sorted_by_key(|(name, _)| *name).for_each(|(name, data)| {
             let mut animated_model_instances = Vec::<AnimatedModelInstance>::new();
             let animated_model = all_animated_models.get(name).unwrap();
-            data.iter().for_each(|(position, light, progress, rotation_index)| {
+            data.iter().for_each(|AnimatedModelRenderResult {position, light, progress, rotation_index}| {
                 animated_model_instances.push(AnimatedModelInstance {
                     position: *position,
                     start_matrix,
@@ -111,9 +121,9 @@ impl Meshes {
         }
 
         
-        mesh.3.iter().for_each(|(name, positions)| {
+        render_result.models.iter().for_each(|(name, positions)| {
             let mut model_instances = Vec::<ModelInstance>::new();
-            positions.iter().for_each(|(position, light, rotation_index)| {
+            positions.iter().for_each(|ModelRenderResult {position, light, rotation_index}| {
                 model_instances.push(ModelInstance { position: *position, light: *light, rotation_index: *rotation_index })
             });
             models.insert(name.to_string(), (device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -128,8 +138,8 @@ impl Meshes {
         self.meshes[index] = Some(Mesh {
             block_vertex_buffer: vertex_buffer,
             block_index_buffer: index_buffer,
-            block_vertex_count: mesh.0.len() as u32,
-            block_index_count: mesh.1.len() as u32,
+            block_vertex_count: render_result.block_vertices.len() as u32,
+            block_index_count: render_result.block_indices.len() as u32,
 
             models,
 
@@ -139,8 +149,8 @@ impl Meshes {
 
             transport_belt_vertex_buffer,
             transport_belt_index_buffer,
-            transport_belt_vertex_count: mesh.4.len() as u32,
-            transport_belt_index_count: mesh.5.len() as u32,
+            transport_belt_vertex_count: render_result.belt_vertices.len() as u32,
+            transport_belt_index_count: render_result.block_indices.len() as u32,
         });
     }
 
@@ -152,22 +162,5 @@ impl Meshes {
 
     pub fn mut_meshes(&mut self) -> &mut Vec<Option<Mesh>> {
         &mut self.meshes
-    }
-
-    pub fn render_all(
-        &mut self,
-        chunks: &mut Chunks,
-        device: &wgpu::Device,
-        animated_model_layout: &wgpu::BindGroupLayout,
-        all_animated_models: &HashMap<String, AnimatedModel>,
-    ) {
-        // loop {
-        //     let index = chunks.get_nearest_chunk_index();
-        //     if let Some(index) = index {
-        //         self.render(device, animated_model_layout, chunks, index, animated_models);
-        //     } else {
-        //         break;
-        //     }
-        // }
     }
 }

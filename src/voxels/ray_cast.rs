@@ -42,7 +42,7 @@ pub fn ray_cast(
     let mut stepped_index = -1;
 
     while t <= radius {
-        let voxel = chunks.voxel_global(ix as i32, iy as i32, iz as i32);
+        let voxel = chunks.voxel_global((ix as i32, iy as i32, iz as i32).into());
         let id = if let Some(voxel) = voxel {voxel.id} else {0};
         let mut condition = id != 0;
         let block = &BLOCKS()[id as usize];

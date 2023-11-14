@@ -1,4 +1,4 @@
-use crate::{world::{World, global_xyz::GlobalXYZ}, player::player::Player, direction::Direction};
+use crate::{world::{World, global_coords::GlobalCoords}, player::player::Player, direction::Direction};
 
 use super::{interaction::BlockInteraction, block_type::BlockType, light_permeability::LightPermeability};
 
@@ -27,15 +27,15 @@ impl BlockInteraction for MultiBlock {
     fn height(&self) -> usize {self.height}
     fn depth(&self) -> usize {self.depth}
 
-    fn on_block_break(&self, world: &mut World, _: &mut Player, xyz: &GlobalXYZ) {
-        if let Some(xyz) = world.chunks.remove_multiblock_structure(xyz.0, xyz.1, xyz.2) {
-            xyz.iter().for_each(|(x, y, z)| {
-                world.light.on_block_break(&mut world.chunks, *x, *y, *z);
+    fn on_block_break(&self, world: &mut World, _: &mut Player, xyz: &GlobalCoords) {
+        if let Some(xyz) = world.chunks.remove_multiblock_structure(*xyz) {
+            xyz.iter().for_each(|c| {
+                world.light.on_block_break(&mut world.chunks, c.0, c.1, c.2);
             });
         };
     }
 
-    fn on_block_set(&self, world: &mut World, _: &mut Player, xyz: &GlobalXYZ, dir: &Direction) -> bool {
+    fn on_block_set(&self, world: &mut World, _: &mut Player, xyz: &GlobalCoords, dir: &Direction) -> bool {
         // FIX THIS SHIT
         let mut width = self.width as i32;
         let mut depth = self.depth as i32;
@@ -50,8 +50,8 @@ impl BlockInteraction for MultiBlock {
         let coords = world.chunks
             .add_multiblock_structure(xyz, width, self.height as i32, depth, self.id(), dir);
         if let Some(coords) = coords {
-            coords.iter().for_each(|(x, y, z)| {
-                world.light.on_block_set(&mut world.chunks, *x, *y, *z, self.id());
+            coords.iter().for_each(|c| {
+                world.light.on_block_set(&mut world.chunks, c.0, c.1, c.2, self.id());
             });
             return true;
         }
