@@ -39,9 +39,6 @@ impl Chunk {
                 voxels_data.remove(&((y*CHUNK_SIZE+z)*CHUNK_SIZE+x));
                 sun_map[x][z] = false;
             }
-            if real_y < 200 {
-                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 5;
-            }
             if real_y <= 3 {
                 voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 0;
                 voxels_data.remove(&((y*CHUNK_SIZE+z)*CHUNK_SIZE+x));
