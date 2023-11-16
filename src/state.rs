@@ -670,8 +670,8 @@ impl State {
             //Render transport belt
             render_pass.set_pipeline(&self.transport_belt_pipeline);
             render_pass.set_bind_group(3, &self.transport_belt_bind_group, &[]);
-            meshes.meshes().iter().for_each(|mesh| {
-                if let Some(mesh) = mesh {
+            indices.iter().for_each(|i| {
+                if let Some(Some(mesh)) = meshes.meshes().get(*i) {
                     render_pass.set_vertex_buffer(0, mesh.transport_belt_vertex_buffer.slice(..));
                     render_pass.set_index_buffer(mesh.transport_belt_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
                     render_pass.draw_indexed(0..mesh.transport_belt_index_count, 0, 0..1);
@@ -682,8 +682,8 @@ impl State {
             render_pass.set_pipeline(&self.animated_model_pipeline);
             // render_pass.set_bind_group(2, &self.camera_bind_group, &[]);
             // render_pass.set_bind_group(2, &self.animated_model_bind_group, &[]);
-            meshes.meshes().iter().for_each(|mesh| {
-                let Some(mesh) = mesh else { return; };
+            indices.iter().for_each(|i| {
+                let Some(Some(mesh)) = meshes.meshes().get(*i) else {return};
                 let Some(bind_group) = &mesh.transformation_matrices_bind_group else {return};
 
                 render_pass.set_bind_group(3, bind_group, &[]);
@@ -698,6 +698,22 @@ impl State {
                     }
                 });
             });
+            // meshes.meshes().iter().for_each(|mesh| {
+            //     let Some(mesh) = mesh else { return; };
+            //     let Some(bind_group) = &mesh.transformation_matrices_bind_group else {return};
+
+            //     render_pass.set_bind_group(3, bind_group, &[]);
+            //     mesh.animated_models.iter().for_each(|(name, (instance, len))| {
+            //         let Some(animated_model) = self.animated_models.get(name) else { return; };
+            //         if !mesh.animated_models.is_empty() {
+            //             render_pass.set_bind_group(1, &animated_model.texture, &[]);
+            //             render_pass.set_vertex_buffer(0, animated_model.vertex_buffer.slice(..));
+    
+            //             render_pass.set_vertex_buffer(1, instance.slice(..));
+            //             render_pass.draw(0..animated_model.vertex_count as u32, 0..*len as u32);
+            //         }
+            //     });
+            // });
             
 
             // Render Models

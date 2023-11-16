@@ -9,6 +9,8 @@ use meshes::MeshesRenderInput;
 use player::player::Player;
 use recipes::{storage::Storage, item::Item};
 use unsafe_renderer::UnsafeRenderer;
+use unsafe_renderer_test::UnsafeRendererTest;
+use unsafe_voxel_data_updater::spawn_unsafe_voxel_data_updater;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}};
 use world_loader::{WorldLoader};
 use crate::{voxels::chunk::HALF_CHUNK_SIZE, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}};
@@ -19,7 +21,7 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-use itertools::Itertools;
+use itertools::{Itertools, iproduct};
 
 use crate::{input_event::input_service::{Key, Mouse}, voxels::ray_cast, my_time::Timer};
 use nalgebra_glm as glm;
@@ -43,6 +45,32 @@ mod direction;
 mod world;
 mod world_loader;
 mod unsafe_renderer;
+mod unsafe_renderer_test;
+mod unsafe_voxel_data_updater;
+
+pub struct TestStruct {
+    pub indices: Vec<usize>
+}
+
+pub fn frustum_test(chunks: &mut Chunks, frustum: &Frustum, pos: &[f32; 3]) -> Vec<usize> {
+    let mut indices: Vec<ChunkCoords> = vec![];
+    let pos: ChunkCoords = GlobalCoords(pos[0] as i32, pos[1] as i32, pos[2] as i32).into();
+    for (cy, cz, cx) in iproduct!(0..chunks.height, 0..chunks.depth, 0..chunks.width) {
+        let Some(c) = chunks.chunk((cy, cz, cx)) else {continue};
+
+        let x = c.xyz.0 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+        let y = c.xyz.1 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+        let z = c.xyz.2 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+        if frustum.is_cube_in(&glm::vec3(x, y, z), HALF_CHUNK_SIZE as f32) {
+            indices.push(ChunkCoords(cy, cz, cx));
+        }
+    }
+    indices.sort_by(|a, b| {
+        (a.0.abs() - pos.0 + a.1.abs() - pos.1 + a.2.abs() - pos.2)
+            .cmp(&(b.0.abs() - pos.0 + b.1.abs() - pos.1 + b.2.abs() - pos.2))
+    });
+    indices.into_iter().map(|a| a.index(chunks.depth, chunks.width)).collect_vec()
+}
 
 pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
     let mut indices = vec![];
@@ -60,6 +88,9 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
 }
 
 pub fn main() {
+    let mut test_struct = TestStruct {indices: vec![]};
+    let mut chunk_indices = Arc::new(Mutex::new(Vec::<usize>::new()));
+    let mut test_indices = Vec::<usize>::new();
     let sun = Sun::new(
         60,
         [0, 50, 60, 230, 240, 290, 300, 490, 500],
@@ -98,10 +129,12 @@ pub fn main() {
     drop(inventory);
 
     let world_loader = WorldLoader::new();
-    let world = Arc::new(Mutex::new(World::new(5, WORLD_HEIGHT as i32, 5, 0, 0, 0)));
+    let world = Arc::new(Mutex::new(World::new(2, WORLD_HEIGHT as i32, 2, 0, 0, 0)));
     world.lock().unwrap().load_chunks(&world_loader);
     
-    let renderer = UnsafeRenderer::new((&*world.lock().unwrap()) as *const World);
+    // let renderer = UnsafeRenderer::new((&*world.lock().unwrap()) as *const World);
+    let renderer = UnsafeRendererTest::new((&mut *world.lock().unwrap()) as *mut World, chunk_indices.clone());
+    spawn_unsafe_voxel_data_updater((&mut ((*world.lock().unwrap()).chunks)) as *mut Chunks);
 
     let mut timer_1s = Timer::new(Duration::from_secs(1));
     let mut timer_16ms = Timer::new(Duration::from_millis(16));
@@ -140,6 +173,7 @@ pub fn main() {
             }
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
                 let indices;
+                // let indices_test;
                 {let mut guard = world.lock().unwrap();
                 let mut world: &mut World = &mut *guard;
                 time.update();
@@ -153,15 +187,25 @@ pub fn main() {
 
                 world.receive_world(&world_loader);
 
+                
                 indices = frustum(&mut world.chunks, &camera.new_frustum(state.size.width as f32/state.size.height as f32));
+                test_indices.clear();
+                // test_indices.extend(frustum_test(
+                //     &mut world.chunks,
+                //     &camera.new_frustum(state.size.width as f32/state.size.height as f32),
+                //     &camera.position_array()));
+                *chunk_indices.lock().unwrap() = frustum_test(
+                    &mut world.chunks,
+                    &camera.new_frustum(state.size.width as f32/state.size.height as f32),
+                    &camera.position_array());
 
-                let chunks_ptr = &mut world.chunks as *mut Chunks;
-                world.chunks.chunks.iter_mut().enumerate().for_each(|(index, chunk)| {
+
+                indices.iter().for_each(|index| {
+                    let Some(Some(chunk)) = world.chunks.chunks.get_mut(*index) else { return };
+
                     let mut inst: Vec<u8> = vec![];
-                    let Some(chunk) = chunk else { return };
                     let mut animated_models: HashMap<String, Vec<f32>> = HashMap::new();
                     chunk.voxels_data.iter_mut().sorted_by_key(|data| {data.0}).for_each(|data| {
-                        data.1.update(chunks_ptr);
                         let Some(progress) = data.1.additionally.as_ref().borrow().animation_progress() else {return};
                         let block_type = &BLOCKS()[data.1.id as usize].block_type();
                         if let BlockType::AnimatedModel {name} = block_type {
@@ -178,12 +222,40 @@ pub fn main() {
                             inst.extend(model.calculate_bytes_transforms(None, *progress));
                         });
                     });
-                    if let Some(Some(mesh)) = &mut meshes.mut_meshes().get(index) {
+                    if let Some(Some(mesh)) = &mut meshes.mut_meshes().get(*index) {
                         let Some(buffer) = &mesh.transformation_matrices_buffer else {return};
-                        state.queue().write_buffer(buffer, 0, inst.as_slice());
+                        if buffer.size() >= inst.len() as u64 {
+                            state.queue().write_buffer(buffer, 0, inst.as_slice());
+                        }
                     }
-                    
                 });
+                // world.chunks.chunks.iter_mut().enumerate().for_each(|(index, chunk)| {
+                //     let mut inst: Vec<u8> = vec![];
+                //     let Some(chunk) = chunk else { return };
+                //     let mut animated_models: HashMap<String, Vec<f32>> = HashMap::new();
+                //     chunk.voxels_data.iter_mut().sorted_by_key(|data| {data.0}).for_each(|data| {
+                //         let Some(progress) = data.1.additionally.as_ref().borrow().animation_progress() else {return};
+                //         let block_type = &BLOCKS()[data.1.id as usize].block_type();
+                //         if let BlockType::AnimatedModel {name} = block_type {
+                //             if let Some(animated_model) = animated_models.get_mut(name) {
+                //                 animated_model.push(progress);
+                //             } else {
+                //                 animated_models.insert(name.to_string(), vec![progress]);
+                //             }
+                //         }
+                //     });
+                //     animated_models.iter().sorted_by_key(|(name, _)| *name).for_each(|(name, progress_vec)| {
+                //         let model = state.animated_models.get(name).unwrap();
+                //         progress_vec.iter().for_each(|progress| {
+                //             inst.extend(model.calculate_bytes_transforms(None, *progress));
+                //         });
+                //     });
+                //     if let Some(Some(mesh)) = &mut meshes.mut_meshes().get(index) {
+                //         let Some(buffer) = &mesh.transformation_matrices_buffer else {return};
+                //         state.queue().write_buffer(buffer, 0, inst.as_slice());
+                //     }
+                    
+                // });
 
                 fps += 1;
                 if timer_1s.check() {
@@ -256,13 +328,15 @@ pub fn main() {
                     }
                 }}
 
-                world.lock().unwrap().chunks.chunks.iter_mut().enumerate().for_each(|(i, chunk)| {
-                    let Some(chunk) = chunk else {return};
-                    if chunk.modified {
-                        chunk.modified = false;
-                        let _ = renderer.send(i);
-                    }
-                });
+
+                // let _ = renderer.send(indices_test);
+                // world.lock().unwrap().chunks.chunks.iter_mut().enumerate().for_each(|(i, chunk)| {
+                //     let Some(chunk) = chunk else {return};
+                //     if chunk.modified {
+                //         chunk.modified = false;
+                //         let _ = renderer.send(i);
+                //     }
+                // });
                 // let index = world.lock().unwrap().chunks.get_nearest_chunk_index();
                 if let Ok(render_result) = renderer.try_recv() {
                     meshes.render(MeshesRenderInput {

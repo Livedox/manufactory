@@ -30,3 +30,7 @@ debug = true
 
 [profile.release]
 debug = true
+
+[profile.release-without-debug]
+inherits = "release"
+debug = false

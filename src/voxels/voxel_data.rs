@@ -145,25 +145,26 @@ impl VoxelAdditionalData {
 
 #[derive(Debug)]
 pub struct Manipulator {
-    progress: f32,
+    start_time: Option<Instant>,
+    return_time: Option<Instant>,
     item_id: Option<u32>,
     direction: [i8; 3],
 }
 
 
 impl Manipulator {
+    const SPEED: Duration = Duration::from_millis(4000);
+
     pub fn new(direction: &Direction) -> Self {Self {
-        progress: 0.0,
+        start_time: None,
+        return_time: None,
         item_id: None,
         direction: direction.simplify_to_one_greatest(true, false, true),
     }}
 
     pub fn update(&mut self, coords: GlobalCoords, chunks: *mut Chunks) {
-        if self.item_id.is_some() {self.progress += 0.1};
-        if self.item_id.is_none() {self.progress -= 0.1};
-        if self.progress > 1.0 {self.progress = 1.0};
-        if self.progress < 0.0 {self.progress = 0.0};
-        if self.item_id.is_none() && self.progress == 0.0 {
+        let return_time = self.return_time.map_or(true, |rt| rt.elapsed() >= (Self::SPEED/2));
+        if self.item_id.is_none() && self.start_time.is_none() && return_time {
             let src_coords = GlobalCoords(coords.0 - self.direction[0] as i32, coords.1, coords.2 - self.direction[2] as i32);
             let src = unsafe {
                 chunks.as_mut().unwrap().mut_chunk(src_coords)
@@ -173,11 +174,14 @@ impl Manipulator {
                 let Some(storage) = src_data.additionally.storage() else {return};
                 if let Some(item) = storage.lock().unwrap().take_first_existing(1) {
                     self.item_id = Some(item.0.id());
+                    self.start_time = Some(Instant::now());
+                    self.return_time = None;
                 };
             }
         }
         
-        if self.item_id.is_some() && self.progress == 1.0 {
+        let start_time = self.start_time.map_or(false, |rt| rt.elapsed() >= (Self::SPEED/2));
+        if self.item_id.is_some() && start_time {
             let dst_coords = GlobalCoords(coords.0 + self.direction[0] as i32, coords.1, coords.2 + self.direction[2] as i32);
             let dst = unsafe {
                 chunks.as_mut().unwrap().mut_chunk(dst_coords)
@@ -188,6 +192,8 @@ impl Manipulator {
                 let result = storage.lock().unwrap().add(&Item::new(self.item_id.unwrap(), 1), false).is_none();
                 if result {
                     self.item_id = None;
+                    self.start_time = None;
+                    self.return_time = Some(Instant::now());
                 }
             }
         }
@@ -195,7 +201,13 @@ impl Manipulator {
 
 
     pub fn animation_progress(&self) -> f32 {
-        self.progress
+        if let Some(start_time) = self.start_time {
+            (start_time.elapsed().as_secs_f32() / Self::SPEED.as_secs_f32()).min(0.5)
+        } else if let Some(return_time) = self.return_time {
+            (return_time.elapsed().as_secs_f32() / Self::SPEED.as_secs_f32() + 0.5).min(1.0)
+        } else {
+            0.0
+        }
     }
 
 

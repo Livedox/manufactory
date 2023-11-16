@@ -31,12 +31,15 @@ impl WorldLoader {
     fn spawn_world_loader_thread(receiver: Receiver<(i32, i32)>, sender: Sender<World>) {
         thread::spawn(move || {
             loop {
-                let (ox, oz) = receiver.recv().unwrap();
-                let mut world = World::new(1, WORLD_HEIGHT as i32, 1, ox, 0, oz);
-                loop { if !world.chunks.load_visible() {break;} };
-                world.build_sky_light();
-    
-                let _ = sender.send(world);
+                if let Ok((ox, oz)) = receiver.recv() {
+                    let mut world = World::new(1, WORLD_HEIGHT as i32, 1, ox, 0, oz);
+                    loop { if !world.chunks.load_visible() {break;} };
+                    world.build_sky_light();
+        
+                    let _ = sender.send(world);
+                } else {
+                    break;
+                }
             }
         });
     }
