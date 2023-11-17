@@ -19,7 +19,7 @@ pub fn spawn_unsafe_voxel_data_updater(chunks_ptr: *mut Chunks) {
                 }
             }
 
-            thread::sleep(Duration::from_millis(250 - now.elapsed().as_millis() as u64));
+            thread::sleep(Duration::from_millis(100u64.checked_sub(now.elapsed().as_millis() as u64).unwrap_or(0)));
         }
     });
 }

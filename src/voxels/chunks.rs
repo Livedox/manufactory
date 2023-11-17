@@ -172,6 +172,7 @@ impl Chunks {
         let z_offset = (local.2 == (CHUNK_SIZE-1) as u8) as i32 - (local.2 == 0) as i32;
         chunk.set_voxel_id(local, id, direction);
         chunk.modify();
+        println!("Index {}", coords.index(self.depth, self.width));
         
         
         if x_offset != 0 {

@@ -104,11 +104,10 @@ impl VoxelAdditionalData {
         match self {
             Self::Manipulator(o) => o.lock().unwrap().update(coords, chunks),
             Self::Drill(d) => d.lock().unwrap().update(chunks),
-            Self::Cowboy(o) => o.lock().unwrap().update(),
             Self::Furnace(f) => f.lock().unwrap().update(),
             Self::AssemblingMachine(a) => a.lock().unwrap().update(),
             Self::TransportBelt(c) => c.lock().unwrap().update(coords, chunks),
-            Self::Empty | Self::VoxelBox(_) => (),
+            Self::Empty | Self::VoxelBox(_) | Self::Cowboy(_) => (),
         }
     }
 
@@ -153,7 +152,7 @@ pub struct Manipulator {
 
 
 impl Manipulator {
-    const SPEED: Duration = Duration::from_millis(4000);
+    const SPEED: Duration = Duration::from_millis(300);
 
     pub fn new(direction: &Direction) -> Self {Self {
         start_time: None,
@@ -222,20 +221,15 @@ impl Manipulator {
 
 #[derive(Debug)]
 pub struct Cowboy {
-    progress: f32,
+    time: Instant,
 }
 
 
 impl Cowboy {
-    pub fn new() -> Self {Self { progress: 0.0 }}
-    pub fn update(&mut self) {
-        self.progress += 0.1;
-        if self.progress > 1.0 {self.progress %= 1.0};
-    }
-
+    pub fn new() -> Self {Self { time: Instant::now() }}
 
     pub fn animation_progress(&self) -> f32 {
-        self.progress
+        self.time.elapsed().as_secs_f32() % 1.0
     }
 }
 
@@ -359,7 +353,7 @@ pub struct Drill {
 
 
 impl Drill {
-    const DURATION: Duration = Duration::new(1, 0);
+    const DURATION: Duration = Duration::new(4, 0);
 
     pub fn new(structure_coordinates: Vec<GlobalCoords>, dir: &Direction) -> Self {Self {
         storage: [PossibleItem::new_none()],
@@ -385,8 +379,10 @@ impl Drill {
         if self.start.elapsed() < Self::DURATION {return}
         self.start = Instant::now();
         
+        
         self.structure_coordinates.iter().for_each(|coord| {
-            let voxel = unsafe {chunks.as_mut().unwrap().voxel_global(*coord)};
+            let ore_coords = GlobalCoords(coord.0, coord.1-1, coord.2);
+            let voxel = unsafe {chunks.as_mut().unwrap().voxel_global(ore_coords)};
             let Some(voxel) = voxel else {return};
             if let Some(item) = BLOCKS()[voxel.id as usize].ore() {
                 self.storage[0].try_add_item(&item);

@@ -1,8 +1,8 @@
-use std::{time::Duration, rc::Rc, borrow::Borrow, collections::HashMap, sync::{Arc, mpsc::channel, Mutex}};
+use std::{time::{Duration, Instant}, rc::Rc, borrow::Borrow, collections::HashMap, sync::{Arc, mpsc::channel, Mutex}};
 
 use camera::frustum::Frustum;
 use direction::Direction;
-use graphic::render_selection::render_selection;
+use graphic::{render_selection::render_selection, render::RenderResult};
 use gui::gui_controller::GuiController;
 use input_event::KeypressState;
 use meshes::MeshesRenderInput;
@@ -53,16 +53,18 @@ pub struct TestStruct {
 }
 
 pub fn frustum_test(chunks: &mut Chunks, frustum: &Frustum, pos: &[f32; 3]) -> Vec<usize> {
+    // UPDATE
+    // This function could be much faster
     let mut indices: Vec<ChunkCoords> = vec![];
     let pos: ChunkCoords = GlobalCoords(pos[0] as i32, pos[1] as i32, pos[2] as i32).into();
     for (cy, cz, cx) in iproduct!(0..chunks.height, 0..chunks.depth, 0..chunks.width) {
-        let Some(c) = chunks.chunk((cy, cz, cx)) else {continue};
+        let Some(c) = chunks.chunk((cx, cy, cz)) else {continue};
 
         let x = c.xyz.0 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
         let y = c.xyz.1 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
         let z = c.xyz.2 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
         if frustum.is_cube_in(&glm::vec3(x, y, z), HALF_CHUNK_SIZE as f32) {
-            indices.push(ChunkCoords(cy, cz, cx));
+            indices.push(ChunkCoords(cx, cy, cz));
         }
     }
     indices.sort_by(|a, b| {
@@ -88,9 +90,8 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
 }
 
 pub fn main() {
-    let mut test_struct = TestStruct {indices: vec![]};
+    let mut render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
     let mut chunk_indices = Arc::new(Mutex::new(Vec::<usize>::new()));
-    let mut test_indices = Vec::<usize>::new();
     let sun = Sun::new(
         60,
         [0, 50, 60, 230, 240, 290, 300, 490, 500],
@@ -129,11 +130,16 @@ pub fn main() {
     drop(inventory);
 
     let world_loader = WorldLoader::new();
-    let world = Arc::new(Mutex::new(World::new(2, WORLD_HEIGHT as i32, 2, 0, 0, 0)));
+    let world = Arc::new(Mutex::new(World::new(30, WORLD_HEIGHT as i32, 30, 0, 0, 0)));
     world.lock().unwrap().load_chunks(&world_loader);
     
     // let renderer = UnsafeRenderer::new((&*world.lock().unwrap()) as *const World);
-    let renderer = UnsafeRendererTest::new((&mut *world.lock().unwrap()) as *mut World, chunk_indices.clone());
+    // let renderer = UnsafeRendererTest::new((&mut *world.lock().unwrap()) as *mut World, chunk_indices.clone());
+    let renderer = UnsafeRendererTest::new_test(
+        (&mut *world.lock().unwrap()) as *mut World,
+        chunk_indices.clone(),
+        render_result.clone());
+
     spawn_unsafe_voxel_data_updater((&mut ((*world.lock().unwrap()).chunks)) as *mut Chunks);
 
     let mut timer_1s = Timer::new(Duration::from_secs(1));
@@ -188,16 +194,22 @@ pub fn main() {
                 world.receive_world(&world_loader);
 
                 
-                indices = frustum(&mut world.chunks, &camera.new_frustum(state.size.width as f32/state.size.height as f32));
-                test_indices.clear();
+                // indices = frustum(&mut world.chunks, &camera.new_frustum(state.size.width as f32/state.size.height as f32));
+                // test_indices.clear();
                 // test_indices.extend(frustum_test(
                 //     &mut world.chunks,
                 //     &camera.new_frustum(state.size.width as f32/state.size.height as f32),
                 //     &camera.position_array()));
-                *chunk_indices.lock().unwrap() = frustum_test(
+                let mut a1233 = chunk_indices.lock().unwrap();
+                *a1233 = frustum_test(
                     &mut world.chunks,
                     &camera.new_frustum(state.size.width as f32/state.size.height as f32),
                     &camera.position_array());
+                // *a1233 = frustum(
+                //     &mut world.chunks,
+                //     &camera.new_frustum(state.size.width as f32/state.size.height as f32));
+                indices = (*a1233).clone();
+                drop(a1233);
 
 
                 indices.iter().for_each(|index| {
@@ -338,12 +350,13 @@ pub fn main() {
                 //     }
                 // });
                 // let index = world.lock().unwrap().chunks.get_nearest_chunk_index();
-                if let Ok(render_result) = renderer.try_recv() {
+                
+                if let Some(render_result) = render_result.lock().unwrap().take() {
                     meshes.render(MeshesRenderInput {
                         device: state.device(),
                         animated_model_layout: &state.animated_model_layout,
                         all_animated_models: &state.animated_models,
-                        render_result,
+                        render_result: render_result,
                     });
                 }
                 

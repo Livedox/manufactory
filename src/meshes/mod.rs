@@ -72,7 +72,7 @@ impl Meshes {
 
         let transport_belt_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some(&format!("Transport belt index buffer (Chunk: {})", index)),
-            contents: bytemuck::cast_slice(&render_result.block_indices),
+            contents: bytemuck::cast_slice(&render_result.belt_indices),
             usage: wgpu::BufferUsages::INDEX,
         });
 
@@ -150,7 +150,7 @@ impl Meshes {
             transport_belt_vertex_buffer,
             transport_belt_index_buffer,
             transport_belt_vertex_count: render_result.belt_vertices.len() as u32,
-            transport_belt_index_count: render_result.block_indices.len() as u32,
+            transport_belt_index_count: render_result.belt_indices.len() as u32,
         });
     }
 

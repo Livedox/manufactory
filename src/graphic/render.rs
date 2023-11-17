@@ -207,12 +207,14 @@ fn render_complex_side(
         });
 }
 
+#[derive(Debug)]
 pub struct ModelRenderResult {
     pub position: [f32; 3],
     pub light: [f32; 4],
     pub rotation_index: u32,
 }
 
+#[derive(Debug)]
 pub struct AnimatedModelRenderResult {
     pub position: [f32; 3],
     pub light: [f32; 4],
@@ -220,6 +222,7 @@ pub struct AnimatedModelRenderResult {
     pub rotation_index: u32,
 }
 
+#[derive(Debug)]
 pub struct RenderResult {
     pub chunk_index: usize,
     pub block_vertices: Vec<BlockVertex>,
