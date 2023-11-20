@@ -57,6 +57,7 @@ impl CameraController {
     pub fn position(&self) -> &glm::Vec3 {self.camera.position()}
     pub fn front(&self) -> &glm::Vec3 {self.camera.front()}
     pub fn position_array(&self) -> [f32; 3] {self.camera.position_array()}
+    pub fn position_tuple(&self) -> (f32, f32, f32) {self.camera.position_tuple()}
     pub fn front_array(&self) -> [f32; 3] {self.camera.front_array()}
     pub fn up(&self) -> &glm::Vec3 {self.camera.up()}
     pub fn right(&self) -> &glm::Vec3 {self.camera.right()}

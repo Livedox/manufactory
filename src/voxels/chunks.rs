@@ -114,6 +114,13 @@ impl Chunks {
     // }
 
 
+    pub fn load_chunk(&mut self, coords: ChunkCoords) {
+        let index = coords.index(self.depth, self.width);
+        if self.chunks[index].is_some() {return};
+        self.chunks[index] = Some(Chunk::new(coords.0, coords.1, coords.2));
+    }
+
+
     pub fn load_visible(&mut self) -> bool {
         let mut near_x: i32 = 0;
         let mut near_y: i32 = 0;

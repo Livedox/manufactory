@@ -76,6 +76,9 @@ impl Camera {
     pub fn position_array(&self) -> [f32; 3] {
         [self.position.x, self.position.y, self.position.z]
     }
+    pub fn position_tuple(&self) -> (f32, f32, f32) {
+        (self.position.x, self.position.y, self.position.z)
+    }
     pub fn front_array(&self) -> [f32; 3] {
         [self.front.x, self.front.y, self.front.z]
     }
