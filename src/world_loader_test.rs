@@ -53,7 +53,7 @@ impl WorldLoaderTest {
                     let chunks = new_chunks.chunks;
                     let cxz = (chunks.chunks[0].as_ref().unwrap().xyz.0, chunks.chunks[0].as_ref().unwrap().xyz.2);
                     for chunk in chunks.chunks.into_iter() {
-                        let Some(chunk) = chunk else {continue};
+                        let Some(mut chunk) = chunk else {continue};
                         let index = chunk.xyz.index(world.chunks.depth, world.chunks.width);
                         world.chunks.chunks[index] = Some(chunk);
                     };
@@ -63,7 +63,7 @@ impl WorldLoaderTest {
 
                     let min_z = cxz.1*CHUNK_SIZE as i32-1;
                     let max_z = (cxz.1+1)*CHUNK_SIZE as i32+1;
-                    for (gy, gz, gx) in iproduct!(0i32..((WORLD_HEIGHT*CHUNK_SIZE) as i32), min_z..max_z, min_x..max_x) {
+                    for (gy, gz, gx) in iproduct!(0i32..((WORLD_HEIGHT*CHUNK_SIZE) as i32), min_z..=max_z, min_x..=max_x) {
                         if gx == min_x || gx == max_x || gz == max_z || gz == min_z {
                             world.light.add_rgbs(&mut world.chunks, gx, gy, gz); 
                         }
