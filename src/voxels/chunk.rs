@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc, sync::Arc};
+use std::{collections::HashMap, rc::Rc, sync::{Arc, Mutex}};
 
 use itertools::iproduct;
 
@@ -18,7 +18,7 @@ pub const CHUNK_BITS: usize = CHUNK_SIZE - 1_usize;
 pub struct Chunk {
     pub voxels: [voxel::Voxel; CHUNK_VOLUME],
     pub voxels_data: HashMap<usize, VoxelData>,
-    pub modified: bool,
+    modified: bool,
     pub lightmap: LightMap,
     pub xyz: ChunkCoords
 }
@@ -96,8 +96,12 @@ impl Chunk {
         &mut self.voxels[local_coords.index()]
     }
 
-    pub fn modify(&mut self) {
-        self.modified = true;
+    pub fn modified(&self) -> bool {
+        self.modified
+    }
+
+    pub fn modify(&mut self, value: bool) {
+        self.modified = value;
     }
 
     pub fn set_voxel_id(&mut self, local_coords: LocalCoords, id: u32, direction: Option<&Direction>) {

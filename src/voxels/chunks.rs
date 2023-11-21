@@ -1,8 +1,8 @@
-use std::{collections::HashMap, rc::Rc, sync::{mpsc::{Receiver, Sender, self}, Arc}};
+use std::{collections::HashMap, rc::Rc, sync::{mpsc::{Receiver, Sender, self}, Arc}, array::IntoIter};
 
 use itertools::iproduct;
 
-use crate::{vertices::block_vertex::BlockVertex, models::animated_model::AnimatedModel, direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
+use crate::{vertices::block_vertex::BlockVertex, models::animated_model::AnimatedModel, direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, rev_qumark};
 
 use super::{chunk::{Chunk, CHUNK_SIZE, CHUNK_BIT_SHIFT}, voxel::Voxel, voxel_data::{VoxelAdditionalData, VoxelData, MultiBlock}};
 
@@ -28,90 +28,6 @@ impl Chunks {
 
         Chunks { chunks, volume, width, height, depth, ox, oy, oz }
     }
-
-    /// This function is SHIT
-    pub fn get_nearest_chunk_index(&mut self) -> Option<usize> {
-        let mut near_x: i32 = 0;
-        let mut near_y: i32 = 0;
-        let mut near_z: i32 = 0;
-        let mut min_distance = i32::MAX;
-        for y in 0..self.height {
-            for z in 0..self.depth {
-                for x in 0..self.width {
-                    let chunk = &self.chunks[((y * self.depth + z) * self.width + x) as usize];
-                    if chunk.is_none() { continue; }
-                    if !chunk.as_ref().unwrap().modified { continue; }
-                       
-                    let lx = x - self.width/2;
-                    let ly = y - self.height/2;
-                    let lz = z - self.depth/2;
-                    let distance = lx * lx + ly * ly + lz * lz;
-                    if distance < min_distance {
-                        min_distance = distance;
-                        near_x = x;
-                        near_y = y;
-                        near_z = z;
-                    }
-                }
-            }
-        }
-        let index = ((near_y * self.depth + near_z) * self.width + near_x) as usize;
-        let chunk = &mut self.chunks[index];
-        if chunk.is_none() { return None; }
-
-        if chunk.as_ref().unwrap().modified {
-            chunk.as_mut().unwrap().modified = false;
-        } else {
-            return None;
-        }
-        Some(index)
-    }
-
-
-    // pub fn build_meshes(&mut self, render: &mut VoxelRenderer, animated_models: &HashMap<String, AnimatedModel>) -> Option<usize> {
-    //     let mut near_x: i32 = 0;
-    //     let mut near_y: i32 = 0;
-    //     let mut near_z: i32 = 0;
-    //     let mut min_distance = i32::MAX;
-    //     for y in 0..self.height {
-    //         for z in 0..self.depth {
-    //             for x in 0..self.width {
-    //                 let chunk = &self.chunks[((y * self.depth + z) * self.width + x) as usize];
-    //                 if chunk.is_none() { continue; }
-    //                 let mesh = &self.meshes[((y * self.depth + z) * self.width + x) as usize];
-    //                 if mesh.is_some() && !chunk.as_ref().unwrap().modified { continue; }
-                       
-    //                 let lx = x - self.width/2;
-    //                 let ly = y - self.height/2;
-    //                 let lz = z - self.depth/2;
-    //                 let distance = lx * lx + ly * ly + lz * lz;
-    //                 if distance < min_distance {
-    //                     min_distance = distance;
-    //                     near_x = x;
-    //                     near_y = y;
-    //                     near_z = z;
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     let index = ((near_y * self.depth + near_z) * self.width + near_x) as usize;
-    //     let chunk = &mut self.chunks[index];
-    //     if chunk.is_none() { return None; }
-
-    //     let mesh = &mut self.meshes[index];
-    //     if mesh.is_none() || chunk.as_ref().unwrap().modified {
-    //         if chunk.as_ref().unwrap().is_empty() || mesh.is_some() {
-    //             self.meshes[index] = None;
-    //         }
-    //         chunk.as_mut().unwrap().modified = false;
-    //     } else {
-    //         return None;
-    //     }
-        
-    //     let voxels = render.render_test(index, self);
-    //     self.meshes[index] = Some(voxels);
-	// 	Some(index)
-    // }
 
 
     pub fn load_chunk(&mut self, coords: ChunkCoords) {
@@ -178,18 +94,16 @@ impl Chunks {
         let y_offset = (local.1 == (CHUNK_SIZE-1) as u8) as i32 - (local.1 == 0) as i32;
         let z_offset = (local.2 == (CHUNK_SIZE-1) as u8) as i32 - (local.2 == 0) as i32;
         chunk.set_voxel_id(local, id, direction);
-        chunk.modify();
-        println!("Index {}", coords.index(self.depth, self.width));
-        
+        chunk.modify(true);
         
         if x_offset != 0 {
-            if let Some(chunk) = self.mut_chunk((coords.0+x_offset, coords.1, coords.2)) {chunk.modify()};
+            if let Some(chunk) = self.mut_chunk((coords.0+x_offset, coords.1, coords.2)) {chunk.modify(true)};
         }
         if y_offset != 0 {
-            if let Some(chunk) = self.mut_chunk((coords.0, coords.1+y_offset, coords.2)) {chunk.modify()};
+            if let Some(chunk) = self.mut_chunk((coords.0, coords.1+y_offset, coords.2)) {chunk.modify(true)};
         }
         if z_offset != 0 {
-            if let Some(chunk) = self.mut_chunk((coords.0, coords.1, coords.2+z_offset)) {chunk.modify()};
+            if let Some(chunk) = self.mut_chunk((coords.0, coords.1, coords.2+z_offset)) {chunk.modify(true)};
         }
         
         Some(id)

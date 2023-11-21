@@ -41,7 +41,9 @@ impl WorldLoaderTest {
             loop {
                 let p_coords = player_coords.lock().unwrap().clone();
                 let p_coords: ChunkCoords = GlobalCoords::from(p_coords).into();
-                let cxz: Option<(i32, i32)> = find_nearest_chunk(world, p_coords.into());
+                let cxz: Option<(i32, i32)> = world.chunks
+                    .find_nearest_position_xz(p_coords, &|c| c.is_none())
+                    .map(|pos| (pos.0, pos.2));
                 
                 if let Some((ox, oz)) = cxz {
                     let mut new_chunks = World::new(1, WORLD_HEIGHT as i32, 1, ox, 0, oz);

@@ -63,7 +63,7 @@ impl LightSolver {
             let entry = LightEntry::new(x, y, z, emission);
 
             chunk.lightmap.set(LocalCoords::from(GlobalCoords(x, y, z)).into(), emission as u16, self.channel);
-            chunk.modified = true;
+            chunk.modify(true);
             
             self.add_queue.push_back(entry);
         }
@@ -108,7 +108,7 @@ impl LightSolver {
                 if light != 0 && entry.light != 0 && light == entry.light-1 {
                     self.remove_queue.push_back(nentry);
                     chunk.lightmap.set(LocalCoords::from(global).into(), 0, self.channel);
-                    chunk.modified = true;
+                    chunk.modify(true);
                 } else if light >= entry.light {
                     self.add_queue.push_back(nentry);
                 }
@@ -138,7 +138,7 @@ impl LightSolver {
                 if Self::check_light_passing(entry_id, id, side) && (light+2) <= entry.light as u16 {
                     self.add_queue.push_back(LightEntry::new(x, y, z, entry.light-1));
                     chunk.lightmap.set(LocalCoords::from(global).into(), (entry.light-1).into(), self.channel);
-                    chunk.modified = true;
+                    chunk.modify(true);
                 }
             }
         }

@@ -49,13 +49,13 @@ mod unsafe_renderer;
 mod unsafe_renderer_test;
 mod unsafe_voxel_data_updater;
 mod world_loader_test;
+mod macros;
 
 
 pub fn frustum(chunks: &mut Chunks, frustum: &Frustum, pos: &[f32; 3]) -> Vec<usize> {
     // UPDATE
     // This function could be much faster
-    let mut indices: Vec<ChunkCoords> = vec![];
-    let pos: ChunkCoords = GlobalCoords(pos[0] as i32, pos[1] as i32, pos[2] as i32).into();
+    let mut indices: Vec<usize> = vec![];
     for (cy, cz, cx) in iproduct!(0..chunks.height, 0..chunks.depth, 0..chunks.width) {
         // let Some(c) = chunks.chunk((cx, cy, cz)) else {continue};
 
@@ -63,14 +63,10 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum, pos: &[f32; 3]) -> Vec<us
         let y = cy as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
         let z = cz as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
         if frustum.is_cube_in(&glm::vec3(x, y, z), HALF_CHUNK_SIZE as f32) {
-            indices.push(ChunkCoords(cx, cy, cz));
+            indices.push(ChunkCoords(cx, cy, cz).index(chunks.depth, chunks.width));
         }
     }
-    indices.sort_by(|a, b| {
-        (a.0.abs() - pos.0 + a.1.abs() - pos.1 + a.2.abs() - pos.2)
-            .cmp(&(b.0.abs() - pos.0 + b.1.abs() - pos.1 + b.2.abs() - pos.2))
-    });
-    indices.into_iter().map(|a| a.index(chunks.depth, chunks.width)).collect_vec()
+    indices
 }
 
 pub fn main() {
@@ -96,7 +92,7 @@ pub fn main() {
     let window = Arc::new(WindowBuilder::new().build(&event_loop).unwrap());
     let mut block_id = 4;
 
-    let mut camera = camera::camera_controller::CameraController::new(glm::vec3(0.0, 0.0, 0.0), 1.2, 0.1, 1000.0);
+    let mut camera = camera::camera_controller::CameraController::new(glm::vec3(960.0, 0.0, 960.0), 1.2, 0.1, 1000.0);
     let mut meshes = meshes::Meshes::new();
     let mut input = input_event::input_service::InputService::new();
     let mut time = my_time::Time::new();
@@ -123,7 +119,7 @@ pub fn main() {
     // let renderer = UnsafeRendererTest::new((&mut *world.lock().unwrap()) as *mut World, chunk_indices.clone());
     let renderer = UnsafeRendererTest::new_test(
         (&mut *world.lock().unwrap()) as *mut World,
-        chunk_indices.clone(),
+        player_coords.clone(),
         render_result.clone());
 
     spawn_unsafe_voxel_data_updater((&mut ((*world.lock().unwrap()).chunks)) as *mut Chunks);
@@ -178,9 +174,7 @@ pub fn main() {
                 if let Ok(mut lock) = chunk_indices.try_lock() {
                     *lock = indices.clone();
                 }
-                if let Ok(mut lock) = player_coords.try_lock() {
-                    *lock = camera.position_tuple();
-                }
+                *player_coords.lock().unwrap() = camera.position_tuple();
 
                 state.update(&camera.proj_view(state.size.width as f32, state.size.height as f32).into(), &time);
                 gui_controller.update_cursor_lock();
@@ -271,7 +265,7 @@ pub fn main() {
 
                         if input.is_mouse(&Mouse::Left, KeypressState::AnyPress) && !gui_controller.is_cursor() {
                             BLOCKS()[voxel_id as usize].on_block_break(&mut world, &mut player, &(x, y, z).into());
-                        } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !gui_controller.is_cursor() {
+                        } else if input.is_mouse(&Mouse::Right, KeypressState::AnyPress) && !gui_controller.is_cursor() {
                             let gxyz = GlobalCoords(x+norm.x as i32, y+norm.y as i32, z+norm.z as i32);
                             if voxel_id == 13 || voxel_id == 14 || voxel_id == 1 || voxel_id == 16 {
                                 let chunk = world.chunks.mut_chunk(chunk_coords);

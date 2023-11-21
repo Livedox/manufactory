@@ -2,7 +2,7 @@ use std::{sync::{Arc, Mutex, mpsc::{Sender, channel, Receiver, SendError, TryRec
 
 use itertools::iproduct;
 
-use crate::{meshes::Meshes, voxels::chunks::Chunks, models::animated_model::AnimatedModel, graphic::render::{RenderResult, render}, world::{World, chunk_coords::ChunkCoords}};
+use crate::{meshes::Meshes, voxels::chunks::Chunks, models::animated_model::AnimatedModel, graphic::render::{RenderResult, render}, world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords}};
 
 pub struct UnsafeRendererTest {
     send_to_renderer: Sender<Vec<usize>>,
@@ -12,14 +12,14 @@ pub struct UnsafeRendererTest {
 impl UnsafeRendererTest {
     pub fn new_test(
         world: *mut World,
-        indices: Arc<Mutex<Vec<usize>>>,
+        player_coords: Arc<Mutex<(f32, f32, f32)>>,
         render_result: Arc<Mutex<Option<RenderResult>>>
     ) -> Self {
         let (send_to_renderer, receiver) = channel::<Vec<usize>>();
         let (sender, receive_from_renderer) = channel::<RenderResult>();
         
         // Self::spawn_renderer_thread(world, indices, receiver, sender);
-        Self::spawn_renderer_thread_test2(world, indices, render_result);
+        Self::spawn_renderer_thread_test2(world, player_coords, render_result);
 
         Self {
             send_to_renderer,
@@ -63,11 +63,11 @@ impl UnsafeRendererTest {
             let chunk_index = lock.iter().find(|i| {
                 world.chunks.chunks
                     .get(**i)
-                    .map_or(false, |chunk| chunk.as_ref().map_or(false, |c| c.modified))
+                    .map_or(false, |chunk| chunk.as_ref().map_or(false, |c| c.modified()))
             }).copied();
             drop(lock);
             if let Some(chunk_index) = chunk_index {
-                world.chunks.chunks[chunk_index].as_mut().unwrap().modified = false;
+                world.chunks.chunks[chunk_index].as_mut().unwrap().modify(false);
                 let _ = sender.send(render(chunk_index, world));
             }
         }});
@@ -76,7 +76,7 @@ impl UnsafeRendererTest {
 
     fn spawn_renderer_thread_test2(
         world: *mut World,
-        indices_test: Arc<Mutex<Vec<usize>>>,
+        player_coords: Arc<Mutex<(f32, f32, f32)>>,
         render_result: Arc<Mutex<Option<RenderResult>>>
     ) {
         let mut container_results = Vec::<RenderResult>::new();
@@ -84,53 +84,30 @@ impl UnsafeRendererTest {
             world.as_mut().unwrap()
         };
         thread::spawn(move || {loop {
-            let depth = world.chunks.depth;
-            let width = world.chunks.width;
-            // for i in receiver.try_iter() {
-            //     indices = i;
-            // }
-            // let chunk_index = world.chunks.chunks
-            //         .iter()
-            //         .position(|chunk| chunk.as_ref().map_or(false, |c| c.modified));
-            let mut h: HashMap<usize, usize> = HashMap::new();
-            let mut lock = indices_test.lock().unwrap();
-            let chunk_index = lock.iter().find(|i| {
-                world.chunks.chunks
-                    .get(**i)
-                    .map_or(false, |chunk| chunk.as_ref().map_or(false, |c| c.modified))
-            }).copied();
+            let p_coords = player_coords.lock().unwrap().clone();
+            let p_coords: ChunkCoords = GlobalCoords::from(p_coords).into();
+            let chunk_position = world.chunks.find_nearest_position_xyz(
+                p_coords, &|c| c.map_or(false, |c| c.modified()));
 
-            lock.iter().enumerate().for_each(|(i, chunk_index)| {
-                h.insert(*chunk_index, i);
-            });
-            drop(lock);
-            let chunk_index = find_nearest_chunk(world, (0, 0, 0));
-            if let Some(chunk_index) = chunk_index.map(|ci| ChunkCoords::from(ci).index(depth, width)) {
+            if let Some(chunk_index) = chunk_position.map(|cp| cp.index(world.chunks.depth, world.chunks.width)) {
+                world.chunks.chunks[chunk_index].as_mut().unwrap().modify(false);
+                // Why with sleep it work better ????????????
+                thread::sleep(Duration::from_millis(2));
                 if let Some(indx) = container_results.iter().position(|a| {a.chunk_index == chunk_index}) {
-                    container_results[indx] = render(chunk_index, world);
-                } else {
-                    container_results.push(render(chunk_index, world));
+                    container_results.remove(indx);
                 }
-                world.chunks.chunks[chunk_index].as_mut().unwrap().modified = false;
-                container_results.sort_by(|a, b| {
-                    h.get(&a.chunk_index).unwrap_or(&usize::MAX)
-                        .cmp(h.get(&b.chunk_index).unwrap_or(&usize::MAX))
-                        .reverse()
-                });
+                
+                container_results.push(render(chunk_index, world));
             }
 
             let mut render_result_lock = render_result.lock().unwrap();
-            let is_same_chunk = container_results
-                .last()
+            let is_same_chunk = container_results.last()
                 .map_or(false, |r| render_result_lock.as_ref().map_or(false, |rr| {
                     r.chunk_index == rr.chunk_index
                 }));
             if is_same_chunk || render_result_lock.is_none() {
                 *render_result_lock = container_results.pop();
             }
-                // result.sort()
-                
-                // let _ = sender.send(render(chunk_index, world));
         }});
     }
 
@@ -181,7 +158,7 @@ fn find_nearest_chunk(world: &World, player_coords: (i32, i32, i32)) -> Option<(
         for (cx, cy, cz) in iproduct!(min_x..=max_x, min_y..=max_y, cz_arr.iter()) {
             if world.chunks
                 .chunk(ChunkCoords(cx+px, cy+py, cz+pz))
-                .map_or(false, |c| c.modified)
+                .map_or(false, |c| c.modified())
             {
                 return Some((cx+px, cy+py, cz+pz));
             }
@@ -193,7 +170,7 @@ fn find_nearest_chunk(world: &World, player_coords: (i32, i32, i32)) -> Option<(
         for (cy, cz, cx) in iproduct!(min_y..=max_y, min_z..=max_z, cx_arr.iter()) {
             if world.chunks
                 .chunk(ChunkCoords(cx+px, cy+py, cz+pz))
-                .map_or(false, |c| c.modified)
+                .map_or(false, |c| c.modified())
             {
                 return Some((cx+px, cy+py, cz+pz));
             }
@@ -205,7 +182,7 @@ fn find_nearest_chunk(world: &World, player_coords: (i32, i32, i32)) -> Option<(
         for (cx, cz, cy) in iproduct!(min_x..=max_x, min_z..=max_z, cy_arr.iter()) {
             if world.chunks
                 .chunk(ChunkCoords(cx+px, cy+py, cz+py))
-                .map_or(false, |c| c.modified)
+                .map_or(false, |c| c.modified())
             {
                 return Some((cx+px, cy+py, cz+py));
             }
