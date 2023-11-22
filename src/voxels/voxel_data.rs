@@ -247,9 +247,7 @@ pub struct VoxelBox {
 
 impl VoxelBox {
     pub fn new() -> Self {
-        let mut storage = [PossibleItem::new_none(); 30];
-        storage[0] = PossibleItem::new(0, 10);
-        Self { storage }
+        Self { storage: [PossibleItem::new_none(); 30] }
     }
 }
 

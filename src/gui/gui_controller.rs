@@ -161,6 +161,7 @@ impl GuiController {
 
 
     pub fn draw_inventory(&self, ctx: &Context, player: &mut Player) -> &Self {
+        if !self.is_ui {return self}
         let mut task: Option<Task> = None;
         let inventory = player.inventory();
         let storage = player.open_storage.as_mut().map(|op| op.to_storage().upgrade().unwrap());
@@ -254,6 +255,7 @@ impl GuiController {
 
 
     pub fn draw_debug(&self, ctx: &Context, debug_data: &str, debug_block_id: &mut Option<u32>) -> &Self {
+        if !self.is_ui {return self}
         egui::Window::new("Debug")
             .anchor(Align2([Align::RIGHT, Align::TOP]), vec2(0.0, 20.0))
             .resizable(false)

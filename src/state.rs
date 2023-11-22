@@ -227,7 +227,7 @@ impl State {
             ("./models/astronaut.obj", "./assets/models/astronaut.png", "astronaut"),
             ("./models/furnace.obj", "./assets/models/furnace.png", "furnace"),
             ("./models/drill.obj", "./assets/models/drill.png", "drill"),
-            ("./models/assembling_machine.obj", "./assets/models/drill.png", "assembler"),
+            ("./models/assembling_machine.obj", "./assets/models/assembling_machine.png", "assembler"),
         ]);
         let animated_models = load_animated_models(&device, &queue, &models_bind_group_layout, &[
             ("./models/manipulator.dae", "./assets/models/manipulator.png", "manipulator"),
@@ -659,13 +659,6 @@ impl State {
                     render_pass.draw_indexed(0..mesh.block_index_count, 0, 0..1);
                 }
             });
-            // meshes.meshes().iter().for_each(|mesh| {
-            //     if let Some(mesh) = mesh {
-            //         render_pass.set_vertex_buffer(0, mesh.block_vertex_buffer.slice(..));
-            //         render_pass.set_index_buffer(mesh.block_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            //         render_pass.draw_indexed(0..mesh.block_index_count, 0, 0..1);
-            //     }
-            // });
             //Render transport belt
             render_pass.set_pipeline(&self.transport_belt_pipeline);
             render_pass.set_bind_group(3, &self.transport_belt_bind_group, &[]);
@@ -696,24 +689,7 @@ impl State {
                         render_pass.draw(0..animated_model.vertex_count as u32, 0..*len as u32);
                     }
                 });
-            });
-            // meshes.meshes().iter().for_each(|mesh| {
-            //     let Some(mesh) = mesh else { return; };
-            //     let Some(bind_group) = &mesh.transformation_matrices_bind_group else {return};
-
-            //     render_pass.set_bind_group(3, bind_group, &[]);
-            //     mesh.animated_models.iter().for_each(|(name, (instance, len))| {
-            //         let Some(animated_model) = self.animated_models.get(name) else { return; };
-            //         if !mesh.animated_models.is_empty() {
-            //             render_pass.set_bind_group(1, &animated_model.texture, &[]);
-            //             render_pass.set_vertex_buffer(0, animated_model.vertex_buffer.slice(..));
-    
-            //             render_pass.set_vertex_buffer(1, instance.slice(..));
-            //             render_pass.draw(0..animated_model.vertex_count as u32, 0..*len as u32);
-            //         }
-            //     });
-            // });
-            
+            });  
 
             // Render Models
             render_pass.set_pipeline(&self.model_pipeline);
@@ -732,20 +708,6 @@ impl State {
                     render_pass.draw(0..model.vertex_count as u32, 0..*len as u32);
                 });
             });
-            // meshes.meshes().iter().for_each(|mesh| {
-            //     let Some(mesh) = mesh else {return};
-
-            //     mesh.models.iter().for_each(|(name, (instance, len))| {
-            //         let Some(model) = self.models.get(name) else {return};
-
-            //         render_pass.set_bind_group(1, &model.texture, &[]);
-
-            //         render_pass.set_vertex_buffer(0, model.vertex_buffer.slice(..));
-            //         render_pass.set_vertex_buffer(1, instance.slice(..));
-
-            //         render_pass.draw(0..model.vertex_count as u32, 0..*len as u32);
-            //     });
-            // });
 
 
             if let Some(selection_vertex_buffer) = &self.selection_vertex_buffer {
@@ -778,7 +740,6 @@ impl State {
                 .expect("add texture ok");
             self.egui_rpass.update_buffers(&self.device, &self.queue, &paint_jobs, &screen_descriptor);
 
-            // Record all render passes.
             self.egui_rpass
                 .execute(
                     &mut encoder,
@@ -788,11 +749,6 @@ impl State {
                     None,
                 )
                 .unwrap();
-            // Submit the commands.
-            // self.queue.submit(iter::once(encoder.finish()));
-
-            // Redraw egui
-            // output.present();
 
             self.egui_rpass
                 .remove_textures(tdelta)

@@ -31,6 +31,11 @@ debug = true
 [profile.release]
 debug = true
 
-[profile.release-without-debug]
+[profile.full-release]
 inherits = "release"
+opt-level = 3
+codegen-units = 1
 debug = false
+lto = "fat"
+strip = "symbols"
+panic = "abort"

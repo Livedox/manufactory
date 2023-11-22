@@ -16,7 +16,7 @@ use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::{blocks::
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    window::{WindowBuilder, Fullscreen}, dpi::{PhysicalSize, LogicalSize}, monitor::VideoMode,
 };
 use itertools::{Itertools, iproduct};
 
@@ -96,7 +96,6 @@ fn update_transforms_buffer(state: &State, world: &World, meshes: &mut Meshes, i
     });
 }
 
-
 pub fn main() {
     let sun = Sun::new(
         60,
@@ -115,16 +114,20 @@ pub fn main() {
     let mut debug_block_id = None;
     let mut debug_data = String::new();
 
-    let event_loop = EventLoop::new();
-    let window = Arc::new(WindowBuilder::new().build(&event_loop).unwrap());
-    let mut block_id = 4;
 
-    let mut camera = camera::camera_controller::CameraController::new(glm::vec3(0.0, 0.0, 0.0), 1.2, 0.1, 1000.0);
+    let event_loop = EventLoop::new();
+    let window = Arc::new(WindowBuilder::new()
+        .with_inner_size(PhysicalSize::new(1150u32, 700u32))
+        .build(&event_loop)
+        .unwrap());
+
+    let mut camera = camera::camera_controller::CameraController::new(glm::vec3(80.0, 20.0, 80.0), 1.2, 0.1, 1000.0);
     let mut meshes = meshes::Meshes::new();
     let mut input = input_event::input_service::InputService::new();
     let mut time = my_time::Time::new();
-
-    let mut state = state::State::new(window.clone(), &camera.proj_view(400.0, 400.0).into());
+    let window_size = window.inner_size();
+    let mut state = state::State::new(
+        window.clone(), &camera.proj_view(window_size.width as f32, window_size.height as f32).into());
     let mut gui_controller = GuiController::new(window, state.texture_atlas.clone());
 
     let mut player = Player::new();
@@ -137,7 +140,7 @@ pub fn main() {
     drop(inventory);
 
     let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
-    let mut world = World::new(2, WORLD_HEIGHT as i32, 2, 0, 0, 0);
+    let mut world = World::new(5, WORLD_HEIGHT as i32, 5, 0, 0, 0);
 
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
     threads::world_loader::spawn(&mut world as *mut World, player_coords.clone());
@@ -184,22 +187,33 @@ pub fn main() {
                 let indices = frustum(
                     &mut world.chunks,
                     &camera.new_frustum(state.size.width as f32/state.size.height as f32));
-
                 *player_coords.lock().unwrap() = camera.position_tuple();
-
                 state.update(&camera.proj_view(state.size.width as f32, state.size.height as f32).into(), &time);
                 gui_controller.update_cursor_lock();
+                meshes.update_transforms_buffer(&state, &world, &indices);
+                
+                fps += 1;
+                if timer_1s.check() {
+                    println!("fps: {}", fps);
+                    fps = 0;
+                }
+
                 if input.is_key(&Key::E, KeypressState::AnyJustPress) {
                     gui_controller.set_cursor_lock(!gui_controller.is_cursor());
                     if !gui_controller.toggle_inventory() {player.open_storage = None};
                 }
 
-                update_transforms_buffer(&state, &world, &mut meshes, &indices);
-
-                fps += 1;
-                if timer_1s.check() {
-                    println!("fps: {}", fps);
-                    fps = 0;
+                if input.is_key(&Key::F1, KeypressState::AnyJustPress) {
+                    gui_controller.toggle_ui();
+                }
+                
+                if input.is_key(&Key::F11, KeypressState::AnyJustPress) {
+                    let window = state.window();
+                    if window.fullscreen().is_some() {
+                        window.set_fullscreen(None);
+                    } else {
+                        window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+                    }
                 }
 
                 if input.wheel() < 0 {

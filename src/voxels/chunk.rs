@@ -27,46 +27,17 @@ pub struct Chunk {
 impl Chunk {
     pub fn new(pos_x: i32, pos_y: i32, pos_z: i32) -> Chunk {
         let mut voxels = [Voxel::new(0); CHUNK_VOLUME];
-        let mut voxels_data = HashMap::new();
-        let mut sun_map = [[true; CHUNK_SIZE]; CHUNK_SIZE];
+        let voxels_data = HashMap::new();
 
         for (y, z, x) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
             let real_x = x as i32 + pos_x*CHUNK_SIZE as i32;
             let real_y = y as i32 + pos_y*CHUNK_SIZE as i32;
             let real_z = z as i32 + pos_z*CHUNK_SIZE as i32;
             if real_y as f64 <= ((real_x as f64 *0.3).sin() * 0.5 + 0.5) * 10. {
-                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 2;
-                voxels_data.remove(&((y*CHUNK_SIZE+z)*CHUNK_SIZE+x));
-                sun_map[x][z] = false;
-            }
-            if real_y <= 3 {
-                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 0;
-                voxels_data.remove(&((y*CHUNK_SIZE+z)*CHUNK_SIZE+x));
-                // sun_map[x][z] = false;
+                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 7;
             }
             if real_y <= 2 {
                 voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 5;
-                voxels_data.remove(&((y*CHUNK_SIZE+z)*CHUNK_SIZE+x));
-                sun_map[x][z] = false;
-            }
-            // if real_y <= 1 {
-            //     voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 9;
-            //     voxels_data.remove(&((y*CHUNK_SIZE+z)*CHUNK_SIZE+x));
-            //     sun_map[x][z] = false;
-            // }
-            if x == 1 && y == 0 && z == 0 {
-                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 9;
-                voxels_data.insert((y*CHUNK_SIZE+z)*CHUNK_SIZE+x, VoxelData {
-                    id: 9,
-                    global_coords: GlobalCoords(real_x, real_y, real_z),
-                    additionally: Arc::new(VoxelAdditionalData::new(9, &Direction::new_x())),
-                });
-                sun_map[x][z] = false;
-            }
-            if real_y == 3 && real_x == 11 {
-                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 5;
-                voxels_data.remove(&((y*CHUNK_SIZE+z)*CHUNK_SIZE+x));
-                // sun_map[x][z] = false;
             }
         }
 
