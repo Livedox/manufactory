@@ -46,7 +46,7 @@ impl AssemblingMachine {
         }
 
         let Some(active_recipe) = &self.active_recipe else {return};
-        if !(active_recipe.is_finished() && self.storage()[3].is_possible_add(&active_recipe.recipe.result)) {return};
+        if !active_recipe.is_finished() || !self.storage()[3].is_possible_add(&active_recipe.recipe.result) {return};
         
         let add_item = active_recipe.recipe.result;
         self.mut_storage()[3].try_add_item(&add_item);
@@ -69,7 +69,7 @@ impl Storage for AssemblingMachine {
         self.storage()[0..INGREDIENT_LENGTH]
             .iter()
             .map(|possible_item| possible_item.contains(item.id()))
-            .sum::<u32>() > item.count
+            .sum::<u32>() >= item.count
     }
 
     fn remove(&mut self, item: &Item) -> Option<Item> {

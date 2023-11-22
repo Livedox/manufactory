@@ -574,7 +574,7 @@ impl State {
         self.queue.write_buffer(&self.transport_belt_buffer, 0, &time.current().to_le_bytes());
     }
 
-    pub fn render<const N: usize>(&mut self, indices: &[usize], sun: &Sun<N>, player: &mut Player, gui_controller: &GuiController, meshes: &Meshes, time: &Time, block_id: &mut u32, debug_data: &str) -> Result<(), wgpu::SurfaceError> {
+    pub fn render<const N: usize>(&mut self, indices: &[usize], sun: &Sun<N>, player: &mut Player, gui_controller: &GuiController, meshes: &Meshes, time: &Time, debug_block_id: &mut Option<u32>, debug_data: &str) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -586,9 +586,8 @@ impl State {
         player.inventory().lock().unwrap().update_recipe();
         let ctx = &self.egui_platform.context();
         gui_controller
-            .draw_inventory(ctx, player, 2)
-            // .draw_hotbar(ctx, player, 2)
-            .draw_debug(ctx, debug_data, block_id)
+            .draw_inventory(ctx, player)
+            .draw_debug(ctx, debug_data, debug_block_id)
             .draw_active_recieps(ctx, player);
 
         let window = if gui_controller.is_cursor() {Some(self.window.as_ref())} else {None};

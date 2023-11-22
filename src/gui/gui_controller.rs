@@ -6,6 +6,11 @@ use winit::{window::Window, dpi::PhysicalPosition};
 use crate::{player::{inventory::PlayerInventory, player::Player}, recipes::{storage::Storage, recipes::RECIPES}, texture::TextureAtlas, voxels::{voxel_data::{VoxelBox, Furnace, PlayerUnlockableStorage}, assembling_machine::AssemblingMachine}};
 use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe, assembling_machine_slot::assembling_machine_slot}, theme::DEFAULT_THEME};
 
+enum Task {
+    ToHotbar(usize),
+    ToInventory(usize),
+    ToStorage(usize),
+}
 // NEED TO FIX THIS
 
 pub fn add_to_storage(src: Arc<Mutex<dyn Storage>>, dst: Arc<Mutex<dyn Storage>>, index: usize) {
@@ -78,7 +83,8 @@ impl GuiController {
 
 
     pub fn draw_box(&self, ui: &mut Ui, storage: &Weak<Mutex<VoxelBox>>, inventory: Arc<Mutex<PlayerInventory>>) {
-        let mut voxel_box = storage.upgrade().unwrap();
+        let mut task: Option<usize> = None;
+        let voxel_box = storage.upgrade().unwrap();
         ui.horizontal(|ui| {ui.vertical(|ui| {
             let len = voxel_box.clone().lock().unwrap().storage().len();
             let count = (len as f32 / 10.0).ceil() as usize;
@@ -86,39 +92,41 @@ impl GuiController {
                 ui.horizontal(|ui| {
                     for j in 0..(std::cmp::min(10, len - i*10)) {
                         if ui.add(inventory_slot(&self.items_atlas, &voxel_box.clone().lock().unwrap().storage()[i*10 + j])).clicked() {
-                            add_to_storage(voxel_box.clone(), inventory.clone(), i*10 + j);
-                            // if let Some(add_item) = voxel_box.borrow().storage()[i*10 + j].0 {
-                            //     if let Some(item) = inventory.as_ref().borrow_mut().add(&add_item, true) {
-                            //         voxel_box.as_ref().borrow_mut().set(&item, i*10 + j)
-                            //     }
-                            // }
+                            task = Some(i*10 + j);
                         };
                     }
                 });
             }
         })});
+        if let Some(task) = task {
+            add_to_storage(voxel_box, inventory, task);
+        }
     }
 
     pub fn draw_furnace(&self, ui: &mut Ui, storage: &Weak<Mutex<Furnace>>, inventory: Arc<Mutex<PlayerInventory>>) {
-        let mut furnace = storage.upgrade().unwrap();
-        let furnace_ptr = furnace.as_ref() as *const Mutex<dyn Storage> as *mut dyn Storage;
+        let mut task: Option<usize> = None;
+        let furnace = storage.upgrade().unwrap();
         ui.horizontal(|ui| {
             for (index, item) in furnace.lock().unwrap().storage().iter().enumerate() {
                 if ui.add(inventory_slot(&self.items_atlas, item)).drag_started() {
-                    add_to_storage(furnace.clone(), inventory.clone(), index)
+                    task = Some(index);
                 }
             }
         });
+        if let Some(task) = task {
+            add_to_storage(furnace, inventory, task);
+        }
     }
 
     pub fn draw_assembling_machine(&self, ui: &mut Ui, storage: &Weak<Mutex<AssemblingMachine>>, inventory: Arc<Mutex<PlayerInventory>>) {
-        let mut assembling_machine = storage.upgrade().unwrap();
+        let mut task: Option<usize> = None;
+        let assembling_machine = storage.upgrade().unwrap();
         let selected_recipe = assembling_machine.lock().unwrap().selected_recipe();
         if let Some(selected_recipe) = selected_recipe {
             ui.horizontal(|ui| {
                 for (i, item) in assembling_machine.lock().unwrap().storage().iter().enumerate() {
                     if ui.add(assembling_machine_slot(&self.items_atlas, item, i, selected_recipe, i==3)).drag_started() {
-                        add_to_storage(assembling_machine.clone(), inventory.clone(), i);
+                        task = Some(i);
                     };
                 }
             });
@@ -146,11 +154,16 @@ impl GuiController {
                 });
             }, None));
         });
+        if let Some(task) = task {
+            add_to_storage(assembling_machine, inventory, task);
+        }
     }
 
 
-    pub fn draw_inventory(&self, ctx: &Context, player: &mut Player, slot_id: usize) -> &Self {
+    pub fn draw_inventory(&self, ctx: &Context, player: &mut Player) -> &Self {
+        let mut task: Option<Task> = None;
         let inventory = player.inventory();
+        let storage = player.open_storage.as_mut().map(|op| op.to_storage().upgrade().unwrap());
         egui::Area::new("hotbar_area")
             .anchor(Align2::CENTER_BOTTOM, vec2(1.0, -1.0))
             .show(ctx, |ui| {
@@ -161,9 +174,9 @@ impl GuiController {
                     for (i, item) in player.inventory().clone().lock().unwrap().storage().iter().take(10).enumerate() {
                         if ui.add(hotbar_slot(&self.items_atlas, item, player.active_slot == i)).drag_started() {
                             if let Some(storage) = &storage {
-                                add_to_storage(inventory.clone(), storage.clone(), i);
+                                task = Some(Task::ToStorage(i));
                             } else {
-                                inventory.clone().lock().unwrap().place_in_inventory(i);
+                                task = Some(Task::ToInventory(i));
                             }
                         }
                     }
@@ -181,7 +194,6 @@ impl GuiController {
                         PlayerUnlockableStorage::AssemblingMachine(a) => self.draw_assembling_machine(ui, a, inventory.clone()),
                     }
                 }
-                let storage = player.open_storage.as_mut().map(|op| op.to_storage().upgrade().unwrap());
                 let inventory_len = inventory.clone().lock().unwrap().storage().len();
                 ui.horizontal(|ui| {        
                     ui.vertical(|ui| {
@@ -191,9 +203,9 @@ impl GuiController {
                                 for j in 0..std::cmp::min(inventory_len-10*i, 10) {
                                     if ui.add(inventory_slot(&self.items_atlas, &inventory.clone().lock().unwrap().storage()[i*10 + j])).clicked() {
                                         if let Some(storage) = &storage {
-                                            add_to_storage(inventory.clone(), storage.clone(), i*10 + j);
+                                            task = Some(Task::ToStorage(i*10 + j));
                                         } else {
-                                            inventory.clone().lock().unwrap().place_in_hotbar(i*10 + j);
+                                            task = Some(Task::ToHotbar(i*10 + j));
                                         }
                                     };
                                 }
@@ -230,12 +242,18 @@ impl GuiController {
                         });
                 });   
             });
-
+        if let Some(task) = task {
+            match task {
+                Task::ToHotbar(i) => {inventory.lock().unwrap().place_in_hotbar(i);},
+                Task::ToInventory(i) => {inventory.lock().unwrap().place_in_inventory(i);},
+                Task::ToStorage(i) => add_to_storage(inventory, storage.unwrap(), i),
+            }
+        }
         self
     }
 
 
-    pub fn draw_debug(&self, ctx: &Context, debug_data: &str, choosen_block_id: &mut u32) -> &Self {
+    pub fn draw_debug(&self, ctx: &Context, debug_data: &str, debug_block_id: &mut Option<u32>) -> &Self {
         egui::Window::new("Debug")
             .anchor(Align2([Align::RIGHT, Align::TOP]), vec2(0.0, 20.0))
             .resizable(false)
@@ -252,11 +270,18 @@ impl GuiController {
             )
             .show(ctx, |ui| {
                 ui.colored_label(DEFAULT_THEME.on_background, debug_data);
-                let button = egui::Button::new(RichText::new(format!("{}", choosen_block_id)).color(DEFAULT_THEME.on_primary)).fill(DEFAULT_THEME.primary);
+                let button = egui::Button::new(
+                    RichText::new(format!("{}", debug_block_id.map_or(-1, |a| a as i32)))
+                        .color(DEFAULT_THEME.on_primary))
+                        .fill(DEFAULT_THEME.primary);
                 if ui.add(button).clicked() {
-                    *choosen_block_id += 1;
-                    if *choosen_block_id > 17 {
-                        *choosen_block_id = 1;
+                    if let Some(block_id) = debug_block_id {
+                        *block_id += 1;
+                        if *block_id > 17 {
+                            *debug_block_id = None;
+                        }
+                    } else {
+                        *debug_block_id = Some(0);
                     }
                 }
             });

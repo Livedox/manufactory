@@ -5,15 +5,11 @@ use direction::Direction;
 use graphic::{render_selection::render_selection, render::RenderResult};
 use gui::gui_controller::GuiController;
 use input_event::KeypressState;
-use meshes::MeshesRenderInput;
+use meshes::{MeshesRenderInput, Meshes};
 use player::player::Player;
 use recipes::{storage::Storage, item::Item};
-use unsafe_renderer::UnsafeRenderer;
-use unsafe_renderer_test::UnsafeRendererTest;
-use unsafe_voxel_data_updater::spawn_unsafe_voxel_data_updater;
+use state::State;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}};
-use world_loader::{WorldLoader};
-use world_loader_test::WorldLoaderTest;
 use crate::{voxels::chunk::HALF_CHUNK_SIZE, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}};
 use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::{blocks::BLOCKS, block_type::BlockType}};
 
@@ -44,15 +40,11 @@ mod player;
 mod models;
 mod direction;
 mod world;
-mod world_loader;
-mod unsafe_renderer;
-mod unsafe_renderer_test;
-mod unsafe_voxel_data_updater;
-mod world_loader_test;
 mod macros;
+mod threads;
 
 
-pub fn frustum(chunks: &mut Chunks, frustum: &Frustum, pos: &[f32; 3]) -> Vec<usize> {
+pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
     // UPDATE
     // This function could be much faster
     let mut indices: Vec<usize> = vec![];
@@ -69,9 +61,43 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum, pos: &[f32; 3]) -> Vec<us
     indices
 }
 
+
+fn update_transforms_buffer(state: &State, world: &World, meshes: &mut Meshes, indices: &[usize]) {
+    indices.iter().for_each(|index| {
+        let Some(Some(chunk)) = world.chunks.chunks.get(*index) else { return };
+        let mut transforms_buffer: Vec<u8> = vec![];
+        let mut animated_models: HashMap<String, Vec<f32>> = HashMap::new();
+
+        chunk.voxels_data.iter().sorted_by_key(|data| {data.0}).for_each(|data| {
+            let Some(progress) = data.1.additionally.as_ref().borrow().animation_progress() else {return};
+            let block_type = &BLOCKS()[data.1.id as usize].block_type();
+            if let BlockType::AnimatedModel {name} = block_type {
+                if let Some(animated_model) = animated_models.get_mut(name) {
+                    animated_model.push(progress);
+                } else {
+                    animated_models.insert(name.to_string(), vec![progress]);
+                }
+            }
+        });
+
+        animated_models.iter().sorted_by_key(|(name, _)| *name).for_each(|(name, progress_vec)| {
+            let model = state.animated_models.get(name).unwrap();
+            progress_vec.iter().for_each(|progress| {
+                transforms_buffer.extend(model.calculate_bytes_transforms(None, *progress));
+            });
+        });
+
+        if let Some(Some(mesh)) = &mut meshes.mut_meshes().get(*index) {
+            let Some(buffer) = &mesh.transformation_matrices_buffer else {return};
+            if buffer.size() >= transforms_buffer.len() as u64 {
+                state.queue().write_buffer(buffer, 0, transforms_buffer.as_slice());
+            }
+        }
+    });
+}
+
+
 pub fn main() {
-    let mut render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
-    let mut chunk_indices = Arc::new(Mutex::new(Vec::<usize>::new()));
     let sun = Sun::new(
         60,
         [0, 50, 60, 230, 240, 290, 300, 490, 500],
@@ -86,13 +112,14 @@ pub fn main() {
          Color(1.0, 0.654, 0.0), Color(1.0, 0.301, 0.0),
          Color(0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0),
          Color(1.0, 0.301, 0.0)]);
+    let mut debug_block_id = None;
     let mut debug_data = String::new();
 
     let event_loop = EventLoop::new();
     let window = Arc::new(WindowBuilder::new().build(&event_loop).unwrap());
     let mut block_id = 4;
 
-    let mut camera = camera::camera_controller::CameraController::new(glm::vec3(960.0, 0.0, 960.0), 1.2, 0.1, 1000.0);
+    let mut camera = camera::camera_controller::CameraController::new(glm::vec3(0.0, 0.0, 0.0), 1.2, 0.1, 1000.0);
     let mut meshes = meshes::Meshes::new();
     let mut input = input_event::input_service::InputService::new();
     let mut time = my_time::Time::new();
@@ -110,23 +137,15 @@ pub fn main() {
     drop(inventory);
 
     let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
-    // let world_loader = WorldLoader::new();
-    let world = Arc::new(Mutex::new(World::new(30, WORLD_HEIGHT as i32, 30, 0, 0, 0)));
-    let world_loader_test = WorldLoaderTest::new((&mut *world.lock().unwrap()) as *mut World, player_coords.clone());
-    // world.lock().unwrap().load_chunks(&world_loader);
-    
-    // let renderer = UnsafeRenderer::new((&*world.lock().unwrap()) as *const World);
-    // let renderer = UnsafeRendererTest::new((&mut *world.lock().unwrap()) as *mut World, chunk_indices.clone());
-    let renderer = UnsafeRendererTest::new_test(
-        (&mut *world.lock().unwrap()) as *mut World,
-        player_coords.clone(),
-        render_result.clone());
+    let mut world = World::new(2, WORLD_HEIGHT as i32, 2, 0, 0, 0);
 
-    spawn_unsafe_voxel_data_updater((&mut ((*world.lock().unwrap()).chunks)) as *mut Chunks);
+    let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
+    threads::world_loader::spawn(&mut world as *mut World, player_coords.clone());
+    threads::renderer::spawn(&mut world as *mut World, player_coords.clone(), render_result.clone());
+    threads::voxel_data_updater::spawn(&mut world as *mut World);
 
     let mut timer_1s = Timer::new(Duration::from_secs(1));
     let mut timer_16ms = Timer::new(Duration::from_millis(16));
-
     let mut fps = 0;
     event_loop.run(move |event, _, control_flow| {
         state.egui_platform.handle_event(&event);
@@ -160,20 +179,12 @@ pub fn main() {
                 }
             }
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
-                let indices;
-                // let indices_test;
-                {let mut guard = world.lock().unwrap();
-                let mut world: &mut World = &mut *guard;
                 time.update();
                 camera.update(&input, time.delta(), gui_controller.is_cursor());
-                indices = frustum(
+                let indices = frustum(
                     &mut world.chunks,
-                    &camera.new_frustum(state.size.width as f32/state.size.height as f32),
-                    &camera.position_array());
+                    &camera.new_frustum(state.size.width as f32/state.size.height as f32));
 
-                if let Ok(mut lock) = chunk_indices.try_lock() {
-                    *lock = indices.clone();
-                }
                 *player_coords.lock().unwrap() = camera.position_tuple();
 
                 state.update(&camera.proj_view(state.size.width as f32, state.size.height as f32).into(), &time);
@@ -183,35 +194,7 @@ pub fn main() {
                     if !gui_controller.toggle_inventory() {player.open_storage = None};
                 }
 
-                indices.iter().for_each(|index| {
-                    let Some(Some(chunk)) = world.chunks.chunks.get_mut(*index) else { return };
-
-                    let mut inst: Vec<u8> = vec![];
-                    let mut animated_models: HashMap<String, Vec<f32>> = HashMap::new();
-                    chunk.voxels_data.iter_mut().sorted_by_key(|data| {data.0}).for_each(|data| {
-                        let Some(progress) = data.1.additionally.as_ref().borrow().animation_progress() else {return};
-                        let block_type = &BLOCKS()[data.1.id as usize].block_type();
-                        if let BlockType::AnimatedModel {name} = block_type {
-                            if let Some(animated_model) = animated_models.get_mut(name) {
-                                animated_model.push(progress);
-                            } else {
-                                animated_models.insert(name.to_string(), vec![progress]);
-                            }
-                        }
-                    });
-                    animated_models.iter().sorted_by_key(|(name, _)| *name).for_each(|(name, progress_vec)| {
-                        let model = state.animated_models.get(name).unwrap();
-                        progress_vec.iter().for_each(|progress| {
-                            inst.extend(model.calculate_bytes_transforms(None, *progress));
-                        });
-                    });
-                    if let Some(Some(mesh)) = &mut meshes.mut_meshes().get(*index) {
-                        let Some(buffer) = &mesh.transformation_matrices_buffer else {return};
-                        if buffer.size() >= inst.len() as u64 {
-                            state.queue().write_buffer(buffer, 0, inst.as_slice());
-                        }
-                    }
-                });
+                update_transforms_buffer(&state, &world, &mut meshes, &indices);
 
                 fps += 1;
                 if timer_1s.check() {
@@ -240,51 +223,55 @@ pub fn main() {
                         }
                     });
 
-                {
-                    let result = ray_cast::ray_cast(&world.chunks, &camera.position_array(), &camera.front_array(), 10.0);
-                    if let Some(result) = result {
-                        let (x, y, z, voxel, norm) = ((result.0) as i32, (result.1) as i32, (result.2) as i32, result.3, result.4);
-                        let global_coords: GlobalCoords = (x, y, z).into();
-                        let chunk_coords: ChunkCoords = global_coords.into();
-                        let local_coords: LocalCoords = global_coords.into();
-                        debug_data = format!("{:?} {:?}", result.3, world.chunks.chunk(chunk_coords).and_then(|c| c.voxel_data(local_coords)));
-                        let voxel_id = voxel.map_or(0, |v| v.id);
+                let result = ray_cast::ray_cast(&world.chunks, &camera.position_array(), &camera.front_array(), 10.0);
+                if let Some(result) = result {
+                    let (x, y, z, voxel, norm) = ((result.0) as i32, (result.1) as i32, (result.2) as i32, result.3, result.4);
+                    let global_coords: GlobalCoords = (x, y, z).into();
+                    let chunk_coords: ChunkCoords = global_coords.into();
+                    let local_coords: LocalCoords = global_coords.into();
+                    debug_data = format!("{:?} {:?}", result.3, world.chunks.chunk(chunk_coords).and_then(|c| c.voxel_data(local_coords)));
+                    let voxel_id = voxel.map_or(0, |v| v.id);
 
-                        if voxel_id != 0 {
-                            let min_point = BLOCKS()[voxel_id as usize].min_point();
-                            let max_point = BLOCKS()[voxel_id as usize].max_point();
-                            state.selection_vertex_buffer =
-                                Some(render_selection(
-                                    state.device(),
-                                    &[min_point.0 + x as f32, min_point.1 + y as f32, min_point.2 + z as f32],
-                                    &[max_point.0 + x as f32, max_point.1 + y as f32, max_point.2 + z as f32]
-                                ));
-                        } else {
-                            state.selection_vertex_buffer = None;
-                        }
-
-                        if input.is_mouse(&Mouse::Left, KeypressState::AnyPress) && !gui_controller.is_cursor() {
-                            BLOCKS()[voxel_id as usize].on_block_break(&mut world, &mut player, &(x, y, z).into());
-                        } else if input.is_mouse(&Mouse::Right, KeypressState::AnyPress) && !gui_controller.is_cursor() {
-                            let gxyz = GlobalCoords(x+norm.x as i32, y+norm.y as i32, z+norm.z as i32);
-                            if voxel_id == 13 || voxel_id == 14 || voxel_id == 1 || voxel_id == 16 {
-                                let chunk = world.chunks.mut_chunk(chunk_coords);
-                                let voxel_data = chunk.unwrap().mut_voxel_data(local_coords);
-                                if let Some(storage) = voxel_data.and_then(|vd| vd.player_unlockable_storage()) {
-                                    gui_controller.set_inventory(true);
-                                    player.open_storage = Some(storage);
-                                }
-                            } else {
-                                let front = camera.front();
-                                player.on_right_click(&mut world, &gxyz, &Direction::new(front.x, front.y, front.z));
-                            }                     
-                        }
+                    if voxel_id != 0 {
+                        let min_point = BLOCKS()[voxel_id as usize].min_point();
+                        let max_point = BLOCKS()[voxel_id as usize].max_point();
+                        state.selection_vertex_buffer =
+                            Some(render_selection(
+                                state.device(),
+                                &[min_point.0 + x as f32, min_point.1 + y as f32, min_point.2 + z as f32],
+                                &[max_point.0 + x as f32, max_point.1 + y as f32, max_point.2 + z as f32]
+                            ));
                     } else {
                         state.selection_vertex_buffer = None;
                     }
-                }}
 
-                if let Some(render_result) = render_result.lock().unwrap().take() {
+                    if input.is_mouse(&Mouse::Left, KeypressState::AnyJustPress) && !gui_controller.is_cursor() {
+                        BLOCKS()[voxel_id as usize].on_block_break(&mut world, &mut player, &(x, y, z).into());
+                    } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !gui_controller.is_cursor() {
+                        let gxyz = GlobalCoords(x+norm.x as i32, y+norm.y as i32, z+norm.z as i32);
+                        if voxel_id == 13 || voxel_id == 14 || voxel_id == 1 || voxel_id == 16 {
+                            let chunk = world.chunks.mut_chunk(chunk_coords);
+                            let voxel_data = chunk.unwrap().mut_voxel_data(local_coords);
+                            if let Some(storage) = voxel_data.and_then(|vd| vd.player_unlockable_storage()) {
+                                gui_controller.set_inventory(true);
+                                player.open_storage = Some(storage);
+                            }
+                        } else {
+                            let front = camera.front();
+                            if let Some(block_id) = debug_block_id {
+                                BLOCKS()[block_id as usize].on_block_set(
+                                    &mut world, &mut player, &gxyz, &Direction::new(front.x, front.y, front.z));
+                            } else {
+                                player.on_right_click(&mut world, &gxyz, &Direction::new(front.x, front.y, front.z));
+                            }
+                        }                     
+                    }
+                } else {
+                    state.selection_vertex_buffer = None;
+                }
+
+                let render_result = render_result.lock().unwrap().take();
+                if let Some(render_result) = render_result {
                     meshes.render(MeshesRenderInput {
                         device: state.device(),
                         animated_model_layout: &state.animated_model_layout,
@@ -293,7 +280,7 @@ pub fn main() {
                     });
                 }           
 
-                match state.render(&indices, &sun, &mut player, &gui_controller, &meshes, &time, &mut block_id, &debug_data) {
+                match state.render(&indices, &sun, &mut player, &gui_controller, &meshes, &time, &mut debug_block_id, &debug_data) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                         state.resize(state.size)
@@ -309,4 +296,5 @@ pub fn main() {
             _ => {}
         }
     });
+    
 }
