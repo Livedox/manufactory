@@ -62,40 +62,6 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
 }
 
 
-fn update_transforms_buffer(state: &State, world: &World, meshes: &mut Meshes, indices: &[usize]) {
-    indices.iter().for_each(|index| {
-        let Some(Some(chunk)) = world.chunks.chunks.get(*index) else { return };
-        let mut transforms_buffer: Vec<u8> = vec![];
-        let mut animated_models: HashMap<String, Vec<f32>> = HashMap::new();
-
-        chunk.voxels_data.iter().sorted_by_key(|data| {data.0}).for_each(|data| {
-            let Some(progress) = data.1.additionally.as_ref().borrow().animation_progress() else {return};
-            let block_type = &BLOCKS()[data.1.id as usize].block_type();
-            if let BlockType::AnimatedModel {name} = block_type {
-                if let Some(animated_model) = animated_models.get_mut(name) {
-                    animated_model.push(progress);
-                } else {
-                    animated_models.insert(name.to_string(), vec![progress]);
-                }
-            }
-        });
-
-        animated_models.iter().sorted_by_key(|(name, _)| *name).for_each(|(name, progress_vec)| {
-            let model = state.animated_models.get(name).unwrap();
-            progress_vec.iter().for_each(|progress| {
-                transforms_buffer.extend(model.calculate_bytes_transforms(None, *progress));
-            });
-        });
-
-        if let Some(Some(mesh)) = &mut meshes.mut_meshes().get(*index) {
-            let Some(buffer) = &mesh.transformation_matrices_buffer else {return};
-            if buffer.size() >= transforms_buffer.len() as u64 {
-                state.queue().write_buffer(buffer, 0, transforms_buffer.as_slice());
-            }
-        }
-    });
-}
-
 pub fn main() {
     let sun = Sun::new(
         60,
@@ -117,6 +83,7 @@ pub fn main() {
 
     let event_loop = EventLoop::new();
     let window = Arc::new(WindowBuilder::new()
+        .with_title("Manufactory")
         .with_inner_size(PhysicalSize::new(1150u32, 700u32))
         .build(&event_loop)
         .unwrap());
