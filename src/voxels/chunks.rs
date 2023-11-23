@@ -10,14 +10,19 @@ pub const WORLD_HEIGHT: usize = 256 / CHUNK_SIZE; // In chunks
 
 #[derive(Debug)]
 pub struct Chunks {
+    pub is_translate: bool,
     pub chunks: Vec<Option<Chunk>>,
     pub volume: i32,
     pub width: i32,
     pub height: i32,
     pub depth: i32,
-    ox: i32,
-    oy: i32,
-    oz: i32,
+
+    pub translate_x: i32,
+    pub translate_z: i32,
+
+    pub ox: i32,
+    pub oy: i32,
+    pub oz: i32,
 }
 
 impl Chunks {
@@ -26,14 +31,48 @@ impl Chunks {
         let mut chunks: Vec<Option<Chunk>> = vec![];
         for _ in 0..volume { chunks.push(None); }
 
-        Chunks { chunks, volume, width, height, depth, ox, oy, oz }
+        Chunks {
+            chunks,
+            volume,
+            width,
+            height,
+            depth,
+            ox,
+            oy,
+            oz,
+            translate_x: 0,
+            translate_z: 0,
+            is_translate: false
+        }
     }
 
 
     pub fn load_chunk(&mut self, coords: ChunkCoords) {
-        let index = coords.index(self.depth, self.width);
+        let index = coords.nindex(self.width, self.depth, self.ox, self.oz);
         if self.chunks[index].is_some() {return};
         self.chunks[index] = Some(Chunk::new(coords.0, coords.1, coords.2));
+    }
+
+
+    pub fn translate(&mut self, ox: i32, oz: i32) {
+        self.is_translate = true;
+        let mut new_chunks: Vec<Option<Chunk>> = Vec::with_capacity(self.volume as usize);
+        new_chunks.resize_with(self.volume as usize, || None);
+
+        for (cz, cx, cy) in iproduct!(0..self.depth, 0..self.width, 0..self.height) {
+            let nx = cx - ox;
+            let nz = cz - ox;
+            if nx < 0 || nz < 0 || nx >= self.width || nz >= self.depth {continue};
+            // There may be bugs, please fix them
+            // In other threads
+            new_chunks[ChunkCoords(nx, cy, nz).nindex(self.width, self.depth, 0, 0)] = 
+                self.chunks[ChunkCoords(cx, cy, cz).nindex(self.width, self.depth, self.ox, self.oz)].take();
+        }
+
+        self.chunks = new_chunks;
+        self.ox = ox;
+        self.oz = oz;
+        self.is_translate = false;
     }
 
 
@@ -128,7 +167,7 @@ impl Chunks {
     pub fn chunk<T: Into<ChunkCoords>>(&self, coords: T) -> Option<&Chunk> {
         let coords: ChunkCoords = coords.into();
         if !self.is_in_area(coords) { return None; }
-        let index = coords.index(self.depth, self.width);
+        let index = coords.nindex(self.width, self.depth, self.ox, self.oz);
         let chunk = self.chunks.get(index);
         if let Some(chunk) = chunk { return chunk.as_ref() }
         None
@@ -137,7 +176,7 @@ impl Chunks {
     pub fn mut_chunk<T: Into<ChunkCoords>>(&mut self, coords: T) -> Option<&mut Chunk> {
         let coords: ChunkCoords = coords.into();
         if !self.is_in_area(coords) { return None; }
-        let index = coords.index(self.depth, self.width);
+        let index = coords.nindex(self.width, self.depth, self.ox, self.oz);
         let chunk = self.chunks.get_mut(index);
         if let Some(chunk) = chunk { return chunk.as_mut() }
         None

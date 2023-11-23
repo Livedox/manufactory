@@ -25,9 +25,12 @@ pub fn spawn(
 
                 let chunks = new_chunks.chunks;
                 let cxz = (chunks.chunks[0].as_ref().unwrap().xyz.0, chunks.chunks[0].as_ref().unwrap().xyz.2);
+
+                if world.chunks.is_translate {continue};
+
                 for chunk in chunks.chunks.into_iter() {
                     let Some(chunk) = chunk else {continue};
-                    let index = chunk.xyz.index(world.chunks.depth, world.chunks.width);
+                    let index = chunk.xyz.chunk_index(&world.chunks);
                     world.chunks.chunks[index] = Some(chunk);
                 };
 

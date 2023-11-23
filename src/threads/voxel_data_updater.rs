@@ -8,6 +8,7 @@ pub fn spawn(world_ptr: *mut World) -> JoinHandle<()> {
     thread::spawn(move || {
         loop {
             let now = Instant::now();
+            if world.chunks.is_translate {continue};
             let ptr = &mut world.chunks as *mut Chunks;
             for chunk in world.chunks.chunks.iter() {
                 let Some(chunk) = chunk else {continue};

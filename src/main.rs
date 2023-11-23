@@ -55,7 +55,7 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
         let y = cy as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
         let z = cz as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
         if frustum.is_cube_in(&glm::vec3(x, y, z), HALF_CHUNK_SIZE as f32) {
-            indices.push(ChunkCoords(cx, cy, cz).index(chunks.depth, chunks.width));
+            indices.push(ChunkCoords(cx, cy, cz).chunk_index(&chunks));
         }
     }
     indices
@@ -88,7 +88,7 @@ pub fn main() {
         .build(&event_loop)
         .unwrap());
 
-    let mut camera = camera::camera_controller::CameraController::new(glm::vec3(80.0, 20.0, 80.0), 1.2, 0.1, 1000.0);
+    let mut camera = camera::camera_controller::CameraController::new(glm::vec3(0.0, 20.0, 0.0), 1.2, 0.1, 1000.0);
     let mut meshes = meshes::Meshes::new();
     let mut input = input_event::input_service::InputService::new();
     let mut time = my_time::Time::new();
@@ -158,7 +158,12 @@ pub fn main() {
                 state.update(&camera.proj_view(state.size.width as f32, state.size.height as f32).into(), &time);
                 gui_controller.update_cursor_lock();
                 meshes.update_transforms_buffer(&state, &world, &indices);
-                
+
+                let c: ChunkCoords = GlobalCoords::from(camera.position_tuple()).into();
+                if c.0 != world.chunks.ox || c.2 != world.chunks.oz {
+                    world.chunks.translate(c.0, c.2);
+                }
+
                 fps += 1;
                 if timer_1s.check() {
                     println!("fps: {}", fps);

@@ -235,13 +235,13 @@ pub struct RenderResult {
 }
 
 
-pub fn render(chunk_index: usize, world: &World) -> RenderResult {
+pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
     let chunks = &world.chunks;
     let mut buffer = Buffer::new();
 
     let mut transport_belt_buffer = Buffer::new();
     let light_handler = LightHandler::new(chunks);
-    let chunk = chunks.chunks[chunk_index].as_ref().unwrap();
+    let Some(Some(chunk)) = chunks.chunks.get(chunk_index).as_ref() else {return None};
     let mut models = HashMap::<String, Vec<ModelRenderResult>>::new();
     let mut animated_models_data = HashMap::<String, Vec<AnimatedModelRenderResult>>::new();
 
@@ -481,7 +481,7 @@ pub fn render(chunk_index: usize, world: &World) -> RenderResult {
         greedy_vertices_back.greed(&mut buffer, &Axis::Z, &[0,1,2,0,2,3]);
     }
 
-    RenderResult {
+    Some(RenderResult {
         chunk_index,
         block_vertices: buffer.buffer,
         block_indices: buffer.index_buffer,
@@ -489,7 +489,7 @@ pub fn render(chunk_index: usize, world: &World) -> RenderResult {
         animated_models: animated_models_data,
         belt_vertices: transport_belt_buffer.buffer,
         belt_indices: transport_belt_buffer.index_buffer,
-    }
+    })
 }
 
 

@@ -166,7 +166,7 @@ impl Manipulator {
         if self.item_id.is_none() && self.start_time.is_none() && return_time {
             let src_coords = GlobalCoords(coords.0 - self.direction[0] as i32, coords.1, coords.2 - self.direction[2] as i32);
             let src = unsafe {
-                chunks.as_mut().unwrap().mut_chunk(src_coords)
+                chunks.as_mut().expect("Chunks don't exist").mut_chunk(src_coords)
             };
             if let Some(src_chunk) = src {
                 let Some(src_data) = src_chunk.mut_voxel_data(src_coords.into()) else {return};
@@ -183,7 +183,7 @@ impl Manipulator {
         if self.item_id.is_some() && start_time {
             let dst_coords = GlobalCoords(coords.0 + self.direction[0] as i32, coords.1, coords.2 + self.direction[2] as i32);
             let dst = unsafe {
-                chunks.as_mut().unwrap().mut_chunk(dst_coords)
+                chunks.as_mut().expect("Chunks don't exist").mut_chunk(dst_coords)
             };
             if let Some(dst_chunk) = dst {
                 let Some(dst_data) = dst_chunk.mut_voxel_data(dst_coords.into()) else {return};
@@ -363,7 +363,7 @@ impl Drill {
     pub fn update(&mut self, chunks: *mut Chunks) {
         let xyz = self.structure_coordinates[0];
         let global = GlobalCoords(xyz.0 - self.dir[0] as i32, xyz.1, xyz.2-self.dir[2] as i32);
-        let voxels_data = unsafe {chunks.as_mut().unwrap().mut_voxels_data(global)};
+        let voxels_data = unsafe {chunks.as_mut().expect("Chunks don't exist").mut_voxels_data(global)};
         if let Some(storage) = voxels_data
             .and_then(|vd| vd.get_mut(&LocalCoords::from(global).index()))
             .and_then(|d| d.additionally.storage()) {
@@ -380,7 +380,7 @@ impl Drill {
         
         self.structure_coordinates.iter().for_each(|coord| {
             let ore_coords = GlobalCoords(coord.0, coord.1-1, coord.2);
-            let voxel = unsafe {chunks.as_mut().unwrap().voxel_global(ore_coords)};
+            let voxel = unsafe {chunks.as_mut().expect("Chunks don't exist").voxel_global(ore_coords)};
             let Some(voxel) = voxel else {return};
             if let Some(item) = BLOCKS()[voxel.id as usize].ore() {
                 self.storage[0].try_add_item(&item);

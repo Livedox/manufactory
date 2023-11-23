@@ -39,7 +39,7 @@ impl Light {
                 }
             }
 
-            if let Some(top_chunk) = unsafe {chunks_ptr.as_ref().unwrap().chunk((cx, cy+1, cz))} {
+            if let Some(top_chunk) = unsafe {chunks_ptr.as_ref().expect("Chunks don't found").chunk((cx, cy+1, cz))} {
                 for (lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE) {
                     if top_chunk.lightmap.get_sun((lx as u8, 0, lz as u8)) == 15 {
                         chunk.lightmap.set_sun((lx as u8, (CHUNK_SIZE-1) as u8, lz as u8), 15);
