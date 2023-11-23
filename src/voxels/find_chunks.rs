@@ -14,7 +14,8 @@ impl Chunks {
             P: Fn(Option<&Chunk>) -> bool
     {
         for (cx, cy, cz) in iproduct!(iters.0, iters.1, iters.2) {
-            if (cx >= 0 && cy >= 0 && cz >= 0 && cx < self.width && cy < self.height && cz < self.depth)
+            if (cx - self.ox >= 0 && cy >= 0 && cz - self.oz >= 0
+              && cx - self.ox < self.width && cy < self.height && cz - self.oz < self.depth)
               && predicat(self.chunk(ChunkCoords(cx, cy, cz))) {
                 return Some(ChunkCoords(cx, cy, cz));
             }
@@ -63,18 +64,17 @@ impl Chunks {
         let sx = start_chunk_coords.0;
         let sz = start_chunk_coords.2;
         for i in 0..(self.depth.max(self.width)) {
-            let min_x = if sx > i {sx-i} else {0};
-            let max_x = if i+sx < self.width {i+sx} else {self.width-1};
-            let min_z = if sz > i {sz-i+1} else {0};
-            let max_z = if i+sz < self.depth-1 {sz+i-1} else {self.depth-1};
-            let x_side = Self::check_size(i, sx, self.width);
-            let z_side = Self::check_size(i, sz, self.depth);
-
+            let min_x = -10;
+            let max_x = 10;
+            let min_z = -10;
+            let max_z = 10;
+            let x_side = -10..10;
+            let z_side = -10..10;
 
             rev_qumark!(self.find_chunk_position(
-                (min_x..=max_x, 0..=0, z_side.iter().map(|i| *i)), predicat));
+                (min_x..=max_x, 0..=0, -10..10), predicat));
             rev_qumark!(self.find_chunk_position(
-                (x_side.iter().map(|i| *i), 0..=0, min_z..=max_z), predicat));
+                (-10..10, 0..=0, min_z..=max_z), predicat));
         }
         None
     }

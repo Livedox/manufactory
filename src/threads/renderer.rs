@@ -1,16 +1,15 @@
 use std::{sync::{Mutex, Arc}, time::Duration, thread::{self, JoinHandle}};
 
-use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, graphic::render::{RenderResult, render}};
+use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords, WorldContainer}, graphic::render::{RenderResult, render}};
 
 pub fn spawn(
-    world: *mut World,
+    world: Arc<WorldContainer>,
     player_coords: Arc<Mutex<(f32, f32, f32)>>,
     render_result: Arc<Mutex<Option<RenderResult>>>
 ) -> JoinHandle<()> {
     let mut results = Vec::<RenderResult>::new();
-    let world = unsafe { world.as_mut().unwrap() };
-
     thread::spawn(move || {loop {
+        let world = world.lock().0;
         let pc = player_coords.lock().unwrap().clone();
         let pc: ChunkCoords = GlobalCoords::from(pc).into();
         let chunk_position = world.chunks.find_nearest_position_xyz(

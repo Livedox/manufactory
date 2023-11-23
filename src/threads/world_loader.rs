@@ -1,32 +1,29 @@
-use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex}, time::Duration};
+use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex}, time::Duration, cell::{UnsafeCell}};
 
 use itertools::iproduct;
 
-use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, voxels::{chunks::WORLD_HEIGHT, chunk::CHUNK_SIZE}};
+use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords, WorldContainer}, voxels::{chunks::WORLD_HEIGHT, chunk::CHUNK_SIZE}};
+
 
 pub fn spawn(
-    world: *mut World,
-    player_coords: Arc<Mutex<(f32, f32, f32)>>,
+    world: Arc<WorldContainer>,
+    player_coords: Arc<Mutex<(f32, f32, f32)>>
 ) -> JoinHandle<()> {
-    let world = unsafe { world.as_mut().unwrap() };
-
     thread::spawn(move || {
         loop {
+            let world = world.lock().0;
             let p_coords = player_coords.lock().unwrap().clone();
             let p_coords: ChunkCoords = GlobalCoords::from(p_coords).into();
             let cxz: Option<(i32, i32)> = world.chunks
                 .find_nearest_position_xz(p_coords, &|c| c.is_none())
                 .map(|pos| (pos.0, pos.2));
-            
+            println!("WORLD LOADER OX OZ {} {}", world.chunks.ox, world.chunks.oz);
             if let Some((ox, oz)) = cxz {
                 let mut new_chunks = World::new(1, WORLD_HEIGHT as i32, 1, ox, 0, oz);
                 loop { if !new_chunks.chunks.load_visible() {break;} };
                 new_chunks.build_sky_light();
-
                 let chunks = new_chunks.chunks;
                 let cxz = (chunks.chunks[0].as_ref().unwrap().xyz.0, chunks.chunks[0].as_ref().unwrap().xyz.2);
-
-                if world.chunks.is_translate {continue};
 
                 for chunk in chunks.chunks.into_iter() {
                     let Some(chunk) = chunk else {continue};

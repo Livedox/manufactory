@@ -8,6 +8,7 @@ use super::{chunk::{Chunk, CHUNK_SIZE, CHUNK_BIT_SHIFT}, voxel::Voxel, voxel_dat
 
 pub const WORLD_HEIGHT: usize = 256 / CHUNK_SIZE; // In chunks
 
+
 #[derive(Debug)]
 pub struct Chunks {
     pub is_translate: bool,
@@ -61,15 +62,15 @@ impl Chunks {
 
         for (cz, cx, cy) in iproduct!(0..self.depth, 0..self.width, 0..self.height) {
             let nx = cx - ox;
-            let nz = cz - ox;
+            let nz = cz - oz;
             if nx < 0 || nz < 0 || nx >= self.width || nz >= self.depth {continue};
             // There may be bugs, please fix them
             // In other threads
             new_chunks[ChunkCoords(nx, cy, nz).nindex(self.width, self.depth, 0, 0)] = 
                 self.chunks[ChunkCoords(cx, cy, cz).nindex(self.width, self.depth, self.ox, self.oz)].take();
         }
-
-        self.chunks = new_chunks;
+        for (i, c) in new_chunks.into_iter().enumerate() {self.chunks[i] = c};
+        // self.chunks = new_chunks;
         self.ox = ox;
         self.oz = oz;
         self.is_translate = false;

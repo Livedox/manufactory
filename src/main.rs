@@ -10,7 +10,7 @@ use player::player::Player;
 use recipes::{storage::Storage, item::Item};
 use state::State;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}};
-use crate::{voxels::chunk::HALF_CHUNK_SIZE, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}};
+use crate::{voxels::chunk::HALF_CHUNK_SIZE, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords, WorldContainer}};
 use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::{blocks::BLOCKS, block_type::BlockType}};
 
 use winit::{
@@ -54,7 +54,7 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
         let x = cx as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
         let y = cy as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
         let z = cz as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
-        if frustum.is_cube_in(&glm::vec3(x, y, z), HALF_CHUNK_SIZE as f32) {
+        if true || frustum.is_cube_in(&glm::vec3(x, y, z), HALF_CHUNK_SIZE as f32) {
             indices.push(ChunkCoords(cx, cy, cz).chunk_index(&chunks));
         }
     }
@@ -107,12 +107,13 @@ pub fn main() {
     drop(inventory);
 
     let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
-    let mut world = World::new(5, WORLD_HEIGHT as i32, 5, 0, 0, 0);
+    let mut world = Arc::new(WorldContainer::new(World::new(1, WORLD_HEIGHT as i32, 1, 0, 0, 0)));
+
 
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
-    threads::world_loader::spawn(&mut world as *mut World, player_coords.clone());
-    threads::renderer::spawn(&mut world as *mut World, player_coords.clone(), render_result.clone());
-    threads::voxel_data_updater::spawn(&mut world as *mut World);
+    threads::world_loader::spawn(world.clone(), player_coords.clone());
+    threads::renderer::spawn(world.clone(), player_coords.clone(), render_result.clone());
+    threads::voxel_data_updater::spawn(world.clone());
 
     let mut timer_1s = Timer::new(Duration::from_secs(1));
     let mut timer_16ms = Timer::new(Duration::from_millis(16));
@@ -149,6 +150,7 @@ pub fn main() {
                 }
             }
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
+                let world = world.lock().0;
                 time.update();
                 camera.update(&input, time.delta(), gui_controller.is_cursor());
                 let indices = frustum(
@@ -166,7 +168,7 @@ pub fn main() {
 
                 fps += 1;
                 if timer_1s.check() {
-                    println!("fps: {}", fps);
+                    println!("NOW OX OZ {} {}", world.chunks.ox, world.chunks.oz);
                     fps = 0;
                 }
 
@@ -232,7 +234,7 @@ pub fn main() {
                     }
 
                     if input.is_mouse(&Mouse::Left, KeypressState::AnyJustPress) && !gui_controller.is_cursor() {
-                        BLOCKS()[voxel_id as usize].on_block_break(&mut world, &mut player, &(x, y, z).into());
+                        BLOCKS()[voxel_id as usize].on_block_break(world, &mut player, &(x, y, z).into());
                     } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !gui_controller.is_cursor() {
                         let gxyz = GlobalCoords(x+norm.x as i32, y+norm.y as i32, z+norm.z as i32);
                         if voxel_id == 13 || voxel_id == 14 || voxel_id == 1 || voxel_id == 16 {
@@ -246,9 +248,9 @@ pub fn main() {
                             let front = camera.front();
                             if let Some(block_id) = debug_block_id {
                                 BLOCKS()[block_id as usize].on_block_set(
-                                    &mut world, &mut player, &gxyz, &Direction::new(front.x, front.y, front.z));
+                                    world, &mut player, &gxyz, &Direction::new(front.x, front.y, front.z));
                             } else {
-                                player.on_right_click(&mut world, &gxyz, &Direction::new(front.x, front.y, front.z));
+                                player.on_right_click(world, &gxyz, &Direction::new(front.x, front.y, front.z));
                             }
                         }                     
                     }

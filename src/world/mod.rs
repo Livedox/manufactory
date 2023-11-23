@@ -1,4 +1,4 @@
-use std::sync::mpsc::{Sender, Receiver};
+use std::{sync::{mpsc::{Sender, Receiver}, Arc, Mutex}, cell::UnsafeCell, ops::{DerefMut, Deref}};
 
 use itertools::iproduct;
 
@@ -11,6 +11,24 @@ pub mod chunk_coords;
 pub mod local_coords;
 pub mod coords;
 pub mod sun;
+
+
+pub struct LockWorldContainer<'a>(pub &'a mut World);
+
+pub struct WorldContainer(UnsafeCell<World>);
+impl WorldContainer {
+    pub fn new(world: World) -> Self {
+        Self(UnsafeCell::new(world))
+    }
+
+    pub fn lock(&self) -> LockWorldContainer {
+        LockWorldContainer(unsafe { &mut *self.0.get() })
+    }
+}
+
+unsafe impl Sync for WorldContainer {}
+unsafe impl Send for WorldContainer {}
+
 
 #[derive(Debug)]
 pub struct World {
