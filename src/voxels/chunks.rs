@@ -66,10 +66,14 @@ impl Chunks {
             if nx < 0 || nz < 0 || nx >= self.width || nz >= self.depth {continue};
             // There may be bugs, please fix them
             // In other threads
+            println!("old {:?}", self.chunks[ChunkCoords(cx, cy, cz).index_without_offset(self.width, self.depth)].as_ref().map(|c| c.xyz));
             new_chunks[ChunkCoords(nx, cy, nz).nindex(self.width, self.depth, 0, 0)] = 
-                self.chunks[ChunkCoords(cx, cy, cz).nindex(self.width, self.depth, self.ox, self.oz)].take();
+                self.chunks[ChunkCoords(cx, cy, cz).index_without_offset(self.width, self.depth)].take();
         }
-        for (i, c) in new_chunks.into_iter().enumerate() {self.chunks[i] = c};
+        for (i, c) in new_chunks.into_iter().enumerate() {
+            println!("new {:?}", c.as_ref().map(|c| c.xyz));
+            self.chunks[i] = c;
+        };
         // self.chunks = new_chunks;
         self.ox = ox;
         self.oz = oz;
@@ -160,9 +164,19 @@ impl Chunks {
 
 
     pub fn is_in_area(&self, chunk_coords: ChunkCoords) -> bool {
-        chunk_coords.0 >= 0 && chunk_coords.0 < self.width &&
+        chunk_coords.0 - self.ox >= 0 && chunk_coords.0 - self.oz < self.width &&
         chunk_coords.1 >= 0 && chunk_coords.1 < self.height &&
-        chunk_coords.2 >= 0 && chunk_coords.2 < self.depth
+        chunk_coords.2 - self.oz >= 0 && chunk_coords.2 - self.oz < self.depth
+    }
+
+    pub fn local_chunk(&self, coords: ChunkCoords) -> Option<&Chunk> {
+        let index = coords.index_without_offset(self.width, self.depth);
+        self.chunks.get(index).and_then(|c| c.as_ref())
+    }
+
+    pub fn mut_local_chunk(&mut self, coords: ChunkCoords) -> Option<&mut Chunk> {
+        let index = coords.index_without_offset(self.width, self.depth);
+        self.chunks.get_mut(index).and_then(|c| c.as_mut())
     }
 
     pub fn chunk<T: Into<ChunkCoords>>(&self, coords: T) -> Option<&Chunk> {

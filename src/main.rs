@@ -9,8 +9,8 @@ use meshes::{MeshesRenderInput, Meshes};
 use player::player::Player;
 use recipes::{storage::Storage, item::Item};
 use state::State;
-use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}};
-use crate::{voxels::chunk::HALF_CHUNK_SIZE, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords, WorldContainer}};
+use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}, SyncUnsafeWorldCell};
+use crate::{voxels::chunk::HALF_CHUNK_SIZE, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}};
 use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::{blocks::BLOCKS, block_type::BlockType}};
 
 use winit::{
@@ -107,7 +107,7 @@ pub fn main() {
     drop(inventory);
 
     let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
-    let mut world = Arc::new(WorldContainer::new(World::new(1, WORLD_HEIGHT as i32, 1, 0, 0, 0)));
+    let mut world = Arc::new(SyncUnsafeWorldCell::new(World::new(2, WORLD_HEIGHT as i32, 2, 0, 0, 0)));
 
 
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
@@ -150,7 +150,7 @@ pub fn main() {
                 }
             }
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
-                let world = world.lock().0;
+                let world = world.get_mut();
                 time.update();
                 camera.update(&input, time.delta(), gui_controller.is_cursor());
                 let indices = frustum(
@@ -169,6 +169,14 @@ pub fn main() {
                 fps += 1;
                 if timer_1s.check() {
                     println!("NOW OX OZ {} {}", world.chunks.ox, world.chunks.oz);
+                    println!("MESHES {:?}", meshes.meshes().len());
+                    println!("Voxel {:?} {:?}", world.chunks.voxel_global((0, 0, 33).into()),
+                        world.chunks.voxel_global((33, 0, 0).into()));
+                    println!("C {:?} {:?}", ChunkCoords::from(GlobalCoords(0, 0, 33)),
+                        LocalCoords::from(GlobalCoords(0, 0, 33)));
+                    for c in &world.chunks.chunks {
+                        println!("Chunk {:?}", c.as_ref().map(|c| c.xyz));
+                    }
                     fps = 0;
                 }
 

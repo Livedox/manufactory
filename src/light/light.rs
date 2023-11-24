@@ -31,7 +31,7 @@ impl Light {
     pub fn build_sky_light(&mut self, chunks: &mut Chunks) {
         for (cy, cz, cx) in iproduct!((0..chunks.height).rev(), 0..chunks.depth, 0..chunks.width) {
             let chunks_ptr = chunks as *mut Chunks;
-            let Some(chunk) = chunks.mut_chunk((cx, cy, cz)) else {continue};
+            let Some(chunk) = chunks.mut_local_chunk(ChunkCoords(cx, cy, cz)) else {continue};
 
             if chunk.xyz.1 == (WORLD_HEIGHT-1) as i32 {
                 for (lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE) {
@@ -39,7 +39,7 @@ impl Light {
                 }
             }
 
-            if let Some(top_chunk) = unsafe {chunks_ptr.as_ref().expect("Chunks don't found").chunk((cx, cy+1, cz))} {
+            if let Some(top_chunk) = unsafe {chunks_ptr.as_ref().expect("Chunks don't found").local_chunk(ChunkCoords(cx, cy+1, cz))} {
                 for (lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE) {
                     if top_chunk.lightmap.get_sun((lx as u8, 0, lz as u8)) == 15 {
                         chunk.lightmap.set_sun((lx as u8, (CHUNK_SIZE-1) as u8, lz as u8), 15);

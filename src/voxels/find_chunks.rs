@@ -64,17 +64,49 @@ impl Chunks {
         let sx = start_chunk_coords.0;
         let sz = start_chunk_coords.2;
         for i in 0..(self.depth.max(self.width)) {
-            let min_x = -10;
-            let max_x = 10;
-            let min_z = -10;
-            let max_z = 10;
-            let x_side = -10..10;
-            let z_side = -10..10;
+            let min_x = if sx > i {sx-i+self.ox} else {self.ox};
+            let max_x = if i+sx < self.width {i+sx-self.ox} else {self.width-1+self.ox};
+            let min_z = if sz > i {sz-i+1+self.oz} else {self.oz};
+            let max_z = if i+sz < self.depth-1 {sz+i-1-self.oz} else {self.depth-1+self.oz};
+            let x_side = Self::check_size(i, sx, self.width);
+            let z_side = Self::check_size(i, sz, self.depth);
+
+            println!("{:?} {:?} {:?}", min_x..=max_x, min_z..=max_z, z_side);
 
             rev_qumark!(self.find_chunk_position(
-                (min_x..=max_x, 0..=0, -10..10), predicat));
+                (min_x..=max_x, 0..=0, z_side.iter().map(|i| *i)), predicat));
             rev_qumark!(self.find_chunk_position(
-                (-10..10, 0..=0, min_z..=max_z), predicat));
+                (x_side.iter().map(|i| *i), 0..=0, min_z..=max_z), predicat));
+        }
+        None
+    }
+
+
+    pub fn find_pos_stable_xz<P>(&self, predicat: &P) -> Option<ChunkCoords>
+        where P: Fn(Option<&Chunk>) -> bool
+    {
+        for (cx, cz) in iproduct!(0..self.width, 0..self.depth) {
+            if let Some(chunk) = self.chunks.get(ChunkCoords(cx, 0, cz)
+                .index_without_offset(self.depth, self.width)) {
+                    if predicat(chunk.as_ref()) {
+                        return Some(ChunkCoords(cx+self.ox, 0, cz+self.oz));
+                    }
+                }
+        }
+        None
+    }
+
+
+    pub fn find_pos_stable_xyz<P>(&self, predicat: &P) -> Option<ChunkCoords>
+        where P: Fn(Option<&Chunk>) -> bool
+    {
+        for (cx, cy, cz) in iproduct!(0..self.width, 0..self.height, 0..self.depth) {
+            if let Some(chunk) = self.chunks.get(ChunkCoords(cx, cy, cz)
+                .index_without_offset(self.depth, self.width)) {
+                    if predicat(chunk.as_ref()) {
+                        return Some(ChunkCoords(cx+self.ox, cy, cz+self.oz));
+                    }
+                }
         }
         None
     }

@@ -14,9 +14,9 @@ impl ChunkCoords {
         ((self.1*chunks.depth + self.2-chunks.oz)*chunks.width + self.0-chunks.ox) as usize
     }
 
-    // pub fn index(&self, depth: i32, width: i32) -> usize {
-    //     ((self.1*depth + self.2)*width + self.0) as usize
-    // }
+    pub fn index_without_offset(&self, depth: i32, width: i32) -> usize {
+        ((self.1*depth + self.2)*width + self.0) as usize
+    }
 
     pub fn to_global(self, local: LocalCoords) -> GlobalCoords {
         GlobalCoords(

@@ -242,6 +242,7 @@ pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
     let mut transport_belt_buffer = Buffer::new();
     let light_handler = LightHandler::new(chunks);
     let Some(Some(chunk)) = chunks.chunks.get(chunk_index).as_ref() else {return None};
+    println!("RENDER {:?}", chunk.xyz);
     let mut models = HashMap::<String, Vec<ModelRenderResult>>::new();
     let mut animated_models_data = HashMap::<String, Vec<AnimatedModelRenderResult>>::new();
 

@@ -13,21 +13,23 @@ pub mod coords;
 pub mod sun;
 
 
-pub struct LockWorldContainer<'a>(pub &'a mut World);
-
-pub struct WorldContainer(UnsafeCell<World>);
-impl WorldContainer {
+pub struct SyncUnsafeWorldCell(UnsafeCell<World>);
+impl SyncUnsafeWorldCell {
     pub fn new(world: World) -> Self {
         Self(UnsafeCell::new(world))
     }
 
-    pub fn lock(&self) -> LockWorldContainer {
-        LockWorldContainer(unsafe { &mut *self.0.get() })
+    pub fn get(&self) -> &World {
+        unsafe { &*self.0.get() }
+    }
+
+    pub fn get_mut(&self) -> &mut World {
+        unsafe { &mut *self.0.get() }
     }
 }
 
-unsafe impl Sync for WorldContainer {}
-unsafe impl Send for WorldContainer {}
+unsafe impl Sync for SyncUnsafeWorldCell {}
+unsafe impl Send for SyncUnsafeWorldCell {}
 
 
 #[derive(Debug)]

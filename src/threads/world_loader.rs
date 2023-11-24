@@ -2,22 +2,22 @@ use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex}, time::Duration, cell::
 
 use itertools::iproduct;
 
-use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords, WorldContainer}, voxels::{chunks::WORLD_HEIGHT, chunk::CHUNK_SIZE}};
+use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords, SyncUnsafeWorldCell}, voxels::{chunks::WORLD_HEIGHT, chunk::CHUNK_SIZE}};
 
 
 pub fn spawn(
-    world: Arc<WorldContainer>,
+    world: Arc<SyncUnsafeWorldCell>,
     player_coords: Arc<Mutex<(f32, f32, f32)>>
 ) -> JoinHandle<()> {
     thread::spawn(move || {
         loop {
-            let world = world.lock().0;
+            let world = world.get_mut();
             let p_coords = player_coords.lock().unwrap().clone();
             let p_coords: ChunkCoords = GlobalCoords::from(p_coords).into();
             let cxz: Option<(i32, i32)> = world.chunks
-                .find_nearest_position_xz(p_coords, &|c| c.is_none())
+                .find_pos_stable_xz(&|c| c.is_none())
                 .map(|pos| (pos.0, pos.2));
-            println!("WORLD LOADER OX OZ {} {}", world.chunks.ox, world.chunks.oz);
+            if world.chunks.is_translate {continue};
             if let Some((ox, oz)) = cxz {
                 let mut new_chunks = World::new(1, WORLD_HEIGHT as i32, 1, ox, 0, oz);
                 loop { if !new_chunks.chunks.load_visible() {break;} };
@@ -27,8 +27,13 @@ pub fn spawn(
 
                 for chunk in chunks.chunks.into_iter() {
                     let Some(chunk) = chunk else {continue};
-                    let index = chunk.xyz.chunk_index(&world.chunks);
-                    world.chunks.chunks[index] = Some(chunk);
+                    let xyz = chunk.xyz;
+                    let index = ChunkCoords(ox, xyz.1, oz).chunk_index(&world.chunks);
+                    // let index = chunk.xyz.chunk_index(&world.chunks);
+                    println!("{} {} {} {} {}", ox, oz, index, world.chunks.ox, world.chunks.oz);
+                    if let Some(c) = world.chunks.chunks.get_mut(index) {
+                        *c = Some(chunk);
+                    }
                 };
 
                 let min_x = cxz.0*CHUNK_SIZE as i32-1;

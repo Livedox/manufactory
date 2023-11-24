@@ -42,6 +42,6 @@ var s_diffuse: sampler;
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let texture = textureSample(t_diffuse, s_diffuse, in.uv, u32(in.layer));
-    let ambient = vec4(0.0075, 0.0075, 0.0075, 0.0);
+    let ambient = vec4(0.1, 0.1, 0.1, 0.0);
     return (ambient + in.light) * texture;
 }
