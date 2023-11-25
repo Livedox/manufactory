@@ -11,10 +11,28 @@ impl LocalCoords {
     }
 
     pub fn to_global(self, coords: ChunkCoords) -> GlobalCoords {
+        let mut lx = self.0 as i8;
+        let mut ly = self.1 as i8;
+        let mut lz = self.2 as i8;
+        let mut cx = coords.0;
+        let mut cy = coords.1;
+        let mut cz = coords.2;
+        if coords.0 < 0 {
+            lx = -(CHUNK_SIZE as i8 - lx - 1);
+            cx += 1;
+        }
+        if coords.1 < 0 {
+            ly = -(CHUNK_SIZE as i8 - ly - 1);
+            cy += 1;
+        }
+        if coords.2 < 0 {
+            lz = -(CHUNK_SIZE as i8 - lz - 1);
+            cz += 1;
+        }
         GlobalCoords(
-            coords.0 * CHUNK_SIZE as i32 + self.0 as i32, 
-            coords.1 * CHUNK_SIZE as i32 + self.1 as i32, 
-            coords.2 * CHUNK_SIZE as i32 + self.2 as i32)
+            cx * CHUNK_SIZE as i32 + lx as i32, 
+            cy * CHUNK_SIZE as i32 + ly as i32, 
+            cz * CHUNK_SIZE as i32 + lz as i32)
     }
 }
 
@@ -44,11 +62,13 @@ impl From<LocalCoords> for [usize; 3] {
 
 impl From<GlobalCoords> for LocalCoords {
     fn from(coords: GlobalCoords) -> Self {
-        LocalCoords(
-            (coords.0.unsigned_abs() % CHUNK_SIZE as u32) as u8,
-            (coords.1.unsigned_abs() % CHUNK_SIZE as u32) as u8,
-            (coords.2.unsigned_abs() % CHUNK_SIZE as u32) as u8
-        )
+        let mut lx = (coords.0.unsigned_abs() % CHUNK_SIZE as u32) as u8;
+        if coords.0 < 0 {lx = CHUNK_SIZE as u8 - lx - 1}
+        let mut ly = (coords.1.unsigned_abs() % CHUNK_SIZE as u32) as u8;
+        if coords.1 < 0 {ly = CHUNK_SIZE as u8 - ly - 1}
+        let mut lz = (coords.2.unsigned_abs() % CHUNK_SIZE as u32) as u8;
+        if coords.2 < 0 {lz = CHUNK_SIZE as u8 - lz - 1}
+        LocalCoords(lx, ly, lz)
     }
 }
 

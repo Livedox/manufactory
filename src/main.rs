@@ -107,7 +107,7 @@ pub fn main() {
     drop(inventory);
 
     let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
-    let mut world = Arc::new(SyncUnsafeWorldCell::new(World::new(2, WORLD_HEIGHT as i32, 2, 0, 0, 0)));
+    let mut world = Arc::new(SyncUnsafeWorldCell::new(World::new(1, WORLD_HEIGHT as i32, 1, 0, 0, 0)));
 
 
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
@@ -163,20 +163,15 @@ pub fn main() {
 
                 let c: ChunkCoords = GlobalCoords::from(camera.position_tuple()).into();
                 if c.0 != world.chunks.ox || c.2 != world.chunks.oz {
-                    world.chunks.translate(c.0, c.2);
+                    let indices = world.chunks.translate(c.0, c.2);
+                    meshes.translate(&indices);
+                    println!("Count: {}", world.chunks.chunks.iter().map(|c| c.is_some() as usize).sum::<usize>());
+                    println!("Count meshes: {}", meshes.meshes().iter().map(|c| c.is_some() as usize).sum::<usize>());
                 }
 
                 fps += 1;
                 if timer_1s.check() {
-                    println!("NOW OX OZ {} {}", world.chunks.ox, world.chunks.oz);
-                    println!("MESHES {:?}", meshes.meshes().len());
-                    println!("Voxel {:?} {:?}", world.chunks.voxel_global((0, 0, 33).into()),
-                        world.chunks.voxel_global((33, 0, 0).into()));
-                    println!("C {:?} {:?}", ChunkCoords::from(GlobalCoords(0, 0, 33)),
-                        LocalCoords::from(GlobalCoords(0, 0, 33)));
-                    for c in &world.chunks.chunks {
-                        println!("Chunk {:?}", c.as_ref().map(|c| c.xyz));
-                    }
+                    println!("{:?}", world.chunks.chunk((0, 0, -1)).map(|c| c.voxel(LocalCoords(0, 0, 0))));
                     fps = 0;
                 }
 

@@ -55,29 +55,34 @@ impl Chunks {
     }
 
 
-    pub fn translate(&mut self, ox: i32, oz: i32) {
+    pub fn translate(&mut self, ox: i32, oz: i32) -> Vec<(usize, usize)> {
+        let mut indices = Vec::<(usize, usize)>::new();
         self.is_translate = true;
         let mut new_chunks: Vec<Option<Chunk>> = Vec::with_capacity(self.volume as usize);
         new_chunks.resize_with(self.volume as usize, || None);
 
+        let dx = ox - self.ox;
+        let dz = oz - self.oz;
         for (cz, cx, cy) in iproduct!(0..self.depth, 0..self.width, 0..self.height) {
-            let nx = cx - ox;
-            let nz = cz - oz;
+            let nx = cx - dx;
+            let nz = cz - dz;
             if nx < 0 || nz < 0 || nx >= self.width || nz >= self.depth {continue};
             // There may be bugs, please fix them
             // In other threads
-            println!("old {:?}", self.chunks[ChunkCoords(cx, cy, cz).index_without_offset(self.width, self.depth)].as_ref().map(|c| c.xyz));
-            new_chunks[ChunkCoords(nx, cy, nz).nindex(self.width, self.depth, 0, 0)] = 
-                self.chunks[ChunkCoords(cx, cy, cz).index_without_offset(self.width, self.depth)].take();
+            let new_index = ChunkCoords(nx, cy, nz).index_without_offset(self.width, self.depth);
+            let old_index = ChunkCoords(cx, cy, cz).index_without_offset(self.width, self.depth);
+            println!("NX NZ {} {} {} {} {}", nx, nz, cx, cz, cy);
+            indices.push((old_index, new_index));
+            new_chunks[new_index] = self.chunks[old_index].take();
         }
         for (i, c) in new_chunks.into_iter().enumerate() {
-            println!("new {:?}", c.as_ref().map(|c| c.xyz));
             self.chunks[i] = c;
         };
         // self.chunks = new_chunks;
         self.ox = ox;
         self.oz = oz;
         self.is_translate = false;
+        indices
     }
 
 
@@ -164,7 +169,7 @@ impl Chunks {
 
 
     pub fn is_in_area(&self, chunk_coords: ChunkCoords) -> bool {
-        chunk_coords.0 - self.ox >= 0 && chunk_coords.0 - self.oz < self.width &&
+        chunk_coords.0 - self.ox >= 0 && chunk_coords.0 - self.ox < self.width &&
         chunk_coords.1 >= 0 && chunk_coords.1 < self.height &&
         chunk_coords.2 - self.oz >= 0 && chunk_coords.2 - self.oz < self.depth
     }

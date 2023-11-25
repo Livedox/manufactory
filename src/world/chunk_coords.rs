@@ -14,15 +14,33 @@ impl ChunkCoords {
         ((self.1*chunks.depth + self.2-chunks.oz)*chunks.width + self.0-chunks.ox) as usize
     }
 
-    pub fn index_without_offset(&self, depth: i32, width: i32) -> usize {
+    pub fn index_without_offset(&self, width: i32, depth: i32) -> usize {
         ((self.1*depth + self.2)*width + self.0) as usize
     }
 
     pub fn to_global(self, local: LocalCoords) -> GlobalCoords {
+        let mut lx = local.0 as i8;
+        let mut ly = local.1 as i8;
+        let mut lz = local.2 as i8;
+        let mut cx = self.0;
+        let mut cy = self.1;
+        let mut cz = self.2;
+        if self.0 < 0 {
+            lx = -(CHUNK_SIZE as i8 - lx - 1);
+            cx += 1;
+        }
+        if self.1 < 0 {
+            ly = -(CHUNK_SIZE as i8 - ly - 1);
+            cy += 1;
+        }
+        if self.2 < 0 {
+            lz = -(CHUNK_SIZE as i8 - lz - 1);
+            cz += 1;
+        }
         GlobalCoords(
-            self.0 * CHUNK_SIZE as i32 + local.0 as i32, 
-            self.1 * CHUNK_SIZE as i32 + local.1 as i32, 
-            self.2 * CHUNK_SIZE as i32 + local.2 as i32)
+            cx * CHUNK_SIZE as i32 + lx as i32, 
+            cy * CHUNK_SIZE as i32 + ly as i32, 
+            cz * CHUNK_SIZE as i32 + lz as i32)
     }
 }
 

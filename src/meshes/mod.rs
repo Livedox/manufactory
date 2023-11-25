@@ -155,6 +155,18 @@ impl Meshes {
     }
 
 
+    pub fn translate(&mut self, indices: &[(usize, usize)]) {
+        let mut new_meshes = Vec::<Option<Mesh>>::with_capacity(self.meshes.len());
+        new_meshes.resize_with(self.meshes.len(), || None);
+
+        for (old, new) in indices.iter() {
+            new_meshes[*new] = self.meshes[*old].take();
+        }
+
+        self.meshes = new_meshes;
+    }
+
+
     pub fn update_transforms_buffer(&mut self, state: &State, world: &World, indices: &[usize]) {
         indices.iter().for_each(|index| {
             let Some(Some(chunk)) = world.chunks.chunks.get(*index) else { return };

@@ -17,6 +17,8 @@ pub fn spawn(
 
         if world.chunks.is_translate {continue};
         if let Some(chunk_index) = chunk_position.map(|cp| cp.chunk_index(&world.chunks)) {
+            println!("Renderer pos {:?} index: {} xyz: {:?} ox: {} oz: {}", chunk_position, chunk_index,
+                world.chunks.chunks[chunk_index].as_ref().map(|c| c.xyz), world.chunks.ox, world.chunks.oz);
             world.chunks.chunks[chunk_index].as_mut().unwrap().modify(false);
             // Why with sleep it work better ????????????
             thread::sleep(Duration::from_millis(2));

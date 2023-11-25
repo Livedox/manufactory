@@ -39,6 +39,12 @@ impl Chunk {
             if real_y <= 2 {
                 voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 5;
             }
+            if z == 0 {
+                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 7;
+            }
+            if x == 0 && y == 0 {
+                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 10;
+            }
         }
 
         Chunk {
