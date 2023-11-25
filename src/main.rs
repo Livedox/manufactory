@@ -107,7 +107,7 @@ pub fn main() {
     drop(inventory);
 
     let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
-    let mut world = Arc::new(SyncUnsafeWorldCell::new(World::new(2, WORLD_HEIGHT as i32, 2, 0, 0, 0)));
+    let mut world = Arc::new(SyncUnsafeWorldCell::new(World::new(6, WORLD_HEIGHT as i32, 6, -3, 0, -3)));
 
 
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
@@ -162,8 +162,8 @@ pub fn main() {
                 meshes.update_transforms_buffer(&state, &world, &indices);
 
                 let c: ChunkCoords = GlobalCoords::from(camera.position_tuple()).into();
-                if c.0 != world.chunks.ox || c.2 != world.chunks.oz {
-                    let indices = world.chunks.translate(c.0, c.2);
+                if c.0-3 != world.chunks.ox || c.2-3 != world.chunks.oz {
+                    let indices = world.chunks.translate(c.0-3, c.2-3);
                     meshes.translate(&indices);
                     println!("Count: {}", world.chunks.chunks.iter().map(|c| c.is_some() as usize).sum::<usize>());
                     println!("Count meshes: {}", meshes.meshes().iter().map(|c| c.is_some() as usize).sum::<usize>());
@@ -171,7 +171,7 @@ pub fn main() {
 
                 fps += 1;
                 if timer_1s.check() {
-                    println!("Meshes {:?}", meshes.meshes().get(0).map(|m| m.as_ref().map(|m| m.block_index_count)));
+                    println!("Meshes {:?}", meshes.meshes().iter().map(|m| m.is_some() as u32).sum::<u32>());
                     fps = 0;
                 }
 

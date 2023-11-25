@@ -5,6 +5,7 @@ use crate::{meshes::Meshes, voxels::chunks::Chunks, models::animated_model::Anim
 pub fn spawn(world: Arc<SyncUnsafeWorldCell>) -> JoinHandle<()> {
     thread::spawn(move || {
         loop {
+            thread::sleep(Duration::new(1000000, 0));
             let world = world.get_mut();
             let now = Instant::now();
             if world.chunks.is_translate {continue};

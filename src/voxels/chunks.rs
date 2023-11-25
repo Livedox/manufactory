@@ -71,14 +71,12 @@ impl Chunks {
             // In other threads
             let new_index = ChunkCoords(nx, cy, nz).index_without_offset(self.width, self.depth);
             let old_index = ChunkCoords(cx, cy, cz).index_without_offset(self.width, self.depth);
-            println!("NX NZ {} {} {} {} {}", nx, nz, cx, cz, cy);
             indices.push((old_index, new_index));
             new_chunks[new_index] = self.chunks[old_index].take();
         }
         for (i, c) in new_chunks.into_iter().enumerate() {
             self.chunks[i] = c;
-        };
-        // self.chunks = new_chunks;
+        }
         self.ox = ox;
         self.oz = oz;
         self.is_translate = false;
