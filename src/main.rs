@@ -55,7 +55,7 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
         let y = cy as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
         let z = cz as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
         if true || frustum.is_cube_in(&glm::vec3(x, y, z), HALF_CHUNK_SIZE as f32) {
-            indices.push(ChunkCoords(cx, cy, cz).chunk_index(&chunks));
+            indices.push(ChunkCoords(cx, cy, cz).index_without_offset(chunks.width, chunks.depth));
         }
     }
     indices
@@ -107,7 +107,7 @@ pub fn main() {
     drop(inventory);
 
     let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
-    let mut world = Arc::new(SyncUnsafeWorldCell::new(World::new(1, WORLD_HEIGHT as i32, 1, 0, 0, 0)));
+    let mut world = Arc::new(SyncUnsafeWorldCell::new(World::new(2, WORLD_HEIGHT as i32, 2, 0, 0, 0)));
 
 
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
@@ -171,7 +171,7 @@ pub fn main() {
 
                 fps += 1;
                 if timer_1s.check() {
-                    println!("{:?}", world.chunks.chunk((0, 0, -1)).map(|c| c.voxel(LocalCoords(0, 0, 0))));
+                    println!("Meshes {:?}", meshes.meshes().get(0).map(|m| m.as_ref().map(|m| m.block_index_count)));
                     fps = 0;
                 }
 

@@ -659,6 +659,15 @@ impl State {
                     render_pass.draw_indexed(0..mesh.block_index_count, 0, 0..1);
                 }
             });
+
+            // meshes.meshes().iter().for_each(|m| {
+            //     if let Some(mesh) = &m {
+            //         render_pass.set_vertex_buffer(0, mesh.block_vertex_buffer.slice(..));
+            //         render_pass.set_index_buffer(mesh.block_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            //         render_pass.draw_indexed(0..mesh.block_index_count, 0, 0..1);
+            //     }
+            // });
+
             //Render transport belt
             render_pass.set_pipeline(&self.transport_belt_pipeline);
             render_pass.set_bind_group(3, &self.transport_belt_bind_group, &[]);

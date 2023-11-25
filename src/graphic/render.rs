@@ -254,7 +254,7 @@ pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
                 let id = chunk.voxel((lx, ly, lz).into()).id;
                 if id == 0 { continue };
                 let (x, y, z) = chunk.xyz.to_global((lx, ly, lz).into()).into();
-
+                
                 let block = &BLOCKS()[id as usize];
                 
                 let (nx, px, ny, py, nz, pz) = (x-1, x+1, y-1, y+1, z-1, z+1);
@@ -323,6 +323,7 @@ pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
                         continue;
                     },
                 };
+
                 if !is_blocked(x, y+1, z, chunks, LightPermeability::UP, block.light_permeability()) {
                     let layer = faces[3] as f32;
 
@@ -332,12 +333,18 @@ pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
                     let l2 = light_handler.light_numbered(&ld, (px,py,z), (px,py,pz), (x,py,pz));
                     let l3 = light_handler.light_numbered(&ld, (px,py,z), (px,py,nz), (x,py,nz));
 
-                    greedy_vertices_top.push(lz, lx, [
+                    buffer.push_triangles(&[
                         get_block_vertex(gmx, gpy, gmz, 0., 0., layer, &l0),
                         get_block_vertex(gmx, gpy, gpz, 0., 1., layer, &l1),
                         get_block_vertex(gpx, gpy, gpz, 1., 1., layer, &l2),
                         get_block_vertex(gpx, gpy, gmz, 1., 0., layer, &l3)
-                    ]);
+                    ], &[3,2,0,2,1,0]);
+                    // greedy_vertices_top.push(lz, lx, [
+                    //     get_block_vertex(gmx, gpy, gmz, 0., 0., layer, &l0),
+                    //     get_block_vertex(gmx, gpy, gpz, 0., 1., layer, &l1),
+                    //     get_block_vertex(gpx, gpy, gpz, 1., 1., layer, &l2),
+                    //     get_block_vertex(gpx, gpy, gmz, 1., 0., layer, &l3)
+                    // ]);
                 }
                 if !is_blocked(x, y-1, z, chunks, LightPermeability::DOWN, block.light_permeability()) {
                     let layer = faces[2] as f32;
