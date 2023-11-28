@@ -1,23 +1,26 @@
-use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex}, time::Duration, cell::{UnsafeCell}};
+use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex}, time::{Duration, Instant}, cell::{UnsafeCell}};
 
 use itertools::iproduct;
+use wgpu::Instance;
 
-use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords, SyncUnsafeWorldCell}, voxels::{chunks::WORLD_HEIGHT, chunk::CHUNK_SIZE}};
+use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords, SyncUnsafeWorldCell}, voxels::{chunks::WORLD_HEIGHT, chunk::CHUNK_SIZE}, unsafe_mutex::UnsafeMutex};
 
 
 pub fn spawn(
-    world: Arc<SyncUnsafeWorldCell>,
+    world: Arc<UnsafeMutex<World>>,
     player_coords: Arc<Mutex<(f32, f32, f32)>>
 ) -> JoinHandle<()> {
     thread::spawn(move || {
         loop {
+            let mut world = world.lock_unsafe(false).unwrap();
             let p_coords = player_coords.lock().unwrap().clone();
             let p_coords: ChunkCoords = GlobalCoords::from(p_coords).into();
-            let cxz: Option<(i32, i32)> = world.get_mut().chunks
+            let cxz: Option<(i32, i32)> = world.chunks
                 .find_pos_stable_xz(&|c| c.is_none())
                 .map(|pos| (pos.0, pos.2));
-            if world.get_mut().chunks.is_translate {continue};
+            
             if let Some((ox, oz)) = cxz {
+                let now = Instant::now();
                 let mut new_chunks = World::new(1, WORLD_HEIGHT as i32, 1, ox, 0, oz);
                 loop { if !new_chunks.chunks.load_visible() {break;} };
                 new_chunks.build_sky_light();
@@ -27,9 +30,9 @@ pub fn spawn(
                 for chunk in chunks.chunks.into_iter() {
                     let Some(chunk) = chunk else {continue};
                     let xyz = chunk.xyz;
-                    let index = ChunkCoords(ox, xyz.1, oz).chunk_index(&world.get_mut().chunks);
+                    let index = ChunkCoords(ox, xyz.1, oz).chunk_index(&world.chunks);
                     // let index = chunk.xyz.chunk_index(&world.chunks);
-                    if let Some(c) = world.get_mut().chunks.chunks.get_mut(index) {
+                    if let Some(c) = world.chunks.chunks.get_mut(index) {
                         *c = Some(chunk);
                     }
                 };
@@ -41,11 +44,13 @@ pub fn spawn(
                 let max_z = (cxz.1+1)*CHUNK_SIZE as i32+1;
                 for (gy, gz, gx) in iproduct!(0i32..((WORLD_HEIGHT*CHUNK_SIZE) as i32), min_z..=max_z, min_x..=max_x) {
                     if gx == min_x || gx == max_x || gz == max_z || gz == min_z {
-                        world.get_mut().light.add_rgbs(&mut world.get_mut().chunks, gx, gy, gz); 
+                        world.add_rgbs(gx, gy, gz);
                     }
                 }
-                world.get_mut().light.solve_rgbs(&mut world.get_mut().chunks);
+                world.solve_rgbs();
+                println!("Time to generate 8 chunks: {:?}", now.elapsed().as_secs_f32());
             } else {
+                drop(world);
                 thread::sleep(Duration::from_millis(200));
             }
         }

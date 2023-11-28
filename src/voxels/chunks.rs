@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc, sync::{mpsc::{Receiver, Sender, self}, Arc}, array::IntoIter};
+use std::{collections::HashMap, rc::Rc, sync::{mpsc::{Receiver, Sender, self}, Arc}, array::IntoIter, time::Instant};
 
 use itertools::iproduct;
 
@@ -54,8 +54,12 @@ impl Chunks {
         self.chunks[index] = Some(Chunk::new(coords.0, coords.1, coords.2));
     }
 
-
+    // ONLY SAFE ACCESS
     pub fn translate(&mut self, ox: i32, oz: i32) -> Vec<(usize, usize)> {
+        // Change Vec<Option<Chunk>> to Vec<Arc<UnsafeCell<Option<Chunk>>>>
+        // For faster translate
+        let now = Instant::now();
+        let mut rpl_time = 0.0f32;
         let mut indices = Vec::<(usize, usize)>::new();
         self.is_translate = true;
         let mut new_chunks: Vec<Option<Chunk>> = Vec::with_capacity(self.volume as usize);
@@ -72,14 +76,16 @@ impl Chunks {
             let new_index = ChunkCoords(nx, cy, nz).index_without_offset(self.width, self.depth);
             let old_index = ChunkCoords(cx, cy, cz).index_without_offset(self.width, self.depth);
             indices.push((old_index, new_index));
-            new_chunks[new_index] = self.chunks[old_index].take();
+            let rpl_now = Instant::now();
+            let _ = std::mem::replace(&mut new_chunks[new_index], self.chunks[old_index].take());
+            rpl_time += rpl_now.elapsed().as_secs_f32();
+            // new_chunks[new_index] = self.chunks[old_index].take();
         }
-        for (i, c) in new_chunks.into_iter().enumerate() {
-            self.chunks[i] = c;
-        }
+        let _ = std::mem::replace(&mut self.chunks, new_chunks);
         self.ox = ox;
         self.oz = oz;
         self.is_translate = false;
+        println!("Elapsed: {:?} {:?}", now.elapsed().as_secs_f32(), rpl_time);
         indices
     }
 

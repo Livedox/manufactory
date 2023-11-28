@@ -1,4 +1,4 @@
-use std::{time::{Duration, Instant}, rc::Rc, borrow::Borrow, collections::HashMap, sync::{Arc, mpsc::channel, Mutex}};
+use std::{time::{Duration, Instant}, rc::Rc, borrow::Borrow, collections::HashMap, sync::{Arc, mpsc::channel, Mutex}, os::windows::thread};
 
 use camera::frustum::Frustum;
 use direction::Direction;
@@ -9,6 +9,7 @@ use meshes::{MeshesRenderInput, Meshes};
 use player::player::Player;
 use recipes::{storage::Storage, item::Item};
 use state::State;
+use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}, SyncUnsafeWorldCell};
 use crate::{voxels::chunk::HALF_CHUNK_SIZE, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}};
 use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::{blocks::BLOCKS, block_type::BlockType}};
@@ -42,6 +43,7 @@ mod direction;
 mod world;
 mod macros;
 mod threads;
+mod unsafe_mutex;
 
 
 pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
@@ -49,12 +51,12 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
     // This function could be much faster
     let mut indices: Vec<usize> = vec![];
     for (cy, cz, cx) in iproduct!(0..chunks.height, 0..chunks.depth, 0..chunks.width) {
-        // let Some(c) = chunks.chunk((cx, cy, cz)) else {continue};
+        let Some(c) = chunks.local_chunk(ChunkCoords(cx, cy, cz)) else {continue};
 
-        let x = cx as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
-        let y = cy as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
-        let z = cz as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
-        if true || frustum.is_cube_in(&glm::vec3(x, y, z), HALF_CHUNK_SIZE as f32) {
+        let x = c.xyz.0 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+        let y = c.xyz.1 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+        let z = c.xyz.2 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+        if frustum.is_cube_in(&glm::vec3(x, y, z), HALF_CHUNK_SIZE as f32) {
             indices.push(ChunkCoords(cx, cy, cz).index_without_offset(chunks.width, chunks.depth));
         }
     }
@@ -107,7 +109,7 @@ pub fn main() {
     drop(inventory);
 
     let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
-    let mut world = Arc::new(SyncUnsafeWorldCell::new(World::new(6, WORLD_HEIGHT as i32, 6, -3, 0, -3)));
+    let mut world = Arc::new(UnsafeMutex::new(World::new(6, WORLD_HEIGHT as i32, 6, -3, 0, -3)));
 
 
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
@@ -150,24 +152,28 @@ pub fn main() {
                 }
             }
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
-                let world = world.get_mut();
+                let mut world_g = world.lock_unsafe(true).unwrap();
                 time.update();
                 camera.update(&input, time.delta(), gui_controller.is_cursor());
+                let c: ChunkCoords = GlobalCoords::from(camera.position_tuple()).into();
+                debug_data = format!("{:?}", camera.position_tuple());
+                if c.0-3 != world_g.chunks.ox || c.2-3 != world_g.chunks.oz {
+                    drop(world_g);
+                    
+                    let mut world = world.lock().unwrap();
+                    let indices = world.chunks.translate(c.0-3, c.2-3);
+                    meshes.translate(&indices);
+                    drop(world);
+                }
+                let mut world_g = world.lock_unsafe(true).unwrap();
                 let indices = frustum(
-                    &mut world.chunks,
+                    &mut world_g.chunks,
                     &camera.new_frustum(state.size.width as f32/state.size.height as f32));
                 *player_coords.lock().unwrap() = camera.position_tuple();
                 state.update(&camera.proj_view(state.size.width as f32, state.size.height as f32).into(), &time);
                 gui_controller.update_cursor_lock();
-                meshes.update_transforms_buffer(&state, &world, &indices);
+                meshes.update_transforms_buffer(&state, &world_g, &indices);
 
-                let c: ChunkCoords = GlobalCoords::from(camera.position_tuple()).into();
-                if c.0-3 != world.chunks.ox || c.2-3 != world.chunks.oz {
-                    let indices = world.chunks.translate(c.0-3, c.2-3);
-                    meshes.translate(&indices);
-                    println!("Count: {}", world.chunks.chunks.iter().map(|c| c.is_some() as usize).sum::<usize>());
-                    println!("Count meshes: {}", meshes.meshes().iter().map(|c| c.is_some() as usize).sum::<usize>());
-                }
 
                 fps += 1;
                 if timer_1s.check() {
@@ -214,13 +220,13 @@ pub fn main() {
                         }
                     });
 
-                let result = ray_cast::ray_cast(&world.chunks, &camera.position_array(), &camera.front_array(), 10.0);
+                let result = ray_cast::ray_cast(&world_g.chunks, &camera.position_array(), &camera.front_array(), 10.0);
                 if let Some(result) = result {
                     let (x, y, z, voxel, norm) = ((result.0) as i32, (result.1) as i32, (result.2) as i32, result.3, result.4);
                     let global_coords: GlobalCoords = (x, y, z).into();
                     let chunk_coords: ChunkCoords = global_coords.into();
                     let local_coords: LocalCoords = global_coords.into();
-                    debug_data = format!("{:?} {:?}", result.3, world.chunks.chunk(chunk_coords).and_then(|c| c.voxel_data(local_coords)));
+                    debug_data += &format!("{:?} {:?}", result.3, world_g.chunks.chunk(chunk_coords).and_then(|c| c.voxel_data(local_coords)));
                     let voxel_id = voxel.map_or(0, |v| v.id);
 
                     if voxel_id != 0 {
@@ -236,12 +242,12 @@ pub fn main() {
                         state.selection_vertex_buffer = None;
                     }
 
-                    if input.is_mouse(&Mouse::Left, KeypressState::AnyJustPress) && !gui_controller.is_cursor() {
-                        BLOCKS()[voxel_id as usize].on_block_break(world, &mut player, &(x, y, z).into());
+                    if input.is_mouse(&Mouse::Left, KeypressState::AnyPress) && !gui_controller.is_cursor() {
+                        BLOCKS()[voxel_id as usize].on_block_break(&mut world_g, &mut player, &(x, y, z).into());
                     } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !gui_controller.is_cursor() {
                         let gxyz = GlobalCoords(x+norm.x as i32, y+norm.y as i32, z+norm.z as i32);
                         if voxel_id == 13 || voxel_id == 14 || voxel_id == 1 || voxel_id == 16 {
-                            let chunk = world.chunks.mut_chunk(chunk_coords);
+                            let chunk = world_g.chunks.mut_chunk(chunk_coords);
                             let voxel_data = chunk.unwrap().mut_voxel_data(local_coords);
                             if let Some(storage) = voxel_data.and_then(|vd| vd.player_unlockable_storage()) {
                                 gui_controller.set_inventory(true);
@@ -251,9 +257,9 @@ pub fn main() {
                             let front = camera.front();
                             if let Some(block_id) = debug_block_id {
                                 BLOCKS()[block_id as usize].on_block_set(
-                                    world, &mut player, &gxyz, &Direction::new(front.x, front.y, front.z));
+                                    &mut world_g, &mut player, &gxyz, &Direction::new(front.x, front.y, front.z));
                             } else {
-                                player.on_right_click(world, &gxyz, &Direction::new(front.x, front.y, front.z));
+                                player.on_right_click(&mut world_g, &gxyz, &Direction::new(front.x, front.y, front.z));
                             }
                         }                     
                     }

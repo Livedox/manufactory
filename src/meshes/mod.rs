@@ -157,7 +157,7 @@ impl Meshes {
 
     pub fn translate(&mut self, indices: &[(usize, usize)]) {
         let max = *indices.iter().map(|(a, b)| a.max(b)).max().unwrap_or(&0);
-        if self.meshes.len() < max {self.meshes.resize_with(max+1, || None)}
+        if self.meshes.len() <= max {self.meshes.resize_with(max+1, || None)}
         let mut new_meshes = Vec::<Option<Mesh>>::with_capacity(self.meshes.len());
         new_meshes.resize_with(self.meshes.len(), || None);
 

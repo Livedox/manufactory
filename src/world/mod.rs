@@ -49,6 +49,15 @@ impl World {
     }
 
 
+    pub fn add_rgbs(&mut self, x: i32, y: i32, z: i32) {
+        self.light.add_rgbs(&mut self.chunks, x, y, z);
+    }
+
+    pub fn solve_rgbs(&mut self) {
+        self.light.solve_rgbs(&mut self.chunks);
+    }
+
+
     pub fn build_sky_light(&mut self) {
         let height = self.chunks.height;
         let depth = self.chunks.depth;

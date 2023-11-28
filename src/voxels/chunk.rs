@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc, sync::{Arc, Mutex}};
+use std::{collections::HashMap, rc::Rc, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}}};
 
 use itertools::iproduct;
 
@@ -18,7 +18,7 @@ pub const CHUNK_BITS: usize = CHUNK_SIZE - 1_usize;
 pub struct Chunk {
     pub voxels: [voxel::Voxel; CHUNK_VOLUME],
     pub voxels_data: HashMap<usize, VoxelData>,
-    modified: bool,
+    modified: AtomicBool,
     pub lightmap: LightMap,
     pub xyz: ChunkCoords
 }
@@ -45,13 +45,17 @@ impl Chunk {
             if x == 0 && y == 0 {
                 voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 10;
             }
+
+            if real_z == 200 {
+                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 7;
+            }
         }
 
         Chunk {
             voxels,
             xyz: ChunkCoords(pos_x, pos_y, pos_z),
             voxels_data,
-            modified: true,
+            modified: AtomicBool::new(true),
             lightmap: LightMap::new()
         }
     }
@@ -74,11 +78,11 @@ impl Chunk {
     }
 
     pub fn modified(&self) -> bool {
-        self.modified
+        self.modified.load(Ordering::Acquire)
     }
 
     pub fn modify(&mut self, value: bool) {
-        self.modified = value;
+        self.modified.store(value, Ordering::Release);
     }
 
     pub fn set_voxel_id(&mut self, local_coords: LocalCoords, id: u32, direction: Option<&Direction>) {
