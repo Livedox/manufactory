@@ -18,7 +18,6 @@ pub fn spawn(
             let cxz: Option<(i32, i32)> = world.chunks
                 .find_pos_stable_xz(&|c| c.is_none())
                 .map(|pos| (pos.0, pos.2));
-            
             if let Some((ox, oz)) = cxz {
                 let mut new_chunks = World::new(1, WORLD_HEIGHT as i32, 1, ox, 0, oz);
                 loop { if !new_chunks.chunks.load_visible() {break;} };
