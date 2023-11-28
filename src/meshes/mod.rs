@@ -171,7 +171,7 @@ impl Meshes {
 
     pub fn update_transforms_buffer(&mut self, state: &State, world: &World, indices: &[usize]) {
         indices.iter().for_each(|index| {
-            let Some(Some(chunk)) = world.chunks.chunks.get(*index) else { return };
+            let Some(Some(chunk)) = world.chunks.chunks.get(*index).map(|c| c.as_ref()) else { return };
             let mut transforms_buffer: Vec<u8> = vec![];
             let mut animated_models: HashMap<String, Vec<f32>> = HashMap::new();
     

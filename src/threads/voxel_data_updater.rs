@@ -9,7 +9,7 @@ pub fn spawn(world: Arc<UnsafeMutex<World>>) -> JoinHandle<()> {
             let now = Instant::now();
             let ptr = &mut world.chunks as *mut Chunks;
             for chunk in world.chunks.chunks.iter() {
-                let Some(chunk) = chunk else {continue};
+                let Some(chunk) = chunk.as_ref() else {continue};
 
                 for vd in chunk.voxels_data.values() {
                     vd.update(ptr)

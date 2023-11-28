@@ -1,18 +1,17 @@
-use std::{collections::HashMap, rc::Rc, sync::{mpsc::{Receiver, Sender, self}, Arc}, array::IntoIter, time::Instant};
+use std::{collections::HashMap, rc::Rc, sync::{mpsc::{Receiver, Sender, self}, Arc}, array::IntoIter, time::Instant, cell::UnsafeCell};
 
 use itertools::iproduct;
 
-use crate::{vertices::block_vertex::BlockVertex, models::animated_model::AnimatedModel, direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, rev_qumark};
+use crate::{vertices::block_vertex::BlockVertex, models::animated_model::AnimatedModel, direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, rev_qumark, vec_none};
 
 use super::{chunk::{Chunk, CHUNK_SIZE, CHUNK_BIT_SHIFT}, voxel::Voxel, voxel_data::{VoxelAdditionalData, VoxelData, MultiBlock}};
 
 pub const WORLD_HEIGHT: usize = 256 / CHUNK_SIZE; // In chunks
 
-
 #[derive(Debug)]
 pub struct Chunks {
     pub is_translate: bool,
-    pub chunks: Vec<Option<Chunk>>,
+    pub chunks: Vec<Option<Box<Chunk>>>,
     pub volume: i32,
     pub width: i32,
     pub height: i32,
@@ -29,7 +28,7 @@ pub struct Chunks {
 impl Chunks {
     pub fn new(width: i32, height: i32, depth: i32, ox: i32, oy: i32, oz: i32) -> Chunks {
         let volume = width*height*depth;
-        let mut chunks: Vec<Option<Chunk>> = vec![];
+        let mut chunks: Vec<Option<Box<Chunk>>> = vec![];
         for _ in 0..volume { chunks.push(None); }
 
         Chunks {
@@ -51,19 +50,13 @@ impl Chunks {
     pub fn load_chunk(&mut self, coords: ChunkCoords) {
         let index = coords.nindex(self.width, self.depth, self.ox, self.oz);
         if self.chunks[index].is_some() {return};
-        self.chunks[index] = Some(Chunk::new(coords.0, coords.1, coords.2));
+        self.chunks[index] = Some(Box::new(Chunk::new(coords.0, coords.1, coords.2)));
     }
 
     // ONLY SAFE ACCESS
     pub fn translate(&mut self, ox: i32, oz: i32) -> Vec<(usize, usize)> {
-        // Change Vec<Option<Chunk>> to Vec<Arc<UnsafeCell<Option<Chunk>>>>
-        // For faster translate
-        let now = Instant::now();
-        let mut rpl_time = 0.0f32;
         let mut indices = Vec::<(usize, usize)>::new();
-        self.is_translate = true;
-        let mut new_chunks: Vec<Option<Chunk>> = Vec::with_capacity(self.volume as usize);
-        new_chunks.resize_with(self.volume as usize, || None);
+        let mut new_chunks: Vec<Option<Box<Chunk>>> = vec_none!(self.chunks.len());
 
         let dx = ox - self.ox;
         let dz = oz - self.oz;
@@ -71,21 +64,16 @@ impl Chunks {
             let nx = cx - dx;
             let nz = cz - dz;
             if nx < 0 || nz < 0 || nx >= self.width || nz >= self.depth {continue};
-            // There may be bugs, please fix them
-            // In other threads
+
             let new_index = ChunkCoords(nx, cy, nz).index_without_offset(self.width, self.depth);
             let old_index = ChunkCoords(cx, cy, cz).index_without_offset(self.width, self.depth);
+            
             indices.push((old_index, new_index));
-            let rpl_now = Instant::now();
-            let _ = std::mem::replace(&mut new_chunks[new_index], self.chunks[old_index].take());
-            rpl_time += rpl_now.elapsed().as_secs_f32();
-            // new_chunks[new_index] = self.chunks[old_index].take();
+            new_chunks[new_index] = self.chunks[old_index].take();
         }
-        let _ = std::mem::replace(&mut self.chunks, new_chunks);
+        self.chunks = std::mem::take(&mut new_chunks);
         self.ox = ox;
         self.oz = oz;
-        self.is_translate = false;
-        println!("Elapsed: {:?} {:?}", now.elapsed().as_secs_f32(), rpl_time);
         indices
     }
 
@@ -118,7 +106,7 @@ impl Chunks {
         let chunk = &self.chunks[index];
         if chunk.is_some() { return false; }
 
-        self.chunks[index] = Some(Chunk::new(near_x+self.ox, near_y+self.oy, near_z+self.oz));
+        self.chunks[index] = Some(Box::new(Chunk::new(near_x+self.ox, near_y+self.oy, near_z+self.oz)));
 
         true
     }
@@ -180,12 +168,12 @@ impl Chunks {
 
     pub fn local_chunk(&self, coords: ChunkCoords) -> Option<&Chunk> {
         let index = coords.index_without_offset(self.width, self.depth);
-        self.chunks.get(index).and_then(|c| c.as_ref())
+        self.chunks.get(index).and_then(|c| c.as_ref().map(|c| c.as_ref()))
     }
 
     pub fn mut_local_chunk(&mut self, coords: ChunkCoords) -> Option<&mut Chunk> {
         let index = coords.index_without_offset(self.width, self.depth);
-        self.chunks.get_mut(index).and_then(|c| c.as_mut())
+        self.chunks.get_mut(index).and_then(|c| c.as_mut().map(|mut c| c.as_mut()))
     }
 
     pub fn chunk<T: Into<ChunkCoords>>(&self, coords: T) -> Option<&Chunk> {
@@ -193,7 +181,7 @@ impl Chunks {
         if !self.is_in_area(coords) { return None; }
         let index = coords.nindex(self.width, self.depth, self.ox, self.oz);
         let chunk = self.chunks.get(index);
-        if let Some(chunk) = chunk { return chunk.as_ref() }
+        if let Some(chunk) = chunk { return chunk.as_ref().map(|c| c.as_ref()) }
         None
     }
 
@@ -202,7 +190,7 @@ impl Chunks {
         if !self.is_in_area(coords) { return None; }
         let index = coords.nindex(self.width, self.depth, self.ox, self.oz);
         let chunk = self.chunks.get_mut(index);
-        if let Some(chunk) = chunk { return chunk.as_mut() }
+        if let Some(chunk) = chunk { return chunk.as_mut().map(|c| c.as_mut()) }
         None
     }
 

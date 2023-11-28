@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}}};
+use std::{collections::HashMap, rc::Rc, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}}, cell::UnsafeCell, ops::{Deref, DerefMut}};
 
 use itertools::iproduct;
 
@@ -12,7 +12,6 @@ pub const CHUNK_SQUARE: usize = CHUNK_SIZE.pow(2);
 pub const CHUNK_VOLUME: usize = CHUNK_SIZE.pow(3);
 pub const CHUNK_BIT_SHIFT: usize = CHUNK_SIZE.ilog2() as usize;
 pub const CHUNK_BITS: usize = CHUNK_SIZE - 1_usize;
-
 
 #[derive(Debug)]
 pub struct Chunk {

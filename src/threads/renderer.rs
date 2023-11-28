@@ -10,7 +10,6 @@ pub fn spawn(
     let mut results = Vec::<RenderResult>::new();
     thread::spawn(move || {loop {
         let mut world = world.lock_unsafe(false).unwrap();
-        let now = Instant::now();
         let pc = player_coords.lock().unwrap().clone();
         let pc: ChunkCoords = GlobalCoords::from(pc).into();
         
@@ -24,11 +23,9 @@ pub fn spawn(
                 results.remove(indx);
             }
             
-            let pos_time = Instant::now();
             if let Some(r) = render(chunk_index, &world) {
                 results.push(r);
             }
-            println!("Find pos time: {:?}", pos_time.elapsed().as_secs_f32());
             
             results.sort_by(|a, b| {
                 let a = world.chunks.chunks[a.chunk_index].as_ref()
@@ -49,7 +46,6 @@ pub fn spawn(
             if is_same_chunk || render_result.lock().unwrap().is_none() {
                 *render_result.lock().unwrap() = results.pop();
             }
-            println!("Time to render 1 chunk: {:?}", now.elapsed().as_secs_f32());
         } else {
             drop(world);
             thread::sleep(Duration::from_millis(16));

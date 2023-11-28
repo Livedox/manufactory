@@ -20,7 +20,6 @@ pub fn spawn(
                 .map(|pos| (pos.0, pos.2));
             
             if let Some((ox, oz)) = cxz {
-                let now = Instant::now();
                 let mut new_chunks = World::new(1, WORLD_HEIGHT as i32, 1, ox, 0, oz);
                 loop { if !new_chunks.chunks.load_visible() {break;} };
                 new_chunks.build_sky_light();
@@ -28,7 +27,7 @@ pub fn spawn(
                 let cxz = (chunks.chunks[0].as_ref().unwrap().xyz.0, chunks.chunks[0].as_ref().unwrap().xyz.2);
 
                 for chunk in chunks.chunks.into_iter() {
-                    let Some(chunk) = chunk else {continue};
+                    let Some(chunk) = chunk.map(|c| c) else {continue};
                     let xyz = chunk.xyz;
                     let index = ChunkCoords(ox, xyz.1, oz).chunk_index(&world.chunks);
                     // let index = chunk.xyz.chunk_index(&world.chunks);
@@ -48,7 +47,6 @@ pub fn spawn(
                     }
                 }
                 world.solve_rgbs();
-                println!("Time to generate 8 chunks: {:?}", now.elapsed().as_secs_f32());
             } else {
                 drop(world);
                 thread::sleep(Duration::from_millis(200));

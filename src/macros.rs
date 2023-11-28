@@ -9,3 +9,14 @@ macro_rules! rev_qumark {
         }
     };
 }
+
+#[macro_export]
+macro_rules! vec_none {
+    ( $len:expr ) => {
+        {
+            let mut vec = Vec::with_capacity($len);
+            vec.resize_with($len, || None);
+            vec
+        }
+    };
+}

@@ -88,7 +88,7 @@ impl Chunks {
         for (cx, cz) in iproduct!(0..self.width, 0..self.depth) {
             if let Some(chunk) = self.chunks.get(ChunkCoords(cx, 0, cz)
                 .index_without_offset(self.width, self.depth)) {
-                    if predicat(chunk.as_ref()) {
+                    if predicat(chunk.as_ref().map(|c| c.as_ref())) {
                         return Some(ChunkCoords(cx+self.ox, 0, cz+self.oz));
                     }
                 }
@@ -103,7 +103,7 @@ impl Chunks {
         for (cx, cy, cz) in iproduct!(0..self.width, 0..self.height, 0..self.depth) {
             if let Some(chunk) = self.chunks.get(ChunkCoords(cx, cy, cz)
                 .index_without_offset(self.width, self.depth)) {
-                    if predicat(chunk.as_ref()) {
+                    if predicat(chunk.as_ref().map(|c| c.as_ref())) {
                         return Some(ChunkCoords(cx+self.ox, cy, cz+self.oz));
                     }
                 }
