@@ -11,7 +11,7 @@ pub struct CameraController {
 
 
 impl CameraController {
-    const SPEED: f32 = 14.0;
+    const SPEED: f32 = 14.0; //14.0 default
     const SENSETIV: f32 = 0.3;
     pub fn new(position: glm::Vec3, fov: f32, near: f32, far: f32) -> Self {
         Self {

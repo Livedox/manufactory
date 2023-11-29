@@ -71,7 +71,7 @@ impl Chunks {
             indices.push((old_index, new_index));
             new_chunks[new_index] = self.chunks[old_index].take();
         }
-        self.chunks = std::mem::take(&mut new_chunks);
+        self.chunks = new_chunks;
         self.ox = ox;
         self.oz = oz;
         indices

@@ -45,6 +45,8 @@ mod macros;
 mod threads;
 mod unsafe_mutex;
 
+const RENDER_DISTANCE: i32 = 6;
+const HALF_RENDER_DISTANCE: i32 = RENDER_DISTANCE / 2;
 
 pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
     // UPDATE
@@ -65,7 +67,7 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
 
 #[tokio::main]
 pub async fn main() {
-    let (tx, mut rx) = std::sync::mpsc::channel::<Vec<(usize, usize)>>();
+    let (tx, rx) = std::sync::mpsc::channel::<Vec<(usize, usize)>>();
     let sun = Sun::new(
         60,
         [0, 50, 60, 230, 240, 290, 300, 490, 500],
@@ -110,7 +112,7 @@ pub async fn main() {
     drop(inventory);
 
     let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
-    let mut world = Arc::new(UnsafeMutex::new(World::new(6, WORLD_HEIGHT as i32, 6, -3, 0, -3)));
+    let mut world = Arc::new(UnsafeMutex::new(World::new(RENDER_DISTANCE, WORLD_HEIGHT as i32, RENDER_DISTANCE, -HALF_RENDER_DISTANCE, 0, -HALF_RENDER_DISTANCE)));
 
 
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
@@ -158,15 +160,15 @@ pub async fn main() {
                 camera.update(&input, time.delta(), gui_controller.is_cursor());
                 let c: ChunkCoords = GlobalCoords::from(camera.position_tuple()).into();
                 debug_data = format!("{:?}", camera.position_tuple());
-                if (c.0-3 != world_g.chunks.ox || c.2-3 != world_g.chunks.oz) && !world_g.chunks.is_translate {
+                if (c.0-HALF_RENDER_DISTANCE != world_g.chunks.ox || c.2-HALF_RENDER_DISTANCE != world_g.chunks.oz) && !world_g.chunks.is_translate {
                     world_g.chunks.is_translate = true;
                     drop(world_g);
                     let w = world.clone();
                     let tx_clone = tx.clone();
+                    meshes.add_need_translate();
                     tokio::spawn(async move {
-                        println!("I am waiting!");
                         let mut world = w.lock().unwrap();
-                        let _ = tx_clone.send(world.chunks.translate(c.0-3, c.2-3));
+                        let _ = tx_clone.send(world.chunks.translate(c.0-HALF_RENDER_DISTANCE, c.2-HALF_RENDER_DISTANCE));
                         world.chunks.is_translate = false;
                     });
                     // meshes.translate(&indices);
@@ -274,20 +276,23 @@ pub async fn main() {
                     state.selection_vertex_buffer = None;
                 }
 
-                let render_result = render_result.lock().unwrap().take();
-                if let Some(render_result) = render_result {
-                    meshes.render(MeshesRenderInput {
-                        device: state.device(),
-                        animated_model_layout: &state.animated_model_layout,
-                        all_animated_models: &state.animated_models,
-                        render_result: render_result,
-                    });
-                }  
-
                 if let Ok(indices) = rx.try_recv() {
-                    println!("Work!");
                     meshes.translate(&indices);
-                }         
+                    meshes.sub_need_translate();
+                }
+
+                if !meshes.is_need_translate() {
+                    let render_result = render_result.lock().unwrap().take();
+                    if let Some(render_result) = render_result {
+                        let index = render_result.xyz.chunk_index(&world_g.chunks);
+                        meshes.render(MeshesRenderInput {
+                            device: state.device(),
+                            animated_model_layout: &state.animated_model_layout,
+                            all_animated_models: &state.animated_models,
+                            render_result: render_result,
+                        }, index);
+                    }
+                }
 
                 match state.render(&indices, &sun, &mut player, &gui_controller, &meshes, &time, &mut debug_block_id, &debug_data) {
                     Ok(_) => {}

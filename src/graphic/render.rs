@@ -8,7 +8,7 @@ enum Direction{Top, Left}
 
 use std::{collections::HashMap, sync::{Arc, Mutex}};
 
-use crate::{voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType, light_permeability::LightPermeability}}, vertices::block_vertex::BlockVertex, state::IS_LINE, world::World};
+use crate::{voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType, light_permeability::LightPermeability}}, vertices::block_vertex::BlockVertex, state::IS_LINE, world::{World, chunk_coords::ChunkCoords}};
 
 use super::complex_object::{ComplexObjectPart, ComplexObjectSide};
 
@@ -225,6 +225,7 @@ pub struct AnimatedModelRenderResult {
 #[derive(Debug)]
 pub struct RenderResult {
     pub chunk_index: usize,
+    pub xyz: ChunkCoords,
     pub block_vertices: Vec<BlockVertex>,
     pub block_indices: Vec<u16>,
     pub belt_vertices: Vec<BlockVertex>,
@@ -490,6 +491,7 @@ pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
 
     Some(RenderResult {
         chunk_index,
+        xyz: chunk.xyz,
         block_vertices: buffer.buffer,
         block_indices: buffer.index_buffer,
         models: models,

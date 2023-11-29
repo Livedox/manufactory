@@ -42,7 +42,7 @@ impl Chunk {
                 voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 7;
             }
             if x == 0 && y == 0 {
-                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 10;
+                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 7;
             }
 
             if real_z == 200 {

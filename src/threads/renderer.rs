@@ -15,33 +15,53 @@ pub fn spawn(
         
         let chunk_position = world.chunks.find_pos_stable_xyz(
             &|c| c.map_or(false, |c| c.modified()));
-        
-        if let Some(chunk_index) = chunk_position.map(|cp| cp.chunk_index(&world.chunks)) {
-            world.chunks.chunks[chunk_index].as_mut().unwrap().modify(false);
-            // Why with sleep it work better ????????????
-            if let Some(indx) = results.iter().position(|a| {a.chunk_index == chunk_index}) {
+        if let Some(cp) = chunk_position {
+            let index = cp.chunk_index(&world.chunks);
+            world.chunks.chunks[index].as_mut().unwrap().modify(false);
+            if let Some(indx) = results.iter().position(|a| {a.xyz == cp}) {
                 results.remove(indx);
             }
             
-            if let Some(r) = render(chunk_index, &world) {
+            if let Some(r) = render(cp.chunk_index(&world.chunks), &world) {
                 results.push(r);
             }
-            
+            results.retain(|r| {
+                let nx = r.xyz.0 - world.chunks.ox;
+                let nz = r.xyz.2 - world.chunks.oz;
+                nx >= 0 && nz >= 0 && nx < world.chunks.width && nz < world.chunks.depth
+            });
             results.sort_by(|a, b| {
-                let a = world.chunks.chunks[a.chunk_index].as_ref()
-                    .map(|c| c.xyz)
-                    .map_or(i32::MAX, |a| (a.0-pc.0).abs() + (a.1-pc.1).abs() +(a.2-pc.2).abs());
-                let b = world.chunks.chunks[b.chunk_index].as_ref()
-                    .map(|c| c.xyz)
-                    .map_or(i32::MAX, |b| (b.0-pc.0).abs() + (b.1-pc.1).abs() +(b.2-pc.2).abs());
+                let a = (a.xyz.0-pc.0).abs() + (a.xyz.1-pc.1).abs() + (a.xyz.2-pc.2).abs();
+                let b = (b.xyz.0-pc.0).abs() + (b.xyz.1-pc.1).abs() + (b.xyz.2-pc.2).abs();
 
                 a.cmp(&b).reverse()
             });
         }
+        // if let Some(chunk_index) = chunk_position.map(|cp| cp.chunk_index(&world.chunks)) {
+        //     world.chunks.chunks[chunk_index].as_mut().unwrap().modify(false);
+        //     if let Some(indx) = results.iter().position(|a| {a.0 == chunk_position}) {
+        //         results.remove(indx);
+        //     }
+            
+        //     if let Some(r) = render(chunk_index, &world) {
+        //         results.push(r);
+        //     }
+            
+        //     results.sort_by(|a, b| {
+        //         let a = world.chunks.chunks[a.chunk_index].as_ref()
+        //             .map(|c| c.xyz)
+        //             .map_or(i32::MAX, |a| (a.0-pc.0).abs() + (a.1-pc.1).abs() +(a.2-pc.2).abs());
+        //         let b = world.chunks.chunks[b.chunk_index].as_ref()
+        //             .map(|c| c.xyz)
+        //             .map_or(i32::MAX, |b| (b.0-pc.0).abs() + (b.1-pc.1).abs() +(b.2-pc.2).abs());
+
+        //         a.cmp(&b).reverse()
+        //     });
+        // }
 
         if !results.is_empty() {
             let is_same_chunk = render_result.lock().unwrap().as_ref().map_or(false, |active| {
-                results.last().map_or(false, |new| active.chunk_index == new.chunk_index)
+                results.last().map_or(false, |new| active.xyz == new.xyz)
             });
             if is_same_chunk || render_result.lock().unwrap().is_none() {
                 *render_result.lock().unwrap() = results.pop();

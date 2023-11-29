@@ -1,10 +1,10 @@
-use std::{collections::HashMap, sync::{Mutex, Arc}};
+use std::{collections::HashMap, sync::{Mutex, Arc, atomic::{AtomicBool, Ordering, AtomicUsize}}};
 
 use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
 
-use crate::{graphic::render::{render, AnimatedModelRenderResult, ModelRenderResult, RenderResult}, voxels::{chunks::Chunks, block::{block_type::BlockType, blocks::BLOCKS}}, vertices::{model_instance::ModelInstance, animated_model_instance::AnimatedModelInstance}, models::animated_model::AnimatedModel, world::World, state::State};
+use crate::{graphic::render::{render, AnimatedModelRenderResult, ModelRenderResult, RenderResult}, voxels::{chunks::Chunks, block::{block_type::BlockType, blocks::BLOCKS}}, vertices::{model_instance::ModelInstance, animated_model_instance::AnimatedModelInstance}, models::animated_model::AnimatedModel, world::{World, chunk_coords::ChunkCoords}, state::State};
 
 #[derive(Debug)]
 pub struct Mesh {
@@ -37,14 +37,16 @@ pub struct MeshesRenderInput<'a> {
 #[derive(Debug)]
 pub struct Meshes {
     meshes: Vec<Option<Mesh>>,
+    // Indicates how many translate need to be performed.
+    // Use atomicity if I add this to another thread
+    need_translate: usize, 
 }
 
 impl Meshes {
-    pub fn new() -> Self { Self {meshes: vec![]} }
+    pub fn new() -> Self { Self {meshes: vec![], need_translate: 0 } }
 
-    pub fn render(&mut self, input: MeshesRenderInput) {
+    pub fn render(&mut self, input: MeshesRenderInput, index: usize) {
         let MeshesRenderInput {device, animated_model_layout, all_animated_models, render_result} = input;
-        let index = render_result.chunk_index;
 
         let mut models = HashMap::<String, (wgpu::Buffer, usize)>::new();
         let mut animated_models = HashMap::<String, (wgpu::Buffer, usize)>::new();
@@ -209,5 +211,17 @@ impl Meshes {
 
     pub fn mut_meshes(&mut self) -> &mut Vec<Option<Mesh>> {
         &mut self.meshes
+    }
+
+    pub fn is_need_translate(&self) -> bool {
+        self.need_translate != 0
+    }
+
+    pub fn add_need_translate(&mut self) {
+        self.need_translate += 1;
+    }
+
+    pub fn sub_need_translate(&mut self) {
+        self.need_translate -= 1;
     }
 }
