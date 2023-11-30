@@ -2,13 +2,13 @@ use std::{time::{Duration, Instant}, rc::Rc, borrow::Borrow, collections::HashMa
 
 use camera::frustum::Frustum;
 use direction::Direction;
+use engine::state;
 use graphic::{render_selection::render_selection, render::RenderResult};
 use gui::gui_controller::GuiController;
 use input_event::KeypressState;
 use meshes::{MeshesRenderInput, Meshes};
 use player::player::Player;
 use recipes::{storage::Storage, item::Item};
-use state::State;
 use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}, SyncUnsafeWorldCell};
 use crate::{voxels::chunk::HALF_CHUNK_SIZE, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}};
@@ -24,8 +24,6 @@ use itertools::{Itertools, iproduct};
 use crate::{input_event::input_service::{Key, Mouse}, voxels::ray_cast, my_time::Timer};
 use nalgebra_glm as glm;
 
-mod texture;
-mod state;
 mod input_event;
 mod my_time;
 mod voxels;
@@ -44,6 +42,7 @@ mod world;
 mod macros;
 mod threads;
 mod unsafe_mutex;
+mod engine;
 
 const RENDER_DISTANCE: i32 = 6;
 const HALF_RENDER_DISTANCE: i32 = RENDER_DISTANCE / 2;
@@ -99,7 +98,7 @@ pub async fn main() {
     let mut time = my_time::Time::new();
     let window_size = window.inner_size();
     let mut state = state::State::new(
-        window.clone(), &camera.proj_view(window_size.width as f32, window_size.height as f32).into());
+        window.clone(), &camera.proj_view(window_size.width as f32, window_size.height as f32).into()).await;
     let mut gui_controller = GuiController::new(window, state.texture_atlas.clone());
 
     let mut player = Player::new();
@@ -192,11 +191,13 @@ pub async fn main() {
 
                 if input.is_key(&Key::E, KeypressState::AnyJustPress) {
                     gui_controller.set_cursor_lock(!gui_controller.is_cursor());
+                    state.set_ui_interaction(gui_controller.is_cursor());
                     if !gui_controller.toggle_inventory() {player.open_storage = None};
                 }
 
                 if input.is_key(&Key::F1, KeypressState::AnyJustPress) {
                     gui_controller.toggle_ui();
+                    state.set_crosshair(gui_controller.is_ui());
                 }
                 
                 if input.is_key(&Key::F11, KeypressState::AnyJustPress) {
@@ -294,7 +295,14 @@ pub async fn main() {
                     }
                 }
 
-                match state.render(&indices, &sun, &mut player, &gui_controller, &meshes, &time, &mut debug_block_id, &debug_data) {
+                
+                player.inventory().lock().unwrap().update_recipe();
+                match state.render(&indices, &sun, &meshes, |ctx| {
+                    gui_controller
+                        .draw_inventory(ctx, &mut player)
+                        .draw_debug(ctx, &debug_data, &mut debug_block_id)
+                        .draw_active_recieps(ctx, &mut player);
+                }) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                         state.resize(state.size)

@@ -3,7 +3,7 @@ use std::{cell::RefCell, borrow::BorrowMut, sync::{Arc, Weak, Mutex}};
 use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText, Ui};
 use winit::{window::Window, dpi::PhysicalPosition};
 
-use crate::{player::{inventory::PlayerInventory, player::Player}, recipes::{storage::Storage, recipes::RECIPES}, texture::TextureAtlas, voxels::{voxel_data::{VoxelBox, Furnace, PlayerUnlockableStorage}, assembling_machine::AssemblingMachine}};
+use crate::{player::{inventory::PlayerInventory, player::Player}, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, voxels::{voxel_data::{VoxelBox, Furnace, PlayerUnlockableStorage}, assembling_machine::AssemblingMachine}};
 use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe, assembling_machine_slot::assembling_machine_slot}, theme::DEFAULT_THEME};
 
 enum Task {

@@ -1,4 +1,4 @@
-use crate::texture::Texture;
+use crate::engine::texture::Texture;
 
 pub fn load_texture(
   device: &wgpu::Device,

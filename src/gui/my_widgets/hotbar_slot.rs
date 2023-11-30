@@ -1,6 +1,6 @@
 use egui::{Rect, RichText, vec2, Stroke, pos2};
 
-use crate::{gui::theme::DEFAULT_THEME, texture::TextureAtlas, recipes::item::PossibleItem};
+use crate::{gui::theme::DEFAULT_THEME, engine::texture::TextureAtlas, recipes::item::PossibleItem};
 
 const WIDTH: f32 = 50.0;
 const HEIGHT: f32 = 50.0;

@@ -1,6 +1,6 @@
 use egui::{Rect, vec2, Stroke, pos2};
 
-use crate::{gui::theme::DEFAULT_THEME, recipes::recipe::Recipe, texture::TextureAtlas};
+use crate::{gui::theme::DEFAULT_THEME, recipes::recipe::Recipe, engine::texture::TextureAtlas};
 
 use super::ingredients::ingredients;
 

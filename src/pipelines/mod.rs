@@ -2,7 +2,7 @@ pub mod bind_group_layout;
 
 use wgpu::{Device, BindGroupLayout, VertexBufferLayout, ShaderModule, TextureFormat, PrimitiveTopology, RenderPipeline};
 
-use crate::texture;
+use crate::engine::texture;
 
 pub fn new_pipeline(
     device: &Device,
