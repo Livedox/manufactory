@@ -1,5 +1,27 @@
 use wgpu::util::DeviceExt;
 
+use super::bind_group_layout::Layouts;
+
+
+pub(crate) struct BindGroupsBuffers {
+    pub sun: BindGroupBuffer,
+    pub crosshair_aspect_scale: BindGroupBuffer,
+    pub camera: BindGroupBuffer,
+    pub time: BindGroupBuffer,
+}
+
+impl BindGroupsBuffers {
+    pub fn new(device: &wgpu::Device, layouts: &Layouts, proj_view: &[[f32; 4]; 4]) -> Self {Self{
+        sun: BindGroupBuffer::new(&device, bytemuck::cast_slice(&[1.0, 1.0, 1.0]), &layouts.sun, "sun"),
+        crosshair_aspect_scale: BindGroupBuffer::new(
+            &device, bytemuck::cast_slice(&[0.0f32, 0.0]),
+            &layouts.crosshair_aspect_scale, "crosshair_aspect_scale"),
+        camera: BindGroupBuffer::new(&device, bytemuck::cast_slice(proj_view), &layouts.camera, "camera"),
+        time: BindGroupBuffer::new(&device, &0.0f32.to_be_bytes(), &layouts.time, "time"),
+    }}
+}
+
+
 pub struct BindGroupBuffer {
     pub bind_group: wgpu::BindGroup,
     pub buffer: wgpu::Buffer,

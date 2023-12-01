@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use nalgebra_glm as glm;
 use wgpu::util::DeviceExt;
 
-use crate::vertices::animated_model_vertex::AnimatedModelVertex;
+use crate::engine::vertices::animated_model_vertex::AnimatedModelVertex;
 
 #[derive(Debug)]
 pub struct AnimatedModel {

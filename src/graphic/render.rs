@@ -8,7 +8,7 @@ enum Direction{Top, Left}
 
 use std::{collections::HashMap, sync::{Arc, Mutex}};
 
-use crate::{voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType, light_permeability::LightPermeability}}, vertices::block_vertex::BlockVertex, state::IS_LINE, world::{World, chunk_coords::ChunkCoords}};
+use crate::{voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType, light_permeability::LightPermeability}}, engine::vertices::block_vertex::BlockVertex, world::{World, chunk_coords::ChunkCoords}, engine::pipeline::IS_LINE};
 
 use super::complex_object::{ComplexObjectPart, ComplexObjectSide};
 

@@ -4,3 +4,6 @@ pub mod bind_group;
 pub mod bind_group_layout;
 pub mod bind_group_buffer;
 pub mod shaders;
+pub mod pipeline;
+pub mod vertices;
+pub mod egui;

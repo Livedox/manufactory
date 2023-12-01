@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc, sync::{mpsc::{Receiver, Sender, self}, A
 
 use itertools::iproduct;
 
-use crate::{vertices::block_vertex::BlockVertex, models::animated_model::AnimatedModel, direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, rev_qumark, vec_none};
+use crate::{engine::vertices::block_vertex, models::animated_model::AnimatedModel, direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, rev_qumark, vec_none};
 
 use super::{chunk::{Chunk, CHUNK_SIZE, CHUNK_BIT_SHIFT}, voxel::Voxel, voxel_data::{VoxelAdditionalData, VoxelData, MultiBlock}};
 

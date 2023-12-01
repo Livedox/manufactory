@@ -3,17 +3,27 @@ pub mod vertex_uniform;
 pub mod vertex_storage;
 
 pub(crate) struct Layouts {
-    sun: wgpu::BindGroupLayout,
-    block_texture: wgpu::BindGroupLayout,
-    model_texture: wgpu::BindGroupLayout,
-    crosshair_u_ar_scale: wgpu::BindGroupLayout,
+    pub block_texture: wgpu::BindGroupLayout,
+    pub model_texture: wgpu::BindGroupLayout,
+
+    pub transforms_storage: wgpu::BindGroupLayout,
+    
+    pub sun: wgpu::BindGroupLayout,
+    pub crosshair_aspect_scale: wgpu::BindGroupLayout,
+    pub camera: wgpu::BindGroupLayout,
+    pub time: wgpu::BindGroupLayout,
 }
 
 impl Layouts {
     pub(crate) fn new(device: &wgpu::Device) -> Self {Self {
-        sun: self::vertex_uniform::get(&device, "sun_bgl"),
         block_texture: self::texture::get(&device, wgpu::TextureViewDimension::D2Array, "block_texture_bgl"),
         model_texture: self::texture::get(&device, wgpu::TextureViewDimension::D2, "model_texture_bgl"),
-        crosshair_u_ar_scale: self::vertex_uniform::get(&device, "crosshair_u_scale_bgl"),
+        
+        transforms_storage: self::vertex_storage::get(&device, true, "animated_model_bgl"),
+        
+        crosshair_aspect_scale: self::vertex_uniform::get(&device, "crosshair_aspect_scale_bgl"),
+        sun: self::vertex_uniform::get(&device, "sun_bgl"),
+        camera: self::vertex_uniform::get(&device, "camera_bgl"),
+        time: self::vertex_uniform::get(&device, "transport_belt_bgl"),
     }}
 }

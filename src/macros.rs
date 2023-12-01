@@ -14,7 +14,7 @@ macro_rules! rev_qumark {
 macro_rules! vec_none {
     ( $len:expr ) => {
         {
-            let mut vec = Vec::with_capacity($len);
+            let mut vec = Vec::new();
             vec.resize_with($len, || None);
             vec
         }

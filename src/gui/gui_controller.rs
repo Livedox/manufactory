@@ -11,7 +11,6 @@ enum Task {
     ToInventory(usize),
     ToStorage(usize),
 }
-// NEED TO FIX THIS
 
 pub fn add_to_storage(src: Arc<Mutex<dyn Storage>>, dst: Arc<Mutex<dyn Storage>>, index: usize) {
     let Some(add_item) = src.lock().unwrap().mut_storage()[index].0.take() else {

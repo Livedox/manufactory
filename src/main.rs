@@ -29,10 +29,8 @@ mod my_time;
 mod voxels;
 mod graphic;
 mod light;
-mod vertices;
 mod meshes;
 mod camera;
-mod pipelines;
 mod gui;
 mod recipes;
 mod player;
@@ -111,7 +109,7 @@ pub async fn main() {
     drop(inventory);
 
     let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
-    let mut world = Arc::new(UnsafeMutex::new(World::new(RENDER_DISTANCE, WORLD_HEIGHT as i32, RENDER_DISTANCE, -HALF_RENDER_DISTANCE, 0, -HALF_RENDER_DISTANCE)));
+    let world = Arc::new(UnsafeMutex::new(World::new(RENDER_DISTANCE, WORLD_HEIGHT as i32, RENDER_DISTANCE, -HALF_RENDER_DISTANCE, 0, -HALF_RENDER_DISTANCE)));
 
 
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
@@ -119,12 +117,11 @@ pub async fn main() {
     threads::renderer::spawn(world.clone(), player_coords.clone(), render_result.clone());
     threads::voxel_data_updater::spawn(world.clone());
 
-    let mut timer_1s = Timer::new(Duration::from_secs(1));
     let mut timer_16ms = Timer::new(Duration::from_millis(16));
-    let mut fps = 0;
+    let mut fps = Instant::now();
     event_loop.run(move |event, _, control_flow| {
-        state.egui_platform.handle_event(&event);
-        input.process_events(&event);
+        state.handle_event(&event);
+        input.handle_event(&event);
         if timer_16ms.check() {
             input.update_delta_mouse();
         }
@@ -144,12 +141,6 @@ pub async fn main() {
                             },
                         ..
                     } => *control_flow = ControlFlow::Exit,
-                    WindowEvent::Resized(physical_size) => {
-                        state.resize(*physical_size);
-                    }
-                    WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                        state.resize(**new_inner_size);
-                    }
                     _ => {}
                 }
             }
@@ -170,8 +161,6 @@ pub async fn main() {
                         let _ = tx_clone.send(world.chunks.translate(c.0-HALF_RENDER_DISTANCE, c.2-HALF_RENDER_DISTANCE));
                         world.chunks.is_translate = false;
                     });
-                    // meshes.translate(&indices);
-                    // drop(world);
                 }
                 let mut world_g = world.lock_unsafe(true).unwrap();
                 let indices = frustum(
@@ -182,12 +171,8 @@ pub async fn main() {
                 gui_controller.update_cursor_lock();
                 meshes.update_transforms_buffer(&state, &world_g, &indices);
 
-
-                fps += 1;
-                if timer_1s.check() {
-                    println!("Meshes {:?}", meshes.meshes().iter().map(|m| m.is_some() as u32).sum::<u32>());
-                    fps = 0;
-                }
+                debug_data += &((1.0/fps.elapsed().as_secs_f32()) as u32).to_string();
+                fps = Instant::now();
 
                 if input.is_key(&Key::E, KeypressState::AnyJustPress) {
                     gui_controller.set_cursor_lock(!gui_controller.is_cursor());
@@ -297,7 +282,10 @@ pub async fn main() {
 
                 
                 player.inventory().lock().unwrap().update_recipe();
-                match state.render(&indices, &sun, &meshes, |ctx| {
+                let (sun, sky) = sun.sun_sky();
+                state.set_sun_color(sun.into());
+                state.set_clear_color(sky.into());
+                match state.render(&indices, &meshes, |ctx| {
                     gui_controller
                         .draw_inventory(ctx, &mut player)
                         .draw_debug(ctx, &debug_data, &mut debug_block_id)

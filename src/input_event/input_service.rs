@@ -46,7 +46,7 @@ impl InputService {
         self.input_broker.wheel()
     }
 
-    pub fn process_events(&mut self, event: &Event<'_, ()>) {
+    pub fn handle_event(&mut self, event: &Event<'_, ()>) {
         match event {
             Event::WindowEvent { event, .. } => {
                 match event {

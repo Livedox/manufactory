@@ -1,6 +1,6 @@
 use wgpu::util::DeviceExt;
 
-use crate::vertices::model_vertex::ModelVertex;
+use crate::engine::vertices::model_vertex::ModelVertex;
 
 #[derive(Debug)]
 pub struct Model {

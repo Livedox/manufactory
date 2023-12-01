@@ -19,6 +19,10 @@ impl From<Color> for [f32; 3] {
     fn from(color: Color) -> Self {[color.0, color.1, color.2]}
 }
 
+impl From<Color> for [f64; 3] {
+    fn from(color: Color) -> Self {[color.0 as f64, color.1 as f64, color.2 as f64]}
+}
+
 #[derive(Debug)]
 pub struct Sun<const N: usize> {
     start_offset: f32,
