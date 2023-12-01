@@ -1,10 +1,8 @@
 use itertools::Itertools;
 
-use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage}, direction::Direction, world::global_coords::GlobalCoords};
+use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage}, direction::Direction, world::global_coords::GlobalCoords, voxels::chunks::Chunks};
 
-use super::chunks::Chunks;
-
-// PLEASE UPDATE THIS SHIT
+// TODO: PLEASE UPDATE THIS SHIT
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum TransportBeltSide {

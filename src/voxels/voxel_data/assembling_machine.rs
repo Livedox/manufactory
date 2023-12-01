@@ -1,6 +1,9 @@
-use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage, recipe::{Recipe, ActiveRecipe}, recipes::RECIPES}, world::global_coords::GlobalCoords};
+use std::sync::{Arc, Mutex};
 
-use super::voxel_data::MultiBlock;
+use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage, recipe::{Recipe, ActiveRecipe}, recipes::RECIPES}, world::global_coords::GlobalCoords, gui::{draw::Draw, my_widgets::{assembling_machine_slot::assembling_machine_slot, recipe::recipe}}, player::inventory::PlayerInventory, engine::texture::TextureAtlas};
+use crate::gui::my_widgets::container::container;
+
+use super::{multiblock::MultiBlock, DrawStorage};
 
 const INGREDIENT_LENGTH: usize = 3;
 const RESULT_LENGTH: usize = 1;
@@ -114,3 +117,51 @@ impl MultiBlock for AssemblingMachine {
         &mut self.structure_coordinates
     }
 }
+
+
+impl Draw for AssemblingMachine {
+    fn draw(&mut self, ui: &mut egui::Ui, atlas: Arc<TextureAtlas>, inventory: Arc<Mutex<PlayerInventory>>) {
+        let mut task: Option<usize> = None;
+        let selected_recipe = self.selected_recipe();
+        if let Some(selected_recipe) = selected_recipe {
+            ui.horizontal(|ui| {
+                for (i, item) in self.storage().iter().enumerate() {
+                    if ui.add(assembling_machine_slot(&atlas, item, i, selected_recipe, i==3)).drag_started() {
+                        task = Some(i);
+                    };
+                }
+            });
+        }
+        ui.vertical(|ui| {
+            ui.add(container(|ui| {
+                let style = egui::Style {
+                    spacing: egui::style::Spacing { item_spacing: egui::vec2(8.0, 8.0), ..Default::default() },
+                    ..Default::default()
+                };
+                ui.set_style(style);
+                ui.horizontal(|ui| {
+                    for i in RECIPES().assembler.all() {
+                        if ui.add(recipe(&atlas, i)).drag_started() {
+                            let result = self.select_recipe(i.index);
+                            for item in result.0 {
+                                let Some(item) = item.0 else {continue};
+                                inventory.lock().unwrap().add(&item, true);
+                            }
+                            for item in result.1 {
+                                inventory.lock().unwrap().add(&item, true);
+                            }
+                        };
+                    }
+                });
+            }, None));
+        });
+
+        if let Some(task) = task {
+            let Some(item) = self.mut_storage()[task].0.take() else {return};
+            let remainder = inventory.lock().unwrap().add(&item, true);
+            if let Some(r) = remainder {self.set(&r, task)}
+        }
+    }
+}
+
+impl DrawStorage for AssemblingMachine {}

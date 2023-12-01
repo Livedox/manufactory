@@ -1,13 +1,13 @@
-use std::{rc::Rc, cell::RefCell, sync::{Mutex, Arc}};
+use std::{rc::Rc, cell::RefCell, sync::{Mutex, Arc, Weak}};
 
-use crate::{recipes::{storage::Storage, items::ITEMS, item_interaction::ItemInteraction}, voxels::voxel_data::PlayerUnlockableStorage, world::{World, global_coords::GlobalCoords}, direction::Direction};
+use crate::{recipes::{storage::Storage, items::ITEMS, item_interaction::ItemInteraction}, world::{World, global_coords::GlobalCoords}, direction::Direction, voxels::voxel_data::DrawStorage};
 
 use super::inventory::PlayerInventory;
 
 #[derive(Debug)]
 pub struct Player {
     pub active_slot: usize,
-    pub open_storage: Option<PlayerUnlockableStorage>,
+    pub open_storage: Option<Weak<Mutex<dyn DrawStorage>>>,
     inventory: Arc<Mutex<PlayerInventory>>,
 }
 

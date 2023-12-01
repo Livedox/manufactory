@@ -244,7 +244,7 @@ pub async fn main() {
                         if voxel_id == 13 || voxel_id == 14 || voxel_id == 1 || voxel_id == 16 {
                             let chunk = world_g.chunks.mut_chunk(chunk_coords);
                             let voxel_data = chunk.unwrap().mut_voxel_data(local_coords);
-                            if let Some(storage) = voxel_data.and_then(|vd| vd.player_unlockable_storage()) {
+                            if let Some(storage) = voxel_data.and_then(|vd| vd.player_unlockable()) {
                                 gui_controller.set_inventory(true);
                                 player.open_storage = Some(storage);
                             }

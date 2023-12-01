@@ -3,7 +3,7 @@ use std::{cell::RefCell, borrow::BorrowMut, sync::{Arc, Weak, Mutex}};
 use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText, Ui};
 use winit::{window::Window, dpi::PhysicalPosition};
 
-use crate::{player::{inventory::PlayerInventory, player::Player}, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, voxels::{voxel_data::{VoxelBox, Furnace, PlayerUnlockableStorage}, assembling_machine::AssemblingMachine}};
+use crate::{player::{inventory::PlayerInventory, player::Player}, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, voxels::voxel_data::{voxel_box::VoxelBox, assembling_machine::AssemblingMachine, furnace::Furnace}};
 use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe, assembling_machine_slot::assembling_machine_slot}, theme::DEFAULT_THEME};
 
 enum Task {
@@ -80,95 +80,16 @@ impl GuiController {
 
     pub fn is_cursor(&self) -> bool { self.is_cursor }
 
-
-    pub fn draw_box(&self, ui: &mut Ui, storage: &Weak<Mutex<VoxelBox>>, inventory: Arc<Mutex<PlayerInventory>>) {
-        let mut task: Option<usize> = None;
-        let voxel_box = storage.upgrade().unwrap();
-        ui.horizontal(|ui| {ui.vertical(|ui| {
-            let len = voxel_box.clone().lock().unwrap().storage().len();
-            let count = (len as f32 / 10.0).ceil() as usize;
-            for i in 0..count {
-                ui.horizontal(|ui| {
-                    for j in 0..(std::cmp::min(10, len - i*10)) {
-                        if ui.add(inventory_slot(&self.items_atlas, &voxel_box.clone().lock().unwrap().storage()[i*10 + j])).clicked() {
-                            task = Some(i*10 + j);
-                        };
-                    }
-                });
-            }
-        })});
-        if let Some(task) = task {
-            add_to_storage(voxel_box, inventory, task);
-        }
-    }
-
-    pub fn draw_furnace(&self, ui: &mut Ui, storage: &Weak<Mutex<Furnace>>, inventory: Arc<Mutex<PlayerInventory>>) {
-        let mut task: Option<usize> = None;
-        let furnace = storage.upgrade().unwrap();
-        ui.horizontal(|ui| {
-            for (index, item) in furnace.lock().unwrap().storage().iter().enumerate() {
-                if ui.add(inventory_slot(&self.items_atlas, item)).drag_started() {
-                    task = Some(index);
-                }
-            }
-        });
-        if let Some(task) = task {
-            add_to_storage(furnace, inventory, task);
-        }
-    }
-
-    pub fn draw_assembling_machine(&self, ui: &mut Ui, storage: &Weak<Mutex<AssemblingMachine>>, inventory: Arc<Mutex<PlayerInventory>>) {
-        let mut task: Option<usize> = None;
-        let assembling_machine = storage.upgrade().unwrap();
-        let selected_recipe = assembling_machine.lock().unwrap().selected_recipe();
-        if let Some(selected_recipe) = selected_recipe {
-            ui.horizontal(|ui| {
-                for (i, item) in assembling_machine.lock().unwrap().storage().iter().enumerate() {
-                    if ui.add(assembling_machine_slot(&self.items_atlas, item, i, selected_recipe, i==3)).drag_started() {
-                        task = Some(i);
-                    };
-                }
-            });
-        }
-        ui.vertical(|ui| {
-            ui.add(container(|ui| {
-                let style = egui::Style {
-                    spacing: egui::style::Spacing { item_spacing: vec2(8.0, 8.0), ..Default::default() },
-                    ..Default::default()
-                };
-                ui.set_style(style);
-                ui.horizontal(|ui| {
-                    for i in RECIPES().assembler.all() {
-                        if ui.add(recipe(&self.items_atlas, i)).drag_started() {
-                            let result = assembling_machine.lock().unwrap().select_recipe(i.index);
-                            for item in result.0 {
-                                let Some(item) = item.0 else {continue};
-                                inventory.lock().unwrap().add(&item, true);
-                            }
-                            for item in result.1 {
-                                inventory.lock().unwrap().add(&item, true);
-                            }
-                        };
-                    }
-                });
-            }, None));
-        });
-        if let Some(task) = task {
-            add_to_storage(assembling_machine, inventory, task);
-        }
-    }
-
-
     pub fn draw_inventory(&self, ctx: &Context, player: &mut Player) -> &Self {
         if !self.is_ui {return self}
         let mut task: Option<Task> = None;
         let inventory = player.inventory();
-        let storage = player.open_storage.as_mut().map(|op| op.to_storage().upgrade().unwrap());
+        let storage = player.open_storage.as_mut().map(|op| op.upgrade().unwrap());
         egui::Area::new("hotbar_area")
             .anchor(Align2::CENTER_BOTTOM, vec2(1.0, -1.0))
             .show(ctx, |ui| {
                 ui.set_visible(self.is_ui);
-                let storage = player.open_storage.as_mut().map(|op| op.to_storage().upgrade().unwrap());
+                let storage = player.open_storage.as_mut().map(|op| op.upgrade().unwrap());
                 
                 ui.horizontal_top(|ui| {
                     for (i, item) in player.inventory().clone().lock().unwrap().storage().iter().take(10).enumerate() {
@@ -188,11 +109,7 @@ impl GuiController {
             .show(ctx, |ui| {
                 ui.set_visible(self.is_ui & self.is_inventory);
                 if let Some(storage) = &player.open_storage {
-                    match storage {
-                        PlayerUnlockableStorage::VoxelBox(a) => self.draw_box(ui, a, inventory.clone()),
-                        PlayerUnlockableStorage::Furnace(a) => self.draw_furnace(ui, a, inventory.clone()),
-                        PlayerUnlockableStorage::AssemblingMachine(a) => self.draw_assembling_machine(ui, a, inventory.clone()),
-                    }
+                    storage.upgrade().unwrap().lock().unwrap().draw(ui, self.items_atlas.clone(), inventory.clone());
                 }
                 let inventory_len = inventory.clone().lock().unwrap().storage().len();
                 ui.horizontal(|ui| {        
@@ -246,7 +163,11 @@ impl GuiController {
             match task {
                 Task::ToHotbar(i) => {inventory.lock().unwrap().place_in_hotbar(i);},
                 Task::ToInventory(i) => {inventory.lock().unwrap().place_in_inventory(i);},
-                Task::ToStorage(i) => add_to_storage(inventory, storage.unwrap(), i),
+                Task::ToStorage(i) => {
+                    let Some(item) = inventory.lock().unwrap().mut_storage()[i].0.take() else {return self};
+                    let remainder = storage.unwrap().lock().unwrap().add(&item, true);
+                    if let Some(r) = remainder {inventory.lock().unwrap().set(&r, i)}
+                },
             }
         }
         self

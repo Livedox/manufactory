@@ -4,7 +4,7 @@ use itertools::iproduct;
 
 use crate::{engine::vertices::block_vertex, models::animated_model::AnimatedModel, direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, rev_qumark, vec_none};
 
-use super::{chunk::{Chunk, CHUNK_SIZE, CHUNK_BIT_SHIFT}, voxel::Voxel, voxel_data::{VoxelAdditionalData, VoxelData, MultiBlock}};
+use super::{chunk::{Chunk, CHUNK_SIZE, CHUNK_BIT_SHIFT}, voxel::Voxel, voxel_data::{VoxelAdditionalData, VoxelData, multiblock::MultiBlock}};
 
 pub const WORLD_HEIGHT: usize = 256 / CHUNK_SIZE; // In chunks
 
