@@ -1,5 +1,6 @@
 use std::time::{Instant, Duration};
-use crate::{world::{global_coords::GlobalCoords, local_coords::LocalCoords}, direction::Direction, voxels::{chunks::Chunks, block::blocks::BLOCKS}, recipes::{item::{PossibleItem, Item}, storage::Storage}};
+use crate::{world::{global_coords::GlobalCoords, local_coords::LocalCoords}, direction::Direction, voxels::{chunks::Chunks, block::blocks::BLOCKS}, recipes::{item::{PossibleItem, Item}, storage::Storage}, bytes::DynByteInterpretation};
+use crate::bytes::NumFromBytes;
 
 #[derive(Debug)]
 pub struct Manipulator {
@@ -38,7 +39,7 @@ impl Manipulator {
             }
         }
         
-        let start_time = self.start_time.map_or(false, |rt| rt.elapsed() >= (Self::SPEED/2));
+        let start_time = self.start_time.map_or(true, |rt| rt.elapsed() >= (Self::SPEED/2));
         if self.item_id.is_some() && start_time {
             let dst_coords = GlobalCoords(coords.0 + self.direction[0] as i32, coords.1, coords.2 + self.direction[2] as i32);
             let dst = unsafe {
@@ -74,5 +75,24 @@ impl Manipulator {
         if self.direction[2] > 0 {return 3};
         if self.direction[2] < 0 {return 1};
         0
+    }
+}
+
+
+impl DynByteInterpretation for Manipulator {
+    fn from_bytes(data: &[u8]) -> Self {
+        let item_id = u32::from_bytes(&data[0..4]);
+        Self {
+            start_time: None,
+            return_time: None,
+            item_id: if u32::MAX == item_id {None} else {Some(item_id)},
+            direction: [data[4] as i8, data[5] as i8, data[6] as i8],
+        }
+    }
+    fn to_bytes(&self) -> Box<[u8]> {
+        let mut v = Vec::new();
+        v.extend(self.item_id.unwrap_or(u32::MAX).to_le_bytes());
+        v.extend([self.direction[0] as u8, self.direction[1] as u8, self.direction[2] as u8]);
+        v.into()
     }
 }

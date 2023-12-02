@@ -1,3 +1,5 @@
+use crate::bytes::{DynByteInterpretation, any_as_u8_slice};
+use crate::bytes::NumFromBytes;
 use super::{item::{PossibleItem, Item}, recipe::{ActiveRecipe, Recipe}};
 use std::{fmt::Debug, time::Instant};
 
@@ -128,5 +130,27 @@ pub trait Storage {
 impl Debug for dyn Storage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Storage: {:?}", self.storage())
+    }
+}
+
+
+impl<const N: usize> DynByteInterpretation for [PossibleItem; N] {
+    fn to_bytes(&self) -> Box<[u8]> {
+        let mut v = Vec::new();
+        for (i, item) in self.iter().enumerate() {
+            if let Some(item) = item.0 {
+                v.extend(unsafe { any_as_u8_slice(&[i as u32, item.id(), item.count]) });
+            }
+        }
+        v.into()
+    }
+
+    fn from_bytes(data: &[u8]) -> Self {
+        let mut s: [PossibleItem; N] = [PossibleItem::new_none(); N];
+        for c in data.chunks(12) {
+            s[u32::from_bytes(&c[0..4]) as usize] = PossibleItem(Some(Item::new(
+                u32::from_bytes(&c[4..8]), u32::from_bytes(&c[8..12]))));
+        }
+        s
     }
 }

@@ -8,7 +8,7 @@ use gui::gui_controller::GuiController;
 use input_event::KeypressState;
 use meshes::{MeshesRenderInput, Meshes};
 use player::player::Player;
-use recipes::{storage::Storage, item::Item};
+use recipes::{storage::Storage, item::{Item, PossibleItem}};
 use save_load::{save_chunk, load_chunk};
 use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}, SyncUnsafeWorldCell};
@@ -184,13 +184,9 @@ pub async fn main() {
                 }
 
                 if input.is_key(&Key::F2, KeypressState::AnyJustPress) {
-                    let now = Instant::now();
-                    let mut a: i32 = 0;
-                    for _ in 0..1000 {
-                        let g = world.lock_unsafe(false).unwrap().chunks.chunks[0].as_ref().unwrap().to_bytes();
-                        a += g[0] as i32;
-                    }
-                    println!("{a} {:?}", now.elapsed().as_secs_f32());
+                    let g = world.lock_unsafe(false).unwrap().chunks.chunks[21].as_ref().unwrap().to_bytes();
+                    let c = Chunk::from_bytes(&g);
+                    println!("{:?}", c.voxels_data);
                 }
 
                 if input.is_key(&Key::F3, KeypressState::AnyJustPress) {
@@ -201,6 +197,7 @@ pub async fn main() {
                 if input.is_key(&Key::F4, KeypressState::AnyJustPress) {
                     let g = load_chunk();
                     let c = Chunk::from_bytes(&g);
+                    println!("{:?}", c.xyz);
                     *world.lock_unsafe(false).unwrap().chunks.chunks[21].as_mut().unwrap() = Box::new(c);
                 }
 

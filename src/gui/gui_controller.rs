@@ -84,12 +84,12 @@ impl GuiController {
         if !self.is_ui {return self}
         let mut task: Option<Task> = None;
         let inventory = player.inventory();
-        let storage = player.open_storage.as_mut().map(|op| op.upgrade().unwrap());
+        let storage = player.open_storage.as_mut().and_then(|op| op.upgrade().map(|s| s));
         egui::Area::new("hotbar_area")
             .anchor(Align2::CENTER_BOTTOM, vec2(1.0, -1.0))
             .show(ctx, |ui| {
                 ui.set_visible(self.is_ui);
-                let storage = player.open_storage.as_mut().map(|op| op.upgrade().unwrap());
+                let storage = player.open_storage.as_mut().and_then(|op| op.upgrade().map(|s| s));
                 
                 ui.horizontal_top(|ui| {
                     for (i, item) in player.inventory().clone().lock().unwrap().storage().iter().take(10).enumerate() {
@@ -109,7 +109,9 @@ impl GuiController {
             .show(ctx, |ui| {
                 ui.set_visible(self.is_ui & self.is_inventory);
                 if let Some(storage) = &player.open_storage {
-                    storage.upgrade().unwrap().lock().unwrap().draw(ui, self.items_atlas.clone(), inventory.clone());
+                    if let Some(up) = storage.upgrade() {
+                        up.lock().unwrap().draw(ui, self.items_atlas.clone(), inventory.clone());
+                    }
                 }
                 let inventory_len = inventory.clone().lock().unwrap().storage().len();
                 ui.horizontal(|ui| {        

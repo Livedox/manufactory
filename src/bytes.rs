@@ -19,6 +19,28 @@ pub trait NumFromBytes {
     fn from_bytes(data: &[u8]) -> Self;
 }
 
+impl NumFromBytes for i8 {
+    fn from_bytes(data: &[u8]) -> Self {
+        assert!(data.len() == 1);
+        unsafe {
+            i8::from_le_bytes([*data.get_unchecked(0)])
+        }
+    }
+}
+
+impl NumFromBytes for f32 {
+    fn from_bytes(data: &[u8]) -> Self {
+        assert!(data.len() == 4);
+        unsafe {
+            f32::from_le_bytes([
+                *data.get_unchecked(0),
+                *data.get_unchecked(1),
+                *data.get_unchecked(2),
+                *data.get_unchecked(3)])
+        }
+    }
+}
+
 impl NumFromBytes for i32 {
     fn from_bytes(data: &[u8]) -> Self {
         assert!(data.len() == 4);

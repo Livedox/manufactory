@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::{recipes::{item::PossibleItem, storage::Storage}, gui::{draw::Draw, my_widgets::inventory_slot::inventory_slot}, player::inventory::PlayerInventory, engine::texture::TextureAtlas};
+use crate::{recipes::{item::PossibleItem, storage::Storage}, gui::{draw::Draw, my_widgets::inventory_slot::inventory_slot}, player::inventory::PlayerInventory, engine::texture::TextureAtlas, bytes::DynByteInterpretation};
 
 use super::DrawStorage;
 
@@ -57,3 +57,12 @@ impl Draw for VoxelBox {
 }
 
 impl DrawStorage for VoxelBox {}
+
+impl DynByteInterpretation for VoxelBox {
+    fn from_bytes(data: &[u8]) -> Self {
+        Self {storage: <[PossibleItem; 30]>::from_bytes(&data[..])}
+    }
+    fn to_bytes(&self) -> Box<[u8]> {
+        self.storage.to_bytes()
+    }
+}
