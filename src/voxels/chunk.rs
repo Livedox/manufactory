@@ -1,10 +1,11 @@
-use std::{collections::HashMap, rc::Rc, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}}, cell::UnsafeCell, ops::{Deref, DerefMut}};
+use std::{collections::HashMap, rc::Rc, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}}, cell::UnsafeCell, ops::{Deref, DerefMut}, time::{SystemTime, UNIX_EPOCH}, io::Cursor, mem::MaybeUninit};
 
 use itertools::iproduct;
 
-use crate::{light::light_map::LightMap, direction::Direction, world::{local_coords::LocalCoords, chunk_coords::ChunkCoords, global_coords::GlobalCoords}};
+use crate::{light::light_map::LightMap, direction::Direction, world::{local_coords::LocalCoords, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, GAME_VERSION, bytes::{ConstByteInterpretation, DynByteInterpretation, any_as_u8_slice}};
 
 use super::{voxel::{self, Voxel}, voxel_data::{VoxelData, VoxelAdditionalData}, chunks::Chunks, block::blocks::BLOCKS};
+use crate::bytes::NumFromBytes;
 
 pub const CHUNK_SIZE: usize = 32;
 pub const HALF_CHUNK_SIZE: usize = CHUNK_SIZE/2;
@@ -122,6 +123,57 @@ impl Chunk {
     }
 }
 
+
+impl ConstByteInterpretation for [Voxel; CHUNK_VOLUME] {
+    fn from_bytes(data: &[u8]) -> Self {
+        let mut v: [MaybeUninit<Voxel>; CHUNK_VOLUME] = unsafe {
+            MaybeUninit::uninit().assume_init()
+        };
+        for (i, elem) in v[..].iter_mut().enumerate() {
+            elem.write(Voxel::from_bytes(&data[4*i..(4*i+4)]));
+        }
+
+        unsafe { std::mem::transmute::<_, [Voxel; CHUNK_VOLUME]>(v) }
+    }
+
+    fn to_bytes(&self) -> Box<[u8]> {
+        unsafe { any_as_u8_slice(self) }.into()
+        // let mut v = Vec::with_capacity(std::mem::size_of::<Self>());
+        // for vox in self.iter() {
+        //     v.extend(vox.to_bytes().as_ref());
+        // }
+        // v.into()
+    }
+
+    fn size(&self) -> u32 {
+        32*CHUNK_VOLUME as u32
+    }
+}
+
+impl DynByteInterpretation for Chunk {
+    fn to_bytes(&self) -> Box<[u8]> {
+        let now: u64 = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+        let mut v = Vec::new();
+        v.extend(GAME_VERSION.to_le_bytes());
+        v.extend(now.to_le_bytes());
+        v.extend(self.xyz.to_bytes().as_ref());
+        v.extend(self.voxels.to_bytes().as_ref());
+        v.into()
+    }
+    fn from_bytes(data: &[u8]) -> Self {
+        let game_version = u32::from_bytes(&data[0..4]);
+        let time = u64::from_bytes(&data[4..12]);
+        let xyz: ChunkCoords = ChunkCoords::from_bytes(&data[12..24]);
+        let voxels = <[Voxel; CHUNK_VOLUME]>::from_bytes(&data[24..]);
+        Self {
+            voxels,
+            voxels_data: HashMap::new(),
+            modified: AtomicBool::new(true),
+            lightmap: LightMap::new(),
+            xyz: xyz,
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {

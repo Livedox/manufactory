@@ -9,9 +9,10 @@ use input_event::KeypressState;
 use meshes::{MeshesRenderInput, Meshes};
 use player::player::Player;
 use recipes::{storage::Storage, item::Item};
+use save_load::{save_chunk, load_chunk};
 use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}, SyncUnsafeWorldCell};
-use crate::{voxels::chunk::HALF_CHUNK_SIZE, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}};
+use crate::{voxels::chunk::{HALF_CHUNK_SIZE, Chunk}, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, bytes::DynByteInterpretation};
 use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::{blocks::BLOCKS, block_type::BlockType}};
 
 use winit::{
@@ -41,6 +42,10 @@ mod macros;
 mod threads;
 mod unsafe_mutex;
 mod engine;
+mod save_load;
+mod bytes;
+
+const GAME_VERSION: u32 = 1;
 
 const RENDER_DISTANCE: i32 = 6;
 const HALF_RENDER_DISTANCE: i32 = RENDER_DISTANCE / 2;
@@ -107,10 +112,8 @@ pub async fn main() {
     _ = inventory.add_by_index(&Item::new(2, 100), 12);
     _ = inventory.add_by_index(&Item::new(3, 100), 13);
     drop(inventory);
-
     let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
     let world = Arc::new(UnsafeMutex::new(World::new(RENDER_DISTANCE, WORLD_HEIGHT as i32, RENDER_DISTANCE, -HALF_RENDER_DISTANCE, 0, -HALF_RENDER_DISTANCE)));
-
 
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
     threads::world_loader::spawn(world.clone(), player_coords.clone());
@@ -178,6 +181,27 @@ pub async fn main() {
                     gui_controller.set_cursor_lock(!gui_controller.is_cursor());
                     state.set_ui_interaction(gui_controller.is_cursor());
                     if !gui_controller.toggle_inventory() {player.open_storage = None};
+                }
+
+                if input.is_key(&Key::F2, KeypressState::AnyJustPress) {
+                    let now = Instant::now();
+                    let mut a: i32 = 0;
+                    for _ in 0..1000 {
+                        let g = world.lock_unsafe(false).unwrap().chunks.chunks[0].as_ref().unwrap().to_bytes();
+                        a += g[0] as i32;
+                    }
+                    println!("{a} {:?}", now.elapsed().as_secs_f32());
+                }
+
+                if input.is_key(&Key::F3, KeypressState::AnyJustPress) {
+                    let g = world.lock_unsafe(false).unwrap().chunks.chunks[21].as_ref().unwrap().to_bytes();
+                    save_chunk(g.as_ref());
+                }
+
+                if input.is_key(&Key::F4, KeypressState::AnyJustPress) {
+                    let g = load_chunk();
+                    let c = Chunk::from_bytes(&g);
+                    *world.lock_unsafe(false).unwrap().chunks.chunks[21].as_mut().unwrap() = Box::new(c);
                 }
 
                 if input.is_key(&Key::F1, KeypressState::AnyJustPress) {
