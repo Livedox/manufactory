@@ -26,34 +26,28 @@ impl Manipulator {
         if self.item_id.is_none() && self.start_time.is_none() && return_time {
             let src_coords = GlobalCoords(coords.0 - self.direction[0] as i32, coords.1, coords.2 - self.direction[2] as i32);
             let src = unsafe {
-                chunks.as_mut().expect("Chunks don't exist").mut_chunk(src_coords)
+                chunks.as_mut().expect("Chunks don't exist")
             };
-            if let Some(src_chunk) = src {
-                let Some(src_data) = src_chunk.mut_voxel_data(src_coords.into()) else {return};
-                let Some(storage) = src_data.additionally.storage() else {return};
-                if let Some(item) = storage.lock().unwrap().take_first_existing(1) {
-                    self.item_id = Some(item.0.id());
-                    self.start_time = Some(Instant::now());
-                    self.return_time = None;
-                };
-            }
+            let Some(storage) = src.mut_voxel_data(src_coords).and_then(|vd| vd.additionally.storage()) else {return};
+            if let Some(item) = storage.lock().unwrap().take_first_existing(1) {
+                self.item_id = Some(item.0.id());
+                self.start_time = Some(Instant::now());
+                self.return_time = None;
+            };
         }
         
         let start_time = self.start_time.map_or(true, |rt| rt.elapsed() >= (Self::SPEED/2));
         if self.item_id.is_some() && start_time {
             let dst_coords = GlobalCoords(coords.0 + self.direction[0] as i32, coords.1, coords.2 + self.direction[2] as i32);
             let dst = unsafe {
-                chunks.as_mut().expect("Chunks don't exist").mut_chunk(dst_coords)
+                chunks.as_mut().expect("Chunks don't exist")
             };
-            if let Some(dst_chunk) = dst {
-                let Some(dst_data) = dst_chunk.mut_voxel_data(dst_coords.into()) else {return};
-                let Some(storage) = dst_data.additionally.storage() else {return};
-                let result = storage.lock().unwrap().add(&Item::new(self.item_id.unwrap(), 1), false).is_none();
-                if result {
-                    self.item_id = None;
-                    self.start_time = None;
-                    self.return_time = Some(Instant::now());
-                }
+            let Some(storage) = dst.mut_voxel_data(dst_coords).and_then(|vd| vd.additionally.storage()) else {return};
+            let result = storage.lock().unwrap().add(&Item::new(self.item_id.unwrap(), 1), false).is_none();
+            if result {
+                self.item_id = None;
+                self.start_time = None;
+                self.return_time = Some(Instant::now());
             }
         }
     }

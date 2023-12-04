@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::{Rc}, time::{Duration, Instant}, sync::{Arc, Mutex, Weak}};
 use crate::{direction::Direction, voxels::chunk::Chunk, recipes::{recipe::ActiveRecipe, storage::Storage, item::{PossibleItem, Item}, recipes::RECIPES}, world::{global_coords::GlobalCoords, local_coords::LocalCoords}, gui::draw::Draw, bytes::{DynByteInterpretation, ConstByteInterpretation}};
-use self::{voxel_box::VoxelBox, furnace::Furnace, drill::Drill, cowboy::Cowboy, assembling_machine::AssemblingMachine, transport_belt::TransportBelt, manipulator::Manipulator};
+use self::{voxel_box::VoxelBox, furnace::Furnace, drill::Drill, cowboy::Cowboy, assembling_machine::AssemblingMachine, transport_belt::TransportBelt, manipulator::Manipulator, multiblock::MultiBlock};
 
 use super::{chunks::Chunks, block::blocks::BLOCKS};
 use crate::bytes::NumFromBytes;
@@ -43,6 +43,7 @@ impl VoxelData {
 #[derive(Debug)]
 pub enum VoxelAdditionalData {
     Empty,
+    MultiBlockPart(GlobalCoords),
     Manipulator(Box<Mutex<Manipulator>>),
     Cowboy(Box<Mutex<Cowboy>>),
     VoxelBox(Arc<Mutex<VoxelBox>>),
@@ -100,7 +101,7 @@ impl VoxelAdditionalData {
             Self::Furnace(f) => f.lock().unwrap().update(),
             Self::AssemblingMachine(a) => a.lock().unwrap().update(),
             Self::TransportBelt(c) => c.lock().unwrap().update(coords, chunks),
-            Self::Empty | Self::VoxelBox(_) | Self::Cowboy(_) => (),
+            Self::Empty | Self::VoxelBox(_) | Self::Cowboy(_) | Self::MultiBlockPart(_) => (),
         }
     }
 
@@ -110,7 +111,8 @@ impl VoxelAdditionalData {
             Self::Manipulator(o)=> Some(o.lock().unwrap().animation_progress()),
             Self::Cowboy(o) => Some(o.lock().unwrap().animation_progress()),
             Self::Empty | Self::VoxelBox(_) | Self::Furnace(_) |
-            Self::Drill(_) | Self::AssemblingMachine(_) | Self::TransportBelt(_) => None,
+            Self::Drill(_) | Self::AssemblingMachine(_) | Self::TransportBelt(_) |
+            Self::MultiBlockPart(_) => None,
         }
     }
 
@@ -120,6 +122,15 @@ impl VoxelAdditionalData {
             Self::Manipulator(o) => {Some(o.lock().unwrap().rotation_index())},
             Self::TransportBelt(o) => {Some(o.lock().unwrap().rotation_index())},
             Self::Drill(o) => {Some(o.lock().unwrap().rotation_index())},
+            _ => None,
+        }
+    }
+
+
+    pub fn structure_coordinates(&self) -> Option<Vec<GlobalCoords>> {
+        match self {
+            VoxelAdditionalData::Drill(d) => Some(Vec::from(d.lock().unwrap().structure_coordinates())),
+            VoxelAdditionalData::AssemblingMachine(d) => Some(Vec::from(d.lock().unwrap().structure_coordinates())),
             _ => None,
         }
     }
@@ -148,11 +159,13 @@ impl DynByteInterpretation for VoxelAdditionalData {
     fn to_bytes(&self) -> Box<[u8]> {
         match self {
             Self::Empty => Box::new([]),
+            Self::MultiBlockPart(b) => {b.to_bytes()},
             Self::VoxelBox(b) => {b.lock().unwrap().to_bytes()},
             Self::Furnace(b) => {b.lock().unwrap().to_bytes()},
             Self::Manipulator(b) => {b.lock().unwrap().to_bytes()},
             Self::Cowboy(b) => {b.lock().unwrap().to_bytes()},
             Self::TransportBelt(b) => {b.lock().unwrap().to_bytes()},
+            Self::Drill(b) => {b.lock().unwrap().to_bytes()},
             _ => unimplemented!(),
         }
     }
@@ -161,11 +174,14 @@ impl DynByteInterpretation for VoxelAdditionalData {
         let id = u32::from_bytes(&data[0..4]);
         let len = u32::from_bytes(&data[4..8]) as usize + 8;
         match id {
+            1 => {Self::MultiBlockPart(GlobalCoords::from_bytes(&data[8..len]))},
             9 => {Self::Manipulator(Box::new(Mutex::new(Manipulator::from_bytes(&data[8..len]))))},
             12 => {Self::Cowboy(Box::new(Mutex::new(Cowboy::from_bytes(&data[8..len]))))},
             13 => {Self::VoxelBox(Arc::new(Mutex::new(VoxelBox::from_bytes(&data[8..len]))))},
             14 => {Self::Furnace(Arc::new(Mutex::new(Furnace::from_bytes(&data[8..len]))))},
             17 => {Self::TransportBelt(Arc::new(Mutex::new(TransportBelt::from_bytes(&data[8..len]))))},
+
+            15 => {Self::Drill(Arc::new(Mutex::new(Drill::from_bytes(&data[8..len]))))},
             _ => unimplemented!(),
         }
     }

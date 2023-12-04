@@ -58,8 +58,7 @@ impl TransportBelt {
         let dst_coords = GlobalCoords(coords.0+self.direction[0] as i32, coords.1, coords.2+self.direction[2] as i32);
         let Some(dst) = (unsafe {
             chunks.as_mut().expect("Chunks don't exist")
-                .mut_chunk(dst_coords)
-                .and_then(|chunk| chunk.mut_voxel_data(dst_coords.into()))
+                .mut_voxel_data(dst_coords)
                 .and_then(|voxel_data| voxel_data.additionally.transport_belt())
         }) else {return};
         

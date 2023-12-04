@@ -13,7 +13,7 @@ use save_load::{save_chunk, load_chunk};
 use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}, SyncUnsafeWorldCell};
 use crate::{voxels::chunk::{HALF_CHUNK_SIZE, Chunk}, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, bytes::DynByteInterpretation};
-use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::{blocks::BLOCKS, block_type::BlockType}};
+use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::{blocks::BLOCKS, block_type::BlockType}, voxel_data::{VoxelAdditionalData, multiblock::MultiBlock}};
 
 use winit::{
     event::*,
@@ -114,7 +114,6 @@ pub async fn main() {
     drop(inventory);
     let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
     let world = Arc::new(UnsafeMutex::new(World::new(RENDER_DISTANCE, WORLD_HEIGHT as i32, RENDER_DISTANCE, -HALF_RENDER_DISTANCE, 0, -HALF_RENDER_DISTANCE)));
-
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
     threads::world_loader::spawn(world.clone(), player_coords.clone());
     threads::renderer::spawn(world.clone(), player_coords.clone(), render_result.clone());

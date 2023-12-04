@@ -202,6 +202,33 @@ impl Chunks {
         self.mut_chunk(coords).map(|c| c.mut_voxels_data())
     }
 
+    pub fn voxel_data(&self, gc: GlobalCoords) -> Option<&VoxelData> {
+        let voxel_data = self.voxels_data(gc).and_then(|vd| vd.get(&LocalCoords::from(gc).index()));
+        let Some(VoxelAdditionalData::MultiBlockPart(gc)) = voxel_data.as_ref().map(|vd| vd.additionally.as_ref()) else {
+            return voxel_data;
+        };
+        return self.voxels_data(*gc).and_then(|vd| vd.get(&LocalCoords::from(*gc).index()));
+    }
+
+    pub fn mut_voxel_data(&mut self, gc: GlobalCoords) -> Option<&mut VoxelData> {
+        let self_ptr = self as *mut Self;
+        let voxel_data = self.mut_voxels_data(gc).and_then(|vd| vd.get_mut(&LocalCoords::from(gc).index()));
+        let Some(VoxelAdditionalData::MultiBlockPart(gc)) = voxel_data.as_ref().map(|vd| vd.additionally.as_ref()) else {
+            return voxel_data;
+        };
+        // It's safe
+        return unsafe{&mut *(self_ptr)}.mut_voxels_data(*gc).and_then(|vd| vd.get_mut(&LocalCoords::from(*gc).index()));
+    }
+
+    pub fn set_additional_voxel_data(&mut self, id: u32, gc: GlobalCoords, ad: Arc<VoxelAdditionalData>) {
+        let local: LocalCoords = gc.into();
+        let vd = self.mut_voxels_data(gc);
+
+        if let Some(vd) = vd {
+            vd.insert(local.index(), VoxelData { id, global_coords: gc, additionally: ad });
+        }
+    }
+
 
     pub fn add_multiblock_structure(&mut self, xyz: &GlobalCoords, width: i32, height: i32, depth: i32, id: u32, dir: &Direction) -> Option<Vec<GlobalCoords>> {
         let mut coords: Vec<GlobalCoords> = vec![];
@@ -228,16 +255,21 @@ impl Chunks {
             coords.push((nx, ny, nz).into());
         }
 
-        
-        let voxel_additional_data = Arc::new(VoxelAdditionalData::new_multiblock(id, dir, coords.clone()));
-        coords.iter().enumerate().for_each(|(index, coord)| {
-            let id = if index == 0 {id} else {1};
-            self.set(*coord, id, None);
+        self.set(coords[0], id, None);
+        let voxels_data = self.mut_voxels_data(coords[0]).unwrap();
+        voxels_data.insert(LocalCoords::from(coords[0]).index(), VoxelData {
+            id,
+            global_coords: coords[0],
+            additionally: Arc::new(VoxelAdditionalData::new_multiblock(id, dir, coords.clone())),
+        });
+        drop(voxels_data);
+        coords.iter().skip(1).enumerate().for_each(|(index, coord)| {
+            self.set(*coord, 1, None);
             let voxels_data = self.mut_voxels_data(*coord).unwrap();
             voxels_data.insert(LocalCoords::from(*coord).index(), VoxelData {
-                id,
+                id: 1,
                 global_coords: *coord,
-                additionally: voxel_additional_data.clone()
+                additionally: Arc::new(VoxelAdditionalData::MultiBlockPart(coords[0])),
             });
         });
         Some(coords)
@@ -245,8 +277,7 @@ impl Chunks {
 
 
     pub fn remove_multiblock_structure(&mut self, global: GlobalCoords) -> Option<Vec<GlobalCoords>> {
-        let Some(voxels_data) = self.voxels_data(global) else {return None};
-        let Some(voxel_data) = voxels_data.get(&LocalCoords::from(global).index()) else {return None};
+        let Some(voxel_data) = self.voxel_data(global) else {return None};
         let mut coords: Vec<GlobalCoords> = vec![];
         match &voxel_data.additionally.as_ref() {
             VoxelAdditionalData::Drill(drill) => {
