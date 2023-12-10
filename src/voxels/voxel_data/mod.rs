@@ -166,6 +166,7 @@ impl DynByteInterpretation for VoxelAdditionalData {
             Self::Cowboy(b) => {b.lock().unwrap().to_bytes()},
             Self::TransportBelt(b) => {b.lock().unwrap().to_bytes()},
             Self::Drill(b) => {b.lock().unwrap().to_bytes()},
+            Self::AssemblingMachine(b) => {b.lock().unwrap().to_bytes()},
             _ => unimplemented!(),
         }
     }
@@ -181,6 +182,7 @@ impl DynByteInterpretation for VoxelAdditionalData {
             14 => {Self::Furnace(Arc::new(Mutex::new(Furnace::from_bytes(&data[8..len]))))},
             17 => {Self::TransportBelt(Arc::new(Mutex::new(TransportBelt::from_bytes(&data[8..len]))))},
 
+            16 => {Self::AssemblingMachine(Arc::new(Mutex::new(AssemblingMachine::from_bytes(&data[8..len]))))},
             15 => {Self::Drill(Arc::new(Mutex::new(Drill::from_bytes(&data[8..len]))))},
             _ => unimplemented!(),
         }

@@ -4,20 +4,20 @@ var<uniform> sun: vec3<f32>;
 struct CameraUniform {
     proj_view: mat4x4<f32>,
 };
-@group(2) @binding(0) // 1.
+@group(2) @binding(0)
 var<uniform> camera: CameraUniform;
 
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) uv: vec2<f32>,
-    @location(2) layer: f32,
+    @location(2) layer: u32,
     @location(3) light: vec4<f32>,
 }
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) uv: vec2<f32>,
-    @location(1) layer: f32,
+    @location(1) layer: u32,
     @location(2) light: vec4<f32>,
 }
 
@@ -26,8 +26,13 @@ fn vs_main(
     model: VertexInput,
 ) -> VertexOutput {
     let light = max(sun*model.light.a/1.7, model.light.rgb);
+    var position = camera.proj_view*vec4<f32>(model.position, 1.0);
+    // This fix z-fighting and need to fix this
+    // https://stackoverflow.com/questions/39958039/where-do-pixel-gaps-come-from-in-opengl
+    // model.layer & 255 == model.layer % 256
+    position.z += f32(model.layer & 255u) / 1000000.0;
     return VertexOutput(
-        camera.proj_view*vec4<f32>(model.position, 1.0),
+        position,
         model.uv,
         model.layer,
         vec4(light, 1.0));
@@ -41,7 +46,7 @@ var s_diffuse: sampler;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let texture = textureSample(t_diffuse, s_diffuse, in.uv, u32(in.layer));
+    let texture = textureSample(t_diffuse, s_diffuse, in.uv, in.layer);
     let ambient = vec4(0.1, 0.1, 0.1, 0.0);
     return (ambient + in.light) * texture;
 }

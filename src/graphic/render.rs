@@ -11,12 +11,16 @@ use std::{collections::HashMap, sync::{Arc, Mutex}};
 use crate::{voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType, light_permeability::LightPermeability}}, engine::vertices::block_vertex::BlockVertex, world::{World, chunk_coords::ChunkCoords}, engine::pipeline::IS_LINE};
 
 use super::complex_object::{ComplexObjectPart, ComplexObjectSide};
+// Fix pixel gaps 
+//     More number => less pixel gaps
+//     Smaller number => more artifacts associated with block enlargement
+// https://stackoverflow.com/questions/39958039/where-do-pixel-gaps-come-from-in-opengl
+const STITCHING_COEFFICIENT: f32 = 0.0014; //0.0025
 
 type GreedyVertices = [[Vec<[BlockVertex; 4]>; CHUNK_SIZE]; CHUNK_SIZE];
 struct GreedMesh {
     greed_vertices: GreedyVertices,
 }
-
 impl GreedMesh {
     pub fn new() -> Self { Self {greed_vertices: Default::default()} }
 
@@ -27,6 +31,68 @@ impl GreedMesh {
     pub fn greed(&mut self, buffer: &mut Buffer, axis: &Axis, triangle_indices: &[usize]) {
         self.raw_greed(axis, Direction::Top);
         self.raw_greed(axis, Direction::Left);
+
+        match axis {
+            Axis::X => {
+                self.greed_vertices.iter_mut().for_each(|gv| {
+                    gv.iter_mut().for_each(|v| {
+                        v.iter_mut().for_each(|vertices| {
+                            vertices[0].position[1] -= STITCHING_COEFFICIENT;
+                            vertices[0].position[2] -= STITCHING_COEFFICIENT;
+
+                            vertices[1].position[1] += STITCHING_COEFFICIENT;
+                            vertices[1].position[2] -= STITCHING_COEFFICIENT;
+
+                            vertices[2].position[1] += STITCHING_COEFFICIENT;
+                            vertices[2].position[2] += STITCHING_COEFFICIENT;
+
+                            vertices[3].position[1] -= STITCHING_COEFFICIENT;
+                            vertices[3].position[2] += STITCHING_COEFFICIENT;
+
+                        });
+                    });
+                });
+            },
+            Axis::Y => {
+                self.greed_vertices.iter_mut().for_each(|gv| {
+                    gv.iter_mut().for_each(|v| {
+                        v.iter_mut().for_each(|vertices| {
+                            vertices[0].position[0] -= STITCHING_COEFFICIENT;
+                            vertices[0].position[2] -= STITCHING_COEFFICIENT;
+
+                            vertices[1].position[0] -= STITCHING_COEFFICIENT;
+                            vertices[1].position[2] += STITCHING_COEFFICIENT;
+
+                            vertices[2].position[0] += STITCHING_COEFFICIENT;
+                            vertices[2].position[2] += STITCHING_COEFFICIENT;
+
+                            vertices[3].position[0] += STITCHING_COEFFICIENT;
+                            vertices[3].position[2] -= STITCHING_COEFFICIENT;
+                        });
+                    });
+                });
+            },
+            Axis::Z => {
+                self.greed_vertices.iter_mut().for_each(|gv| {
+                    gv.iter_mut().for_each(|v| {
+                        v.iter_mut().for_each(|vertices| {
+                            vertices[0].position[0] -= STITCHING_COEFFICIENT;
+                            vertices[0].position[1] -= STITCHING_COEFFICIENT;
+
+                            vertices[1].position[0] += STITCHING_COEFFICIENT;
+                            vertices[1].position[1] -= STITCHING_COEFFICIENT;
+
+                            vertices[2].position[0] += STITCHING_COEFFICIENT;
+                            vertices[2].position[1] += STITCHING_COEFFICIENT;
+                            
+                            vertices[3].position[0] -= STITCHING_COEFFICIENT;
+                            vertices[3].position[1] += STITCHING_COEFFICIENT;
+
+                        });
+                    });
+                });
+            },
+        }
         buffer.manage_greedy_vertices(&self.greed_vertices, triangle_indices);
     }
 
@@ -102,7 +168,7 @@ fn get_block_vertex(x: f32, y: f32, z: f32, u: f32, v: f32, layer: f32, light: &
     BlockVertex {
         position: [x, y, z],
         uv: [u, v],
-        layer,
+        layer: layer as u32,
         v_light: [light[0], light[1], light[2], light[3]]}
 }
 
@@ -116,7 +182,7 @@ impl Buffer {
             BlockVertex {
                 position: [x, y, z],
                 uv: [u, v],
-                layer,
+                layer: layer as u32,
                 v_light: [light[0], light[1], light[2], light[3]]});
         self.index_buffer.push(current_index);
         current_index
@@ -237,6 +303,9 @@ pub struct RenderResult {
 
 
 pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
+    // TODO
+    // Fix small pixel gaps
+    // https://stackoverflow.com/questions/39958039/where-do-pixel-gaps-come-from-in-opengl
     let chunks = &world.chunks;
     let mut buffer = Buffer::new();
 
@@ -245,7 +314,6 @@ pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
     let Some(Some(chunk)) = chunks.chunks.get(chunk_index).map(|c| c.as_ref()) else {return None};
     let mut models = HashMap::<String, Vec<ModelRenderResult>>::new();
     let mut animated_models_data = HashMap::<String, Vec<AnimatedModelRenderResult>>::new();
-
     for ly in 0..CHUNK_SIZE {
         let mut greedy_vertices_top = GreedMesh::new();
         let mut greedy_vertices_bottom = GreedMesh::new();
@@ -339,12 +407,6 @@ pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
                         get_block_vertex(gpx, gpy, gpz, 1., 1., layer, &l2),
                         get_block_vertex(gpx, gpy, gmz, 1., 0., layer, &l3)
                     ], &[3,2,0,2,1,0]);
-                    // greedy_vertices_top.push(lz, lx, [
-                    //     get_block_vertex(gmx, gpy, gmz, 0., 0., layer, &l0),
-                    //     get_block_vertex(gmx, gpy, gpz, 0., 1., layer, &l1),
-                    //     get_block_vertex(gpx, gpy, gpz, 1., 1., layer, &l2),
-                    //     get_block_vertex(gpx, gpy, gmz, 1., 0., layer, &l3)
-                    // ]);
                 }
                 if !is_blocked(x, y-1, z, chunks, LightPermeability::DOWN, block.light_permeability()) {
                     let layer = faces[2] as f32;

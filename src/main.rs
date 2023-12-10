@@ -47,7 +47,7 @@ mod bytes;
 
 const GAME_VERSION: u32 = 1;
 
-const RENDER_DISTANCE: i32 = 6;
+const RENDER_DISTANCE: i32 = 30;
 const HALF_RENDER_DISTANCE: i32 = RENDER_DISTANCE / 2;
 
 pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
@@ -261,13 +261,9 @@ pub async fn main() {
                         BLOCKS()[voxel_id as usize].on_block_break(&mut world_g, &mut player, &(x, y, z).into());
                     } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !gui_controller.is_cursor() {
                         let gxyz = GlobalCoords(x+norm.x as i32, y+norm.y as i32, z+norm.z as i32);
-                        if voxel_id == 13 || voxel_id == 14 || voxel_id == 1 || voxel_id == 16 {
-                            let chunk = world_g.chunks.mut_chunk(chunk_coords);
-                            let voxel_data = chunk.unwrap().mut_voxel_data(local_coords);
-                            if let Some(storage) = voxel_data.and_then(|vd| vd.player_unlockable()) {
-                                gui_controller.set_inventory(true);
-                                player.open_storage = Some(storage);
-                            }
+                        if let Some(storage) = world_g.chunks.voxel_data(global_coords).and_then(|vd| vd.player_unlockable()) {
+                            gui_controller.set_inventory(true);
+                            player.open_storage = Some(storage);
                         } else {
                             let front = camera.front();
                             if let Some(block_id) = debug_block_id {

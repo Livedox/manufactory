@@ -88,7 +88,7 @@ impl DynByteInterpretation for Drill {
         let dir = [data[0] as i8, data[1] as i8, data[2] as i8];
         let s_len = u32::from_bytes(&data[3..7]) as usize;
         let s = <[PossibleItem; 1]>::from_bytes(&data[7..7+s_len]);
-        let sc_len = u32::from_bytes(&data[7+s_len..7+s_len+4]);
+        let _sc_len = u32::from_bytes(&data[7+s_len..7+s_len+4]);
 
         let mut sc = vec![];
         for d in data[7+s_len+4..].chunks(12) {

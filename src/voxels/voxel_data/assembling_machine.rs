@@ -1,9 +1,10 @@
 use std::sync::{Arc, Mutex};
 
-use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage, recipe::{Recipe, ActiveRecipe}, recipes::RECIPES}, world::global_coords::GlobalCoords, gui::{draw::Draw, my_widgets::{assembling_machine_slot::assembling_machine_slot, recipe::recipe}}, player::inventory::PlayerInventory, engine::texture::TextureAtlas};
+use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage, recipe::{Recipe, ActiveRecipe}, recipes::RECIPES}, world::global_coords::GlobalCoords, gui::{draw::Draw, my_widgets::{assembling_machine_slot::assembling_machine_slot, recipe::recipe}}, player::inventory::PlayerInventory, engine::texture::TextureAtlas, bytes::{DynByteInterpretation, ConstByteInterpretation}};
 use crate::gui::my_widgets::container::container;
 
 use super::{multiblock::MultiBlock, DrawStorage};
+use crate::bytes::NumFromBytes;
 
 const INGREDIENT_LENGTH: usize = 3;
 const RESULT_LENGTH: usize = 1;
@@ -165,3 +166,57 @@ impl Draw for AssemblingMachine {
 }
 
 impl DrawStorage for AssemblingMachine {}
+
+impl DynByteInterpretation for AssemblingMachine {
+    fn from_bytes(data: &[u8]) -> Self {
+        let selected_recipe_id = u32::from_bytes(&data[0..4]);
+        let selected_recipe = if selected_recipe_id != u32::MAX {
+            Some(&RECIPES().all[selected_recipe_id as usize])
+        } else {
+            None
+        };
+        let active_recipe_id = u32::from_bytes(&data[4..8]);
+        let active_recipe = if active_recipe_id != u32::MAX {
+            Some(RECIPES().all[active_recipe_id as usize].start_absolute())
+        } else {
+            None
+        };
+        let s_len = u32::from_bytes(&data[8..12]) as usize;
+        let s = <[PossibleItem; TOTAL_LENGTH]>::from_bytes(&data[12..12+s_len]);
+
+        let _sc_len = u32::from_bytes(&data[12+s_len..12+s_len+4]);
+
+        let mut sc = vec![];
+        for d in data[12+s_len+4..].chunks(12) {
+            sc.push(GlobalCoords::from_bytes(d));
+        }
+
+        Self {
+            selected_recipe,
+            active_recipe,
+            storage: s,
+            structure_coordinates: sc,
+        }
+    }
+    fn to_bytes(&self) -> Box<[u8]> {
+        let mut v = Vec::new();
+        let selected_recipe_id = self.selected_recipe.map(|r| r.id).unwrap_or(u32::MAX);
+        let active_recipe_id = self.active_recipe.as_ref().map(|r| r.recipe.id).unwrap_or(u32::MAX);
+
+        let storage = self.storage.to_bytes();
+        let storage_len = storage.len() as u32;
+        let sc_len = (self.structure_coordinates.len() * 12) as u32;
+        let mut sc = Vec::<u8>::new();
+        for gc in &self.structure_coordinates {
+            sc.extend(gc.to_bytes().as_ref());
+        }
+
+        v.extend(selected_recipe_id.to_le_bytes());
+        v.extend(active_recipe_id.to_le_bytes());
+        v.extend(storage_len.to_le_bytes());
+        v.extend(storage.as_ref());
+        v.extend(sc_len.to_le_bytes());
+        v.extend(sc);
+        v.into()
+    }
+}
