@@ -203,7 +203,6 @@ impl DynByteInterpretation for Chunk {
     fn to_bytes(&self) -> Box<[u8]> {
         let now: u64 = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
         let mut v = Vec::new();
-        v.extend(GAME_VERSION.to_le_bytes());
         v.extend(now.to_le_bytes());
         v.extend((COMPRESSION_TYPE as u8).to_le_bytes());
         v.extend(self.xyz.to_bytes().as_ref());
@@ -218,17 +217,16 @@ impl DynByteInterpretation for Chunk {
         v.into()
     }
     fn from_bytes(data: &[u8]) -> Self {
-        let game_version = u32::from_bytes(&data[0..4]);
-        let time = u64::from_bytes(&data[4..12]);
-        let compression_type: CompressionType = data[13].into();
-        let xyz: ChunkCoords = ChunkCoords::from_bytes(&data[13..25]);
-        let len_v = u32::from_bytes(&data[25..29]) as usize;
+        let time = u64::from_bytes(&data[0..8]);
+        let compression_type: CompressionType = data[9].into();
+        let xyz: ChunkCoords = ChunkCoords::from_bytes(&data[9..21]);
+        let len_v = u32::from_bytes(&data[21..25]) as usize;
 
-        let voxels = <[Voxel; CHUNK_VOLUME]>::from_bytes(&data[29..29+len_v]);
+        let voxels = <[Voxel; CHUNK_VOLUME]>::from_bytes(&data[25..25+len_v]);
 
-        let len_vd = u32::from_bytes(&data[29+len_v..33+len_v]) as usize;
-        let vd = <HashMap::<usize, VoxelData>>::from_bytes(&data[33+len_v..33+len_v+len_vd]);
-        println!("{} {} {:?}", game_version, time, compression_type);
+        let len_vd = u32::from_bytes(&data[25+len_v..29+len_v]) as usize;
+        let vd = <HashMap::<usize, VoxelData>>::from_bytes(&data[29+len_v..29+len_v+len_vd]);
+        println!("{} {:?}", time, compression_type);
         Self {
             voxels,
             voxels_data: vd,
