@@ -1,6 +1,6 @@
 use std::{sync::{Mutex, Arc}, time::{Duration, Instant}, thread::{self, JoinHandle}};
 
-use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords, SyncUnsafeWorldCell}, graphic::render::{RenderResult, render}, unsafe_mutex::UnsafeMutex};
+use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, graphic::render::{RenderResult, render}, unsafe_mutex::UnsafeMutex};
 
 pub fn spawn(
     world: Arc<UnsafeMutex<World>>,

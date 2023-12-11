@@ -1,8 +1,8 @@
-use std::{collections::HashMap, rc::Rc, sync::{mpsc::{Receiver, Sender, self}, Arc}, array::IntoIter, time::Instant, cell::UnsafeCell};
+use std::{collections::HashMap, rc::Rc, sync::{mpsc::{Receiver, Sender, self}, Arc, Mutex}, array::IntoIter, time::Instant, cell::UnsafeCell};
 
 use itertools::iproduct;
 
-use crate::{engine::vertices::block_vertex, models::animated_model::AnimatedModel, direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, rev_qumark, vec_none};
+use crate::{engine::vertices::block_vertex, models::animated_model::AnimatedModel, direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, rev_qumark, vec_none, unsafe_mutex::UnsafeMutex, save_load::{WorldRegions, EncodedChunk}, bytes::DynByteInterpretation};
 
 use super::{chunk::{Chunk, CHUNK_SIZE, CHUNK_BIT_SHIFT}, voxel::Voxel, voxel_data::{VoxelAdditionalData, VoxelData, multiblock::MultiBlock}};
 
@@ -12,6 +12,7 @@ pub const WORLD_HEIGHT: usize = 256 / CHUNK_SIZE; // In chunks
 pub struct Chunks {
     pub is_translate: bool,
     pub chunks: Vec<Option<Box<Chunk>>>,
+    pub chunks_awaiting_deletion: Arc<Mutex<Vec<Box<Chunk>>>>,
     pub volume: i32,
     pub width: i32,
     pub height: i32,
@@ -32,6 +33,7 @@ impl Chunks {
         for _ in 0..volume { chunks.push(None); }
 
         Chunks {
+            chunks_awaiting_deletion: Arc::new(Mutex::new(Vec::new())),
             chunks,
             volume,
             width,
@@ -71,10 +73,29 @@ impl Chunks {
             indices.push((old_index, new_index));
             new_chunks[new_index] = self.chunks[old_index].take();
         }
+
+        for chunk in self.chunks.iter_mut() {
+            let Some(chunk) = chunk.take() else {continue};
+            if chunk.unsaved {self.chunks_awaiting_deletion.lock().unwrap().push(chunk)}
+        }
+
         self.chunks = new_chunks;
         self.ox = ox;
         self.oz = oz;
         indices
+    }
+
+
+    pub fn load_all(&mut self, world_regions: Arc<UnsafeMutex<WorldRegions>>) {
+        for (cy, cz, cx) in iproduct!(0..self.height, 0..self.depth, 0..self.width) {
+            let index = ChunkCoords(cx, cy, cz).index_without_offset(self.width, self.depth);
+            let Some(chunk) = self.chunks.get_mut(index) else {continue};
+            let mut world_regions = world_regions.lock_unsafe(false).unwrap();
+            *chunk = match world_regions.chunk(ChunkCoords(cx+self.ox, cy+self.oy, cz+self.oz)) {
+                EncodedChunk::None => Some(Box::new(Chunk::new(cx+self.ox, cy+self.oy, cz+self.oz))),
+                EncodedChunk::Some(b) => Some(Box::new(Chunk::from_bytes(b))),
+            }
+        }
     }
 
 
@@ -136,6 +157,7 @@ impl Chunks {
         let z_offset = (local.2 == (CHUNK_SIZE-1) as u8) as i32 - (local.2 == 0) as i32;
         chunk.set_voxel_id(local, id, direction);
         chunk.modify(true);
+        chunk.unsaved = true;
         
         if x_offset != 0 {
             if let Some(chunk) = self.mut_chunk((coords.0+x_offset, coords.1, coords.2)) {chunk.modify(true)};
@@ -263,7 +285,7 @@ impl Chunks {
             additionally: Arc::new(VoxelAdditionalData::new_multiblock(id, dir, coords.clone())),
         });
         drop(voxels_data);
-        coords.iter().skip(1).enumerate().for_each(|(index, coord)| {
+        coords.iter().skip(1).for_each(|coord| {
             self.set(*coord, 1, None);
             let voxels_data = self.mut_voxels_data(*coord).unwrap();
             voxels_data.insert(LocalCoords::from(*coord).index(), VoxelData {

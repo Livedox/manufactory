@@ -40,6 +40,7 @@ pub struct Chunk {
     pub voxels: [voxel::Voxel; CHUNK_VOLUME],
     pub voxels_data: HashMap<usize, VoxelData>,
     modified: AtomicBool,
+    pub unsaved: bool,
     pub lightmap: LightMap,
     pub xyz: ChunkCoords,
 }
@@ -76,6 +77,7 @@ impl Chunk {
             voxels,
             xyz: ChunkCoords(pos_x, pos_y, pos_z),
             voxels_data,
+            unsaved: true,
             modified: AtomicBool::new(true),
             lightmap: LightMap::new(),
         }
@@ -231,6 +233,7 @@ impl DynByteInterpretation for Chunk {
             voxels,
             voxels_data: vd,
             modified: AtomicBool::new(true),
+            unsaved: false,
             lightmap: LightMap::new(),
             xyz: xyz,
         }

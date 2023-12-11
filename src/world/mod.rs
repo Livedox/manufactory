@@ -13,28 +13,8 @@ pub mod coords;
 pub mod sun;
 
 
-pub struct SyncUnsafeWorldCell(UnsafeCell<World>);
-impl SyncUnsafeWorldCell {
-    pub fn new(world: World) -> Self {
-        Self(UnsafeCell::new(world))
-    }
-
-    pub fn get(&self) -> &World {
-        unsafe { &*self.0.get() }
-    }
-
-    pub fn get_mut(&self) -> &mut World {
-        unsafe { &mut *self.0.get() }
-    }
-}
-
-unsafe impl Sync for SyncUnsafeWorldCell {}
-unsafe impl Send for SyncUnsafeWorldCell {}
-
-
 #[derive(Debug)]
 pub struct World {
-    pub waiting_chunks: Vec<(i32, i32)>,
     pub chunks: Chunks,
     pub light: Light
 }
@@ -43,8 +23,7 @@ impl World {
     pub fn new(width: i32, height: i32, depth: i32, ox: i32, oy: i32, oz: i32) -> Self {
         Self {
             chunks: Chunks::new(width, height, depth, ox, oy, oz),
-            light: Light::new(),
-            waiting_chunks: vec![]
+            light: Light::new()
         }
     }
 

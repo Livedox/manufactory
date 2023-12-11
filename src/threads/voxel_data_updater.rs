@@ -1,6 +1,6 @@
 use std::{sync::{Arc, Mutex, mpsc::{Sender, channel, Receiver, SendError, TryRecvError}}, thread::{self, JoinHandle}, collections::HashMap, time::{Instant, Duration}};
 
-use crate::{meshes::Meshes, voxels::chunks::Chunks, models::animated_model::AnimatedModel, graphic::render::{RenderResult, render}, world::{World, SyncUnsafeWorldCell}, unsafe_mutex::UnsafeMutex};
+use crate::{meshes::Meshes, voxels::chunks::Chunks, models::animated_model::AnimatedModel, graphic::render::{RenderResult, render}, world::{World}, unsafe_mutex::UnsafeMutex};
 
 pub fn spawn(world: Arc<UnsafeMutex<World>>) -> JoinHandle<()> {
     thread::spawn(move || {
@@ -8,8 +8,13 @@ pub fn spawn(world: Arc<UnsafeMutex<World>>) -> JoinHandle<()> {
             let mut world = world.lock_unsafe(false).unwrap();
             let now = Instant::now();
             let ptr = &mut world.chunks as *mut Chunks;
-            for chunk in world.chunks.chunks.iter() {
-                let Some(chunk) = chunk.as_ref() else {continue};
+            for chunk in world.chunks.chunks.iter_mut() {
+                let Some(chunk) = chunk.as_mut() else {continue};
+
+                if !chunk.voxels_data.is_empty() {
+                    println!("EEEEE");
+                    chunk.unsaved = true;
+                }
 
                 for vd in chunk.voxels_data.values() {
                     vd.update(ptr)

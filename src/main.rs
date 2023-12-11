@@ -11,7 +11,7 @@ use player::player::Player;
 use recipes::{storage::Storage, item::{Item, PossibleItem}};
 use save_load::{save_chunk, load_chunk, WorldRegions, EncodedChunk};
 use unsafe_mutex::UnsafeMutex;
-use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}, SyncUnsafeWorldCell};
+use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}};
 use crate::{voxels::chunk::{HALF_CHUNK_SIZE, Chunk}, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, bytes::DynByteInterpretation};
 use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::{blocks::BLOCKS, block_type::BlockType}, voxel_data::{VoxelAdditionalData, multiblock::MultiBlock}};
 
@@ -86,7 +86,6 @@ pub async fn main() {
          Color(1.0, 0.301, 0.0)]);
     let mut debug_block_id = None;
     let mut debug_data = String::new();
-    let mut world_regions = WorldRegions::new("./data/worlds/debug/regions/");
 
     let event_loop = EventLoop::new();
     let window = Arc::new(WindowBuilder::new()
@@ -112,10 +111,13 @@ pub async fn main() {
     _ = inventory.add_by_index(&Item::new(2, 100), 12);
     _ = inventory.add_by_index(&Item::new(3, 100), 13);
     drop(inventory);
+    let world_regions = Arc::new(UnsafeMutex::new(WorldRegions::new("./data/worlds/debug/regions/")));
     let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
     let world = Arc::new(UnsafeMutex::new(World::new(RENDER_DISTANCE, WORLD_HEIGHT as i32, RENDER_DISTANCE, -HALF_RENDER_DISTANCE, 0, -HALF_RENDER_DISTANCE)));
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
-    threads::world_loader::spawn(world.clone(), player_coords.clone());
+
+    threads::save::spawn(world.clone(), world_regions.clone());
+    threads::world_loader::spawn(world.clone(), world_regions.clone(), player_coords.clone());
     threads::renderer::spawn(world.clone(), player_coords.clone(), render_result.clone());
     threads::voxel_data_updater::spawn(world.clone());
 
@@ -152,7 +154,7 @@ pub async fn main() {
                 camera.update(&input, time.delta(), gui_controller.is_cursor());
                 let c: ChunkCoords = GlobalCoords::from(camera.position_tuple()).into();
                 debug_data = format!("{:?}", camera.position_tuple());
-                if (c.0-HALF_RENDER_DISTANCE != world_g.chunks.ox || c.2-HALF_RENDER_DISTANCE != world_g.chunks.oz) && !world_g.chunks.is_translate {
+                if ((c.0-HALF_RENDER_DISTANCE - world_g.chunks.ox).abs() >= 2 || (c.2-HALF_RENDER_DISTANCE - world_g.chunks.oz).abs() >= 2) && !world_g.chunks.is_translate {
                     world_g.chunks.is_translate = true;
                     drop(world_g);
                     let w = world.clone();
@@ -185,7 +187,7 @@ pub async fn main() {
                 if input.is_key(&Key::F2, KeypressState::AnyJustPress) {
                     let lock = world.lock_unsafe(false).unwrap();
                     let chunk = lock.chunks.chunks[21].as_ref().unwrap();
-                    world_regions.save_chunk(chunk);
+                    world_regions.lock_unsafe(false).unwrap().save_chunk(chunk);
                     println!("{:?} {:?}", chunk.is_empty(), chunk.xyz);
                     // let g = world.lock_unsafe(false).unwrap().chunks.chunks[21].as_ref().unwrap().to_bytes();
                     // let c = Chunk::from_bytes(&g);
@@ -193,13 +195,13 @@ pub async fn main() {
                 }
 
                 if input.is_key(&Key::F3, KeypressState::AnyJustPress) {
-                    world_regions.save_all_regions();
+                    world_regions.lock_unsafe(false).unwrap().save_all_regions();
                 }
 
                 if input.is_key(&Key::F4, KeypressState::AnyJustPress) {
                     // let g = world.lock_unsafe(false).unwrap().chunks.chunks[21].as_ref().unwrap().to_bytes();
                     // let c = Chunk::from_bytes(&g);
-                    if let EncodedChunk::Some(b) = world_regions.chunk(ChunkCoords(0, 0, 0)) {
+                    if let EncodedChunk::Some(b) = world_regions.lock_unsafe(false).unwrap().chunk(ChunkCoords(0, 0, 0)) {
                         world.lock_unsafe(false).unwrap().chunks.chunks[21] = Some(Box::new(Chunk::from_bytes(b.as_ref())));
                     }
                 }

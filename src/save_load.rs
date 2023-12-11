@@ -78,12 +78,13 @@ pub enum EncodedChunk{
 
 #[derive(Debug)]
 pub struct Region {
+    unsaved: bool,
     chunks: Box<[EncodedChunk; REGION_VOLUME]>
 }
 
 impl Region {
     pub fn new_empty() -> Self {
-        Self { chunks: Box::new([NONE_ENCODED_CHUNK; REGION_VOLUME]) }
+        Self { chunks: Box::new([NONE_ENCODED_CHUNK; REGION_VOLUME]), unsaved: false }
     }
 
     pub fn chunk(&self, coords: impl RegionChunkIndex) -> &EncodedChunk {
@@ -93,6 +94,7 @@ impl Region {
     pub fn save_chunk(&mut self, coords: impl RegionChunkIndex, data: Box<[u8]>) {
         if let Some(chunk) = self.chunks.get_mut(coords.region_chunk_index()) {
             *chunk = EncodedChunk::Some(data);
+            self.unsaved = true;
         }
     }
 }
@@ -128,12 +130,14 @@ impl WorldRegions {
         unsafe { self_ptr.as_mut().unwrap() }.regions.get_mut(&coords).unwrap()
     }
 
-    pub fn save_all_regions(&self) {
-        self.regions.keys().for_each(|key| self.save_region(*key));
+    pub fn save_all_regions(&mut self) {
+        let self_ptr = self as *mut Self;
+        self.regions.keys().for_each(|key| unsafe { self_ptr.as_mut().unwrap() }.save_region(*key));
     }
 
-    pub fn save_region(&self, coords: RegionCoords) {
-        let Some(region) = self.regions.get(&coords) else {return};
+    pub fn save_region(&mut self, coords: RegionCoords) {
+        let Some(region) = self.regions.get_mut(&coords) else {return};
+        if !region.unsaved {return};
         let mut bytes = Vec::<u8>::new();
         bytes.extend(REGION_MAGIC_NUMBER.to_le_bytes());
         bytes.extend(REGION_FORMAT_VERSION.to_le_bytes());
@@ -159,6 +163,8 @@ impl WorldRegions {
 
         if let Err(err) = fs::write(self.path.join(&coords.filename()), bytes) {
             eprintln!("Region write error: {}", err);
+        } else {
+            region.unsaved = false;
         }
     }
 
