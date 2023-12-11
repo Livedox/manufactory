@@ -17,18 +17,6 @@ impl LocalCoords {
         let mut cx = coords.0;
         let mut cy = coords.1;
         let mut cz = coords.2;
-        // if coords.0 < 0 {
-        //     lx = -(CHUNK_SIZE as i8 - lx - 1);
-        //     cx += 1;
-        // }
-        // if coords.1 < 0 {
-        //     ly = -(CHUNK_SIZE as i8 - ly - 1);
-        //     cy += 1;
-        // }
-        // if coords.2 < 0 {
-        //     lz = -(CHUNK_SIZE as i8 - lz - 1);
-        //     cz += 1;
-        // }
         GlobalCoords(
             cx * CHUNK_SIZE as i32 + lx as i32, 
             cy * CHUNK_SIZE as i32 + ly as i32, 

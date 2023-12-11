@@ -9,7 +9,7 @@ use input_event::KeypressState;
 use meshes::{MeshesRenderInput, Meshes};
 use player::player::Player;
 use recipes::{storage::Storage, item::{Item, PossibleItem}};
-use save_load::{save_chunk, load_chunk};
+use save_load::{save_chunk, load_chunk, WorldRegions, EncodedChunk};
 use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}, SyncUnsafeWorldCell};
 use crate::{voxels::chunk::{HALF_CHUNK_SIZE, Chunk}, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, bytes::DynByteInterpretation};
@@ -47,7 +47,7 @@ mod bytes;
 
 const GAME_VERSION: u32 = 1;
 
-const RENDER_DISTANCE: i32 = 30;
+const RENDER_DISTANCE: i32 = 6;
 const HALF_RENDER_DISTANCE: i32 = RENDER_DISTANCE / 2;
 
 pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
@@ -86,7 +86,7 @@ pub async fn main() {
          Color(1.0, 0.301, 0.0)]);
     let mut debug_block_id = None;
     let mut debug_data = String::new();
-
+    let mut world_regions = WorldRegions::new("./data/worlds/debug/regions/");
 
     let event_loop = EventLoop::new();
     let window = Arc::new(WindowBuilder::new()
@@ -183,21 +183,25 @@ pub async fn main() {
                 }
 
                 if input.is_key(&Key::F2, KeypressState::AnyJustPress) {
-                    let g = world.lock_unsafe(false).unwrap().chunks.chunks[21].as_ref().unwrap().to_bytes();
-                    let c = Chunk::from_bytes(&g);
-                    println!("{:?}", c.voxels_data);
+                    let lock = world.lock_unsafe(false).unwrap();
+                    let chunk = lock.chunks.chunks[21].as_ref().unwrap();
+                    world_regions.save_chunk(chunk);
+                    println!("{:?} {:?}", chunk.is_empty(), chunk.xyz);
+                    // let g = world.lock_unsafe(false).unwrap().chunks.chunks[21].as_ref().unwrap().to_bytes();
+                    // let c = Chunk::from_bytes(&g);
+                    // println!("{:?}", world_regions.regions);
                 }
 
                 if input.is_key(&Key::F3, KeypressState::AnyJustPress) {
-                    let g = world.lock_unsafe(false).unwrap().chunks.chunks[21].as_ref().unwrap().to_bytes();
-                    save_chunk(g.as_ref());
+                    world_regions.save_all_regions();
                 }
 
                 if input.is_key(&Key::F4, KeypressState::AnyJustPress) {
-                    let g = load_chunk();
-                    let c = Chunk::from_bytes(&g);
-                    println!("{:?}", c.xyz);
-                    *world.lock_unsafe(false).unwrap().chunks.chunks[21].as_mut().unwrap() = Box::new(c);
+                    // let g = world.lock_unsafe(false).unwrap().chunks.chunks[21].as_ref().unwrap().to_bytes();
+                    // let c = Chunk::from_bytes(&g);
+                    if let EncodedChunk::Some(b) = world_regions.chunk(ChunkCoords(0, 0, 0)) {
+                        world.lock_unsafe(false).unwrap().chunks.chunks[21] = Some(Box::new(Chunk::from_bytes(b.as_ref())));
+                    }
                 }
 
                 if input.is_key(&Key::F1, KeypressState::AnyJustPress) {
