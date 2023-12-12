@@ -4,6 +4,9 @@ use std::path::PathBuf;
 use std::{path::Path, fs::File};
 use std::io::prelude::*;
 
+use zerocopy::FromBytes;
+use zerocopy_derive::{FromBytes, FromZeroes, AsBytes};
+
 use crate::bytes::DynByteInterpretation;
 use crate::voxels::chunk::Chunk;
 use crate::voxels::chunks::WORLD_HEIGHT;
@@ -149,12 +152,10 @@ impl WorldRegions {
         for chunk in region.chunks.iter() {
             if let EncodedChunk::Some(b) = chunk {
                 bytes.extend((b.len() as u32).to_le_bytes());
-                println!("Size: {}", b.len() as u32);
             } else {
                 bytes.extend(0u32.to_le_bytes());
             }
         }
-        println!("Start Chunks: {}", bytes.len());
         for chunk in region.chunks.iter() {
             if let EncodedChunk::Some(b) = chunk {
                 bytes.extend(b.as_ref());
@@ -173,20 +174,14 @@ impl WorldRegions {
         let mut region = Region::new_empty();
         if let Ok(bytes) = fs::read(self.path.join(&coords.filename())) {
             let mut offsets = Vec::<usize>::new();
-            println!("Work");
-            println!("{}", bytes.len());
             for num in bytes[16..16+REGION_VOLUME*4].chunks(4).into_iter() {
                 offsets.push(u32::from_bytes(num) as usize);
             }
-            println!("{}", bytes.len());
             let mut chunk_offset = 16+REGION_VOLUME*4;
-            println!("Start Chunks: {}", chunk_offset);
             for (i, offset) in offsets.into_iter().enumerate() {
                 if offset == 0 {continue};
-                println!("Size: {}", offset as u32);
                 let Some(chunk) = region.chunks.get_mut(i) else {continue};
                 *chunk = EncodedChunk::Some(bytes[chunk_offset..offset+chunk_offset].into());
-                println!("Work2");
                 chunk_offset += offset;
             }
         }
@@ -196,17 +191,17 @@ impl WorldRegions {
     }
 }
 
-pub fn save_chunk(data: &[u8]) {
-    let p = Path::new("./data/worlds/debug/chunk.bin");
-    let mut f = File::create(p).unwrap();
-    f.write_all(data).unwrap();
-}
+pub trait Compress: Sized + Clone {
+    #[inline(always)]
+    fn as_bytes(&self) -> &[u8] {
+        let len = std::mem::size_of_val(self);
+        let slf: *const Self = self;
+        unsafe { std::slice::from_raw_parts(slf.cast::<u8>(), len) }
+    }
 
-pub fn load_chunk() -> Vec<u8> {
-    let mut buf = vec![];
-    let p = Path::new("./data/worlds/debug/chunk.bin");
-    let mut f = File::open(p).unwrap();
-    f.read_to_end(&mut buf).unwrap();
-
-    buf
+    #[inline(always)]
+    fn from_bytes(bytes: &[u8]) -> Self {
+        let ptr = bytes.as_ptr() as *const Self;
+        unsafe {ptr.as_ref()}.unwrap().clone()
+    }
 }

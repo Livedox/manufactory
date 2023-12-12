@@ -2,9 +2,9 @@ use std::{collections::HashMap, rc::Rc, sync::{Arc, Mutex, atomic::{AtomicBool, 
 
 use itertools::iproduct;
 use bitflags::bitflags;
-use crate::{light::light_map::LightMap, direction::Direction, world::{local_coords::LocalCoords, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, GAME_VERSION, bytes::{ConstByteInterpretation, DynByteInterpretation, any_as_u8_slice}, engine::pipeline::new};
+use crate::{light::light_map::LightMap, direction::Direction, world::{local_coords::LocalCoords, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, GAME_VERSION, bytes::{ConstByteInterpretation, DynByteInterpretation, any_as_u8_slice}, engine::pipeline::new, save_load::Compress};
 
-use super::{voxel::{self, Voxel}, voxel_data::{VoxelData, VoxelAdditionalData}, chunks::Chunks, block::blocks::BLOCKS};
+use super::{voxel::{self, Voxel}, voxel_data::{VoxelData, VoxelAdditionalData, self}, chunks::Chunks, block::blocks::BLOCKS};
 use crate::bytes::NumFromBytes;
 use std::io::prelude::*;
 use flate2::{Compression, read::ZlibDecoder};
@@ -200,42 +200,51 @@ impl DynByteInterpretation for HashMap<usize, VoxelData> {
     }
 }
 
+#[repr(C)]
+#[derive(Debug, Clone)]
+pub struct CompressChunk {
+    pub time: u64,
+    pub xyz: ChunkCoords,
+    pub voxel_len: u32,
+    pub voxel_data_len: u32,
+    pub compression_type: CompressionType,
+}
+impl Compress for CompressChunk {}
+const COMRESS_CHUNK_SIZE: usize = std::mem::size_of::<CompressChunk>();
 
 impl DynByteInterpretation for Chunk {
     fn to_bytes(&self) -> Box<[u8]> {
-        let now: u64 = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-        let mut v = Vec::new();
-        v.extend(now.to_le_bytes());
-        v.extend((COMPRESSION_TYPE as u8).to_le_bytes());
-        v.extend(self.xyz.to_bytes().as_ref());
         let voxels = self.voxels.to_bytes();
-        v.extend((voxels.len() as u32).to_le_bytes());
+        let voxel_data = self.voxels_data.to_bytes();
+        let compress = CompressChunk {
+            time: SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0),
+            xyz: self.xyz,
+            voxel_len: voxels.len() as u32,
+            voxel_data_len: voxel_data.len() as u32,
+            compression_type: COMPRESSION_TYPE,
+        };
+        
+        let mut v = Vec::new();
+        v.extend(compress.as_bytes());
         v.extend(voxels.as_ref());
-
-        let vd = self.voxels_data.to_bytes();
-        v.extend((vd.len() as u32).to_le_bytes());
-        v.extend(vd.as_ref());
-
+        v.extend(voxel_data.as_ref());
         v.into()
     }
     fn from_bytes(data: &[u8]) -> Self {
-        let time = u64::from_bytes(&data[0..8]);
-        let compression_type: CompressionType = data[9].into();
-        let xyz: ChunkCoords = ChunkCoords::from_bytes(&data[9..21]);
-        let len_v = u32::from_bytes(&data[21..25]) as usize;
+        let compress = CompressChunk::from_bytes(&data[0..COMRESS_CHUNK_SIZE]);
+        println!("{:?}", compress);
+        let voxel_end = COMRESS_CHUNK_SIZE + compress.voxel_len as usize;
+        let voxel_data_len = voxel_end + compress.voxel_data_len as usize;
+        let voxels = <[Voxel; CHUNK_VOLUME]>::from_bytes(&data[COMRESS_CHUNK_SIZE..voxel_end]);
+        let voxels_data = <HashMap::<usize, VoxelData>>::from_bytes(&data[voxel_end..voxel_data_len]);
 
-        let voxels = <[Voxel; CHUNK_VOLUME]>::from_bytes(&data[25..25+len_v]);
-
-        let len_vd = u32::from_bytes(&data[25+len_v..29+len_v]) as usize;
-        let vd = <HashMap::<usize, VoxelData>>::from_bytes(&data[29+len_v..29+len_v+len_vd]);
-        // println!("{} {:?}", time, compression_type);
         Self {
             voxels,
-            voxels_data: vd,
+            voxels_data,
             modified: AtomicBool::new(true),
             unsaved: false,
             lightmap: LightMap::new(),
-            xyz: xyz,
+            xyz: compress.xyz,
         }
     }
 }

@@ -9,7 +9,7 @@ use input_event::KeypressState;
 use meshes::{MeshesRenderInput, Meshes};
 use player::player::Player;
 use recipes::{storage::Storage, item::{Item, PossibleItem}};
-use save_load::{save_chunk, load_chunk, WorldRegions, EncodedChunk};
+use save_load::{WorldRegions, EncodedChunk, Compress};
 use threads::{save::SaveState};
 use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}};
@@ -49,7 +49,7 @@ mod bytes;
 static mut WORLD_EXIT: bool = false;
 const GAME_VERSION: u32 = 1;
 
-const RENDER_DISTANCE: i32 = 50;
+const RENDER_DISTANCE: i32 = 6;
 const HALF_RENDER_DISTANCE: i32 = RENDER_DISTANCE / 2;
 
 pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
@@ -68,6 +68,7 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
     }
     indices
 }
+
 
 #[tokio::main]
 pub async fn main() {
