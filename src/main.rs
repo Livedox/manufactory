@@ -1,4 +1,4 @@
-use std::{time::{Duration, Instant}, rc::Rc, borrow::Borrow, collections::HashMap, sync::{Arc, mpsc::channel, Mutex}, os::windows::thread};
+use std::{time::{Duration, Instant}, rc::Rc, borrow::Borrow, collections::HashMap, sync::{Arc, mpsc::channel, Mutex, Condvar}};
 
 use camera::frustum::Frustum;
 use direction::Direction;
@@ -10,6 +10,7 @@ use meshes::{MeshesRenderInput, Meshes};
 use player::player::Player;
 use recipes::{storage::Storage, item::{Item, PossibleItem}};
 use save_load::{save_chunk, load_chunk, WorldRegions, EncodedChunk};
+use threads::{save::SaveState};
 use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}};
 use crate::{voxels::chunk::{HALF_CHUNK_SIZE, Chunk}, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, bytes::DynByteInterpretation};
@@ -45,9 +46,10 @@ mod engine;
 mod save_load;
 mod bytes;
 
+static mut WORLD_EXIT: bool = false;
 const GAME_VERSION: u32 = 1;
 
-const RENDER_DISTANCE: i32 = 6;
+const RENDER_DISTANCE: i32 = 50;
 const HALF_RENDER_DISTANCE: i32 = RENDER_DISTANCE / 2;
 
 pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
@@ -115,11 +117,25 @@ pub async fn main() {
     let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
     let world = Arc::new(UnsafeMutex::new(World::new(RENDER_DISTANCE, WORLD_HEIGHT as i32, RENDER_DISTANCE, -HALF_RENDER_DISTANCE, 0, -HALF_RENDER_DISTANCE)));
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
+    let save_condvar = Arc::new((Mutex::new(SaveState::Unsaved), Condvar::new()));
+    
+    let thread_save = threads::save::spawn(world.clone(), world_regions.clone(), save_condvar.clone());
+    let thread_world_loader = threads::world_loader::spawn(world.clone(), world_regions.clone(), player_coords.clone());
+    let thread_renderer = threads::renderer::spawn(world.clone(), player_coords.clone(), render_result.clone());
+    let thread_voxel_data_updater = threads::voxel_data_updater::spawn(world.clone());
+    
+    let mut finalize = Some(move || {
+        unsafe {WORLD_EXIT = true};
+        thread_renderer.join().expect("Failed to terminate thread renderer");
+        thread_world_loader.join().expect("Failed to terminate thread world_loader");
+        thread_voxel_data_updater.join().expect("Failed to terminate thread voxel_data_updater");
 
-    threads::save::spawn(world.clone(), world_regions.clone());
-    threads::world_loader::spawn(world.clone(), world_regions.clone(), player_coords.clone());
-    threads::renderer::spawn(world.clone(), player_coords.clone(), render_result.clone());
-    threads::voxel_data_updater::spawn(world.clone());
+        let (save_state, cvar) = &*save_condvar;
+        *save_state.lock().unwrap() = SaveState::WorldExit;
+        cvar.notify_one();
+        thread_save.join().expect("Failed to terminate thread save");
+        println!("All saved!");
+    });
 
     let mut timer_16ms = Timer::new(Duration::from_millis(16));
     let mut fps = Instant::now();
@@ -159,11 +175,14 @@ pub async fn main() {
                     drop(world_g);
                     let w = world.clone();
                     let tx_clone = tx.clone();
-                    meshes.add_need_translate();
+                    let need_translate = meshes.need_translate.clone();
                     tokio::spawn(async move {
                         let mut world = w.lock().unwrap();
-                        let _ = tx_clone.send(world.chunks.translate(c.0-HALF_RENDER_DISTANCE, c.2-HALF_RENDER_DISTANCE));
+                        *need_translate.lock().unwrap() += 1;
+                        let vec = world.chunks.translate(c.0-HALF_RENDER_DISTANCE, c.2-HALF_RENDER_DISTANCE);
                         world.chunks.is_translate = false;
+                        drop(world);
+                        let _ = tx_clone.send(vec);
                     });
                 }
                 let mut world_g = world.lock_unsafe(true).unwrap();
@@ -325,8 +344,11 @@ pub async fn main() {
             Event::MainEventsCleared => {
                 state.window().request_redraw();
             }
+            Event::LoopDestroyed => {
+                println!("Loop Destroyed");
+                finalize.take().unwrap()();
+            }
             _ => {}
         }
     });
-    
 }

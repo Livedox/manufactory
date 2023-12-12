@@ -3,7 +3,7 @@ use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex}, time::{Duration, Insta
 use itertools::iproduct;
 use wgpu::Instance;
 
-use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, voxels::{chunks::WORLD_HEIGHT, chunk::CHUNK_SIZE}, unsafe_mutex::UnsafeMutex, save_load::WorldRegions};
+use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, voxels::{chunks::WORLD_HEIGHT, chunk::CHUNK_SIZE}, unsafe_mutex::UnsafeMutex, save_load::WorldRegions, WORLD_EXIT};
 
 
 pub fn spawn(
@@ -13,6 +13,8 @@ pub fn spawn(
 ) -> JoinHandle<()> {
     thread::spawn(move || {
         loop {
+            if unsafe { WORLD_EXIT } {break};
+            
             let mut world = world.lock_unsafe(false).unwrap();
             let p_coords = player_coords.lock().unwrap().clone();
             let p_coords: ChunkCoords = GlobalCoords::from(p_coords).into();

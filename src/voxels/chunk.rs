@@ -228,7 +228,7 @@ impl DynByteInterpretation for Chunk {
 
         let len_vd = u32::from_bytes(&data[25+len_v..29+len_v]) as usize;
         let vd = <HashMap::<usize, VoxelData>>::from_bytes(&data[29+len_v..29+len_v+len_vd]);
-        println!("{} {:?}", time, compression_type);
+        // println!("{} {:?}", time, compression_type);
         Self {
             voxels,
             voxels_data: vd,
