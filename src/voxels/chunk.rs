@@ -164,25 +164,31 @@ impl BytesCoder for [Voxel; CHUNK_VOLUME] {
 
 impl BytesCoder for HashMap<usize, VoxelData> {
     fn encode_bytes(&self) -> Box<[u8]> {
-        let mut v = Vec::new();
+        let mut bytes = Vec::new();
 
-        for (key, val) in self.iter() {
-            v.extend(&(*key as u32).to_le_bytes());
-            v.extend(val.encode_bytes().as_ref());
+        if !self.is_empty() {
+            for (key, val) in self.iter() {
+                bytes.extend((*key as u32).as_bytes());
+                let encode_data = val.encode_bytes();
+                bytes.extend((encode_data.len() as u32).as_bytes());
+                bytes.extend(encode_data.as_ref());
+            }
         }
 
-        v.into()
+        bytes.into()
     }
 
-    fn decode_bytes(data: &[u8]) -> Self {
+    fn decode_bytes(bytes: &[u8]) -> Self {
         let mut h = HashMap::<usize, VoxelData>::new();
-        let mut i: usize = 0;
-        while i < data.len() {
-            let key = u32::from_bytes(&data[i..i+4]) as usize;
-            let len = u32::from_bytes(&data[i+20..i+24]) as usize;
-            let vd = VoxelData::decode_bytes(&data[i+4..i+24+len]);
+        let mut offset: usize = 0;
+        while offset < bytes.len() {
+            let key_end = offset as usize + u32::size();
+            let key = u32::from_bytes(&bytes[offset..key_end]) as usize;
+            let len_end = key_end+u32::size();
+            let len = u32::from_bytes(&bytes[key_end..len_end]) as usize;
+            let vd = VoxelData::decode_bytes(&bytes[len_end..len_end+len]);
             h.insert(key, vd);
-            i += 24 + len;
+            offset = len_end+len;
         }
         h
     }
@@ -212,19 +218,18 @@ impl BytesCoder for Chunk {
             compression_type: COMPRESSION_TYPE,
         };
         
-        let mut v = Vec::new();
-        v.extend(compress.as_bytes());
-        v.extend(voxels.as_ref());
-        v.extend(voxel_data.as_ref());
-        v.into()
+        let mut bytes = Vec::new();
+        bytes.extend(compress.as_bytes());
+        bytes.extend(voxels.as_ref());
+        bytes.extend(voxel_data.as_ref());
+        bytes.into()
     }
     fn decode_bytes(data: &[u8]) -> Self {
         let compress = CompressChunk::from_bytes(&data[0..CompressChunk::size()]);
-        println!("{:?}", compress);
         let voxel_end = CompressChunk::size() + compress.voxel_len as usize;
-        let voxel_data_len = voxel_end + compress.voxel_data_len as usize;
+        let voxel_data_end = voxel_end + compress.voxel_data_len as usize;
         let voxels = <[Voxel; CHUNK_VOLUME]>::decode_bytes(&data[CompressChunk::size()..voxel_end]);
-        let voxels_data = <HashMap::<usize, VoxelData>>::decode_bytes(&data[voxel_end..voxel_data_len]);
+        let voxels_data = <HashMap::<usize, VoxelData>>::decode_bytes(&data[voxel_end..voxel_data_end]);
 
         Self {
             voxels,

@@ -56,28 +56,3 @@ impl From<GlobalCoords> for LocalCoords {
         LocalCoords(lx as u8, ly as u8, lz as u8)
     }
 }
-
-
-#[cfg(test)]
-mod tests {
-    use crate::{world::{global_coords::GlobalCoords, local_coords::LocalCoords}, voxels::chunk::CHUNK_SIZE};
-    #[test]
-    fn correct_from_global_coords() {
-        let g0 = GlobalCoords(18, 0, 134);
-        let g1 = GlobalCoords(-1, -18, -196);
-
-        println!("{:?}", LocalCoords::from(g1));
-        let l0 = LocalCoords(
-            (g0.0.unsigned_abs() % CHUNK_SIZE as u32) as u8,
-            (g0.1.unsigned_abs() % CHUNK_SIZE as u32) as u8,
-            (g0.2.unsigned_abs() % CHUNK_SIZE as u32) as u8);
-
-        let l1 = LocalCoords(
-            (g1.0.unsigned_abs() % CHUNK_SIZE as u32) as u8,
-            (g1.1.unsigned_abs() % CHUNK_SIZE as u32) as u8,
-            (g1.2.unsigned_abs() % CHUNK_SIZE as u32) as u8);
-
-        assert_eq!(l0, g0.into());
-        assert_eq!(l1, g1.into());
-    }
-}

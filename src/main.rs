@@ -74,6 +74,7 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
 #[tokio::main]
 pub async fn main() {
     let (tx, rx) = std::sync::mpsc::channel::<Vec<(usize, usize)>>();
+    println!("available_parallelism: {:?}", std::thread::available_parallelism());
     let sun = Sun::new(
         60,
         [0, 50, 60, 230, 240, 290, 300, 490, 500],
@@ -347,7 +348,6 @@ pub async fn main() {
                 state.window().request_redraw();
             }
             Event::LoopDestroyed => {
-                println!("Loop Destroyed");
                 finalize.take().unwrap()();
             }
             _ => {}

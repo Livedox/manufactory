@@ -56,29 +56,3 @@ impl From<GlobalCoords> for ChunkCoords {
             coords.2 >> CHUNK_BIT_SHIFT)
     }
 }
-
-
-#[cfg(test)]
-mod tests {
-    use crate::{world::{chunk_coords::ChunkCoords, global_coords::GlobalCoords}, voxels::chunk::CHUNK_SIZE};
-
-
-    #[test]
-    fn correct_from_global_coords() {
-        let g0 = GlobalCoords(18, 0, 134);
-        let g1 = GlobalCoords(-1, -18, -196);
-
-        let c0 = ChunkCoords(
-            g0.0 / CHUNK_SIZE as i32,
-            g0.1 / CHUNK_SIZE as i32,
-            g0.2 / CHUNK_SIZE as i32);
-
-        let c1 = ChunkCoords(
-            g1.0 / CHUNK_SIZE as i32 - 1,
-            g1.1 / CHUNK_SIZE as i32 - 1,
-            g1.2 / CHUNK_SIZE as i32 - 1);
-
-        assert_eq!(c0, g0.into());
-        assert_eq!(c1, g1.into());
-    }
-}

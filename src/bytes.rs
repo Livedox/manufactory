@@ -20,7 +20,7 @@ pub trait AsFromBytes: Sized + Clone {
 }
 
 #[inline]
-pub fn cast_bytes_from_vec<T>(data: &Vec<T>) -> &[u8] {
+pub fn cast_bytes_from_vec<T: Sized>(data: &Vec<T>) -> &[u8] {
     let slice = &data[..];
     let slf: *const T = slice.as_ptr();
     let len = std::mem::size_of_val(slice);
@@ -28,7 +28,7 @@ pub fn cast_bytes_from_vec<T>(data: &Vec<T>) -> &[u8] {
 }
 
 #[inline]
-pub fn cast_vec_from_bytes<T: Clone>(bytes: &[u8]) -> Vec<T> {
+pub fn cast_vec_from_bytes<T: Clone + Sized>(bytes: &[u8]) -> Vec<T> {
     let ptr = bytes.as_ptr() as *const T;
     let len = bytes.len() / std::mem::size_of::<T>();
     let temp_slice = unsafe { std::slice::from_raw_parts(ptr, len) };

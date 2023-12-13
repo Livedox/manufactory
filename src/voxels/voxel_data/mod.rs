@@ -154,7 +154,7 @@ impl VoxelAdditionalData {
     } 
 }
 
-impl BytesCoder for VoxelAdditionalData {
+impl VoxelAdditionalData {
     fn encode_bytes(&self) -> Box<[u8]> {
         match self {
             Self::Empty => Box::new([]),
@@ -170,43 +170,44 @@ impl BytesCoder for VoxelAdditionalData {
         }
     }
 
-    fn decode_bytes(data: &[u8]) -> Self {
-        let id = u32::from_bytes(&data[0..4]);
-        let len = u32::from_bytes(&data[4..8]) as usize + 8;
+    fn decode_bytes(bytes: &[u8], id: u32) -> Self {
         match id {
-            1 => {Self::MultiBlockPart(GlobalCoords::from_bytes(&data[8..len]))},
-            9 => {Self::Manipulator(Box::new(Mutex::new(Manipulator::decode_bytes(&data[8..len]))))},
-            12 => {Self::Cowboy(Box::new(Mutex::new(Cowboy::decode_bytes(&data[8..len]))))},
-            13 => {Self::VoxelBox(Arc::new(Mutex::new(VoxelBox::decode_bytes(&data[8..len]))))},
-            14 => {Self::Furnace(Arc::new(Mutex::new(Furnace::decode_bytes(&data[8..len]))))},
-            17 => {Self::TransportBelt(Arc::new(Mutex::new(TransportBelt::decode_bytes(&data[8..len]))))},
+            1 => {Self::MultiBlockPart(GlobalCoords::from_bytes(bytes))},
+            9 => {Self::Manipulator(Box::new(Mutex::new(Manipulator::decode_bytes(bytes))))},
+            12 => {Self::Cowboy(Box::new(Mutex::new(Cowboy::decode_bytes(bytes))))},
+            13 => {Self::VoxelBox(Arc::new(Mutex::new(VoxelBox::decode_bytes(bytes))))},
+            14 => {Self::Furnace(Arc::new(Mutex::new(Furnace::decode_bytes(bytes))))},
+            17 => {Self::TransportBelt(Arc::new(Mutex::new(TransportBelt::decode_bytes(bytes))))},
 
-            16 => {Self::AssemblingMachine(Arc::new(Mutex::new(AssemblingMachine::decode_bytes(&data[8..len]))))},
-            15 => {Self::Drill(Arc::new(Mutex::new(Drill::decode_bytes(&data[8..len]))))},
+            16 => {Self::AssemblingMachine(Arc::new(Mutex::new(AssemblingMachine::decode_bytes(bytes))))},
+            15 => {Self::Drill(Arc::new(Mutex::new(Drill::decode_bytes(bytes))))},
             _ => unimplemented!(),
         }
     }
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct Header {
+    id: u32,
+    global_coords: GlobalCoords,
+}
+impl AsFromBytes for Header {}
+
 impl BytesCoder for VoxelData {
     fn encode_bytes(&self) -> Box<[u8]> {
-        let mut v = vec![];
-        v.extend(self.global_coords.as_bytes().as_ref());
-        v.extend(self.id.to_le_bytes());
-
-        let bytes = self.additionally.encode_bytes();
-        v.extend((bytes.len() as u32).to_le_bytes());
-        v.extend(bytes.as_ref());
-        v.into()
+        let mut bytes = vec![];
+        bytes.extend(Header {id: self.id, global_coords: self.global_coords}.as_bytes());
+        bytes.extend(self.additionally.encode_bytes().as_ref());
+        bytes.into()
     }
 
-    fn decode_bytes(data: &[u8]) -> Self {
-        let gc = GlobalCoords::from_bytes(&data[0..12]);
-        let id = u32::from_bytes(&data[12..16]);
+    fn decode_bytes(bytes: &[u8]) -> Self {
+        let header = Header::from_bytes(&bytes[0..Header::size()]);
         Self {
-            id,
-            global_coords: gc,
-            additionally: Arc::new(VoxelAdditionalData::decode_bytes(&data[12..])),
+            id: header.id,
+            global_coords: header.global_coords,
+            additionally: Arc::new(VoxelAdditionalData::decode_bytes(&bytes[Header::size()..], header.id)),
         }
     }
 }
