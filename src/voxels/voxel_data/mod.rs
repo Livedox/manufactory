@@ -1,9 +1,8 @@
 use std::{cell::RefCell, rc::{Rc}, time::{Duration, Instant}, sync::{Arc, Mutex, Weak}};
-use crate::{direction::Direction, voxels::chunk::Chunk, recipes::{recipe::ActiveRecipe, storage::Storage, item::{PossibleItem, Item}, recipes::RECIPES}, world::{global_coords::GlobalCoords, local_coords::LocalCoords}, gui::draw::Draw, bytes::{DynByteInterpretation, ConstByteInterpretation}};
+use crate::{direction::Direction, voxels::chunk::Chunk, recipes::{recipe::ActiveRecipe, storage::Storage, item::{PossibleItem, Item}, recipes::RECIPES}, world::{global_coords::GlobalCoords, local_coords::LocalCoords}, gui::draw::Draw, bytes::{BytesCoder, AsFromBytes}};
 use self::{voxel_box::VoxelBox, furnace::Furnace, drill::Drill, cowboy::Cowboy, assembling_machine::AssemblingMachine, transport_belt::TransportBelt, manipulator::Manipulator, multiblock::MultiBlock};
 
 use super::{chunks::Chunks, block::blocks::BLOCKS};
-use crate::bytes::NumFromBytes;
 pub mod voxel_box;
 pub mod furnace;
 pub mod multiblock;
@@ -155,59 +154,59 @@ impl VoxelAdditionalData {
     } 
 }
 
-impl DynByteInterpretation for VoxelAdditionalData {
-    fn to_bytes(&self) -> Box<[u8]> {
+impl BytesCoder for VoxelAdditionalData {
+    fn encode_bytes(&self) -> Box<[u8]> {
         match self {
             Self::Empty => Box::new([]),
-            Self::MultiBlockPart(b) => {b.to_bytes()},
-            Self::VoxelBox(b) => {b.lock().unwrap().to_bytes()},
-            Self::Furnace(b) => {b.lock().unwrap().to_bytes()},
-            Self::Manipulator(b) => {b.lock().unwrap().to_bytes()},
-            Self::Cowboy(b) => {b.lock().unwrap().to_bytes()},
-            Self::TransportBelt(b) => {b.lock().unwrap().to_bytes()},
-            Self::Drill(b) => {b.lock().unwrap().to_bytes()},
-            Self::AssemblingMachine(b) => {b.lock().unwrap().to_bytes()},
+            Self::MultiBlockPart(b) => {b.as_bytes().into()},
+            Self::VoxelBox(b) => {b.lock().unwrap().encode_bytes()},
+            Self::Furnace(b) => {b.lock().unwrap().encode_bytes()},
+            Self::Manipulator(b) => {b.lock().unwrap().encode_bytes()},
+            Self::Cowboy(b) => {b.lock().unwrap().encode_bytes()},
+            Self::TransportBelt(b) => {b.lock().unwrap().encode_bytes()},
+            Self::Drill(b) => {b.lock().unwrap().encode_bytes()},
+            Self::AssemblingMachine(b) => {b.lock().unwrap().encode_bytes()},
             _ => unimplemented!(),
         }
     }
 
-    fn from_bytes(data: &[u8]) -> Self {
+    fn decode_bytes(data: &[u8]) -> Self {
         let id = u32::from_bytes(&data[0..4]);
         let len = u32::from_bytes(&data[4..8]) as usize + 8;
         match id {
             1 => {Self::MultiBlockPart(GlobalCoords::from_bytes(&data[8..len]))},
-            9 => {Self::Manipulator(Box::new(Mutex::new(Manipulator::from_bytes(&data[8..len]))))},
-            12 => {Self::Cowboy(Box::new(Mutex::new(Cowboy::from_bytes(&data[8..len]))))},
-            13 => {Self::VoxelBox(Arc::new(Mutex::new(VoxelBox::from_bytes(&data[8..len]))))},
-            14 => {Self::Furnace(Arc::new(Mutex::new(Furnace::from_bytes(&data[8..len]))))},
-            17 => {Self::TransportBelt(Arc::new(Mutex::new(TransportBelt::from_bytes(&data[8..len]))))},
+            9 => {Self::Manipulator(Box::new(Mutex::new(Manipulator::decode_bytes(&data[8..len]))))},
+            12 => {Self::Cowboy(Box::new(Mutex::new(Cowboy::decode_bytes(&data[8..len]))))},
+            13 => {Self::VoxelBox(Arc::new(Mutex::new(VoxelBox::decode_bytes(&data[8..len]))))},
+            14 => {Self::Furnace(Arc::new(Mutex::new(Furnace::decode_bytes(&data[8..len]))))},
+            17 => {Self::TransportBelt(Arc::new(Mutex::new(TransportBelt::decode_bytes(&data[8..len]))))},
 
-            16 => {Self::AssemblingMachine(Arc::new(Mutex::new(AssemblingMachine::from_bytes(&data[8..len]))))},
-            15 => {Self::Drill(Arc::new(Mutex::new(Drill::from_bytes(&data[8..len]))))},
+            16 => {Self::AssemblingMachine(Arc::new(Mutex::new(AssemblingMachine::decode_bytes(&data[8..len]))))},
+            15 => {Self::Drill(Arc::new(Mutex::new(Drill::decode_bytes(&data[8..len]))))},
             _ => unimplemented!(),
         }
     }
 }
 
-impl DynByteInterpretation for VoxelData {
-    fn to_bytes(&self) -> Box<[u8]> {
+impl BytesCoder for VoxelData {
+    fn encode_bytes(&self) -> Box<[u8]> {
         let mut v = vec![];
-        v.extend(self.global_coords.to_bytes().as_ref());
+        v.extend(self.global_coords.as_bytes().as_ref());
         v.extend(self.id.to_le_bytes());
 
-        let bytes = self.additionally.to_bytes();
+        let bytes = self.additionally.encode_bytes();
         v.extend((bytes.len() as u32).to_le_bytes());
         v.extend(bytes.as_ref());
         v.into()
     }
 
-    fn from_bytes(data: &[u8]) -> Self {
+    fn decode_bytes(data: &[u8]) -> Self {
         let gc = GlobalCoords::from_bytes(&data[0..12]);
         let id = u32::from_bytes(&data[12..16]);
         Self {
             id,
             global_coords: gc,
-            additionally: Arc::new(VoxelAdditionalData::from_bytes(&data[12..])),
+            additionally: Arc::new(VoxelAdditionalData::decode_bytes(&data[12..])),
         }
     }
 }

@@ -1,58 +1,58 @@
-use crate::voxels::chunk::{CHUNK_SIZE, CHUNK_BITS};
+use crate::{voxels::chunk::{CHUNK_SIZE, CHUNK_BITS}, bytes::AsFromBytes};
 
 use super::{global_coords::GlobalCoords, chunk_coords::ChunkCoords};
 
+#[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct LocalCoords(pub u8, pub u8, pub u8);
 
+impl AsFromBytes for LocalCoords {}
+
 impl LocalCoords {
+    #[inline]
     pub fn index(&self) -> usize {
         (self.1 as usize*CHUNK_SIZE + self.2 as usize)*CHUNK_SIZE + self.0 as usize
     }
 
+    #[inline]
     pub fn to_global(self, coords: ChunkCoords) -> GlobalCoords {
-        let mut lx = self.0 as i8;
-        let mut ly = self.1 as i8;
-        let mut lz = self.2 as i8;
-        let mut cx = coords.0;
-        let mut cy = coords.1;
-        let mut cz = coords.2;
         GlobalCoords(
-            cx * CHUNK_SIZE as i32 + lx as i32, 
-            cy * CHUNK_SIZE as i32 + ly as i32, 
-            cz * CHUNK_SIZE as i32 + lz as i32)
+            coords.0 * CHUNK_SIZE as i32 + self.0 as i32, 
+            coords.1 * CHUNK_SIZE as i32 + self.1 as i32, 
+            coords.2 * CHUNK_SIZE as i32 + self.2 as i32)
     }
 }
 
 impl From<(u8, u8, u8)> for LocalCoords {
-    fn from(xyz: (u8, u8, u8)) -> Self {Self(xyz.0, xyz.1, xyz.2)}
+    #[inline] fn from(xyz: (u8, u8, u8)) -> Self {Self(xyz.0, xyz.1, xyz.2)}
 }
 
 impl From<(usize, usize, usize)> for LocalCoords {
-    fn from(xyz: (usize, usize, usize)) -> Self {Self(xyz.0 as u8, xyz.1 as u8, xyz.2 as u8)}
+    #[inline] fn from(xyz: (usize, usize, usize)) -> Self {Self(xyz.0 as u8, xyz.1 as u8, xyz.2 as u8)}
 }
 
 impl From<LocalCoords> for (u8, u8, u8) {
-    fn from(xyz: LocalCoords) -> Self {(xyz.0, xyz.1, xyz.2)}
+    #[inline] fn from(xyz: LocalCoords) -> Self {(xyz.0, xyz.1, xyz.2)}
 }
 
 impl From<LocalCoords> for [u8; 3] {
-    fn from(xyz: LocalCoords) -> Self {[xyz.0, xyz.1, xyz.2]}
+    #[inline] fn from(xyz: LocalCoords) -> Self {[xyz.0, xyz.1, xyz.2]}
 }
 
 impl From<LocalCoords> for (usize, usize, usize) {
-    fn from(xyz: LocalCoords) -> Self {(xyz.0 as usize, xyz.1 as usize, xyz.2 as usize)}
+    #[inline] fn from(xyz: LocalCoords) -> Self {(xyz.0 as usize, xyz.1 as usize, xyz.2 as usize)}
 }
 
 impl From<LocalCoords> for [usize; 3] {
-    fn from(xyz: LocalCoords) -> Self {[xyz.0 as usize, xyz.1 as usize, xyz.2 as usize]}
+    #[inline] fn from(xyz: LocalCoords) -> Self {[xyz.0 as usize, xyz.1 as usize, xyz.2 as usize]}
 }
 
 impl From<GlobalCoords> for LocalCoords {
+    #[inline]
     fn from(coords: GlobalCoords) -> Self {
-        let mut lx = coords.0 & CHUNK_BITS as i32;
-        let mut ly = coords.1 & CHUNK_BITS as i32;
-        let mut lz = coords.2 & CHUNK_BITS as i32;
+        let lx = coords.0 & CHUNK_BITS as i32;
+        let ly = coords.1 & CHUNK_BITS as i32;
+        let lz = coords.2 & CHUNK_BITS as i32;
         LocalCoords(lx as u8, ly as u8, lz as u8)
     }
 }

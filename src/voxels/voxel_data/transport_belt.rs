@@ -1,7 +1,6 @@
 use itertools::Itertools;
 
-use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage}, direction::Direction, world::global_coords::GlobalCoords, voxels::chunks::Chunks, bytes::{DynByteInterpretation, any_as_u8_slice}};
-use crate::bytes::NumFromBytes;
+use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage}, direction::Direction, world::global_coords::GlobalCoords, voxels::chunks::Chunks, bytes::{AsFromBytes, BytesCoder}};
 // TODO: PLEASE UPDATE THIS SHIT
 
 #[derive(Debug, PartialEq, Eq)]
@@ -153,26 +152,24 @@ impl Storage for TransportBelt {
     }
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct Header {
+    progress: [f32; 6],
+    direction: [i8; 3],
+}
+impl AsFromBytes for Header {}
 
-impl DynByteInterpretation for TransportBelt {
-    fn from_bytes(data: &[u8]) -> Self {
-        let progress: [f32; 6] = [
-            f32::from_bytes(&data[0..4]),
-            f32::from_bytes(&data[4..8]),
-            f32::from_bytes(&data[8..12]),
-            f32::from_bytes(&data[12..16]),
-            f32::from_bytes(&data[16..20]),
-            f32::from_bytes(&data[20..24]),
-        ];
-        let direction = [data[24] as i8, data[25] as i8, data[26] as i8];
-        let storage = <[PossibleItem; 6]>::from_bytes(&data[27..]);
-        Self { item_progress: progress, direction, storage }
+impl BytesCoder for TransportBelt {
+    fn decode_bytes(bytes: &[u8]) -> Self {
+        let header = Header::from_bytes(&bytes[0..Header::size()]);
+        let storage = <[PossibleItem; 6]>::decode_bytes(&bytes[Header::size()..]);
+        Self { item_progress: header.progress, direction: header.direction, storage }
     }
-    fn to_bytes(&self) -> Box<[u8]> {
-        let mut v = Vec::new();
-        v.extend(unsafe {any_as_u8_slice(&self.item_progress)});
-        v.extend(unsafe {any_as_u8_slice(&self.direction)});
-        v.extend(self.storage.to_bytes().as_ref());
-        v.into()
+    fn encode_bytes(&self) -> Box<[u8]> {
+        let mut bytes = Vec::new();
+        bytes.extend(Header {progress: self.item_progress, direction: self.direction}.as_bytes());
+        bytes.extend(self.storage.encode_bytes().as_ref());
+        bytes.into()
     }
 }

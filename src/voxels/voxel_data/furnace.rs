@@ -1,9 +1,8 @@
 use std::sync::{Arc, Mutex};
 
-use crate::{recipes::{recipes::RECIPES, item::{PossibleItem, Item}, recipe::ActiveRecipe, storage::Storage}, gui::{draw::Draw, my_widgets::inventory_slot::inventory_slot}, player::inventory::PlayerInventory, engine::texture::TextureAtlas, bytes::DynByteInterpretation};
+use crate::{recipes::{recipes::RECIPES, item::{PossibleItem, Item}, recipe::ActiveRecipe, storage::Storage}, gui::{draw::Draw, my_widgets::inventory_slot::inventory_slot}, player::inventory::PlayerInventory, engine::texture::TextureAtlas, bytes::{BytesCoder, AsFromBytes}};
 
 use super::DrawStorage;
-use crate::bytes::NumFromBytes;
 
 #[derive(Debug)]
 pub struct Furnace {
@@ -91,12 +90,12 @@ impl Draw for Furnace {
 
 impl DrawStorage for Furnace {}
 
-impl DynByteInterpretation for Furnace {
-    fn from_bytes(data: &[u8]) -> Self {
-        let recipe_index = u32::from_bytes(&data[0..4]);
+impl BytesCoder for Furnace {
+    fn decode_bytes(data: &[u8]) -> Self {
+        let recipe_index = u32::from_bytes(&data[0..u32::size()]);
         let mut furnace = Self {
             active_recipe: None,
-            storage: <[PossibleItem; 2]>::from_bytes(&data[4..]),
+            storage: <[PossibleItem; 2]>::decode_bytes(&data[u32::size()..]),
         };
         if recipe_index != u32::MAX {
             let ar = RECIPES().all[recipe_index as usize].start_absolute();
@@ -104,11 +103,11 @@ impl DynByteInterpretation for Furnace {
         }
         furnace
     }
-    fn to_bytes(&self) -> Box<[u8]> {
-        let mut v = Vec::new();
+    fn encode_bytes(&self) -> Box<[u8]> {
+        let mut bytes = Vec::new();
         let ri = self.active_recipe.as_ref().map(|ar| ar.recipe.index as u32).unwrap_or(u32::MAX);
-        v.extend(ri.to_le_bytes());
-        v.extend(self.storage.to_bytes().as_ref());
-        v.into()
+        bytes.extend(ri.as_bytes());
+        bytes.extend(self.storage.encode_bytes().as_ref());
+        bytes.into()
     }
 }

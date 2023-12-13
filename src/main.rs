@@ -1,5 +1,6 @@
 use std::{time::{Duration, Instant}, rc::Rc, borrow::Borrow, collections::HashMap, sync::{Arc, mpsc::channel, Mutex, Condvar}};
 
+use bytes::BytesCoder;
 use camera::frustum::Frustum;
 use direction::Direction;
 use engine::state;
@@ -9,11 +10,11 @@ use input_event::KeypressState;
 use meshes::{MeshesRenderInput, Meshes};
 use player::player::Player;
 use recipes::{storage::Storage, item::{Item, PossibleItem}};
-use save_load::{WorldRegions, EncodedChunk, Compress};
+use save_load::{WorldRegions, EncodedChunk};
 use threads::{save::SaveState};
 use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}};
-use crate::{voxels::chunk::{HALF_CHUNK_SIZE, Chunk}, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, bytes::DynByteInterpretation};
+use crate::{voxels::chunk::{HALF_CHUNK_SIZE, Chunk}, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}};
 use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::{blocks::BLOCKS, block_type::BlockType}, voxel_data::{VoxelAdditionalData, multiblock::MultiBlock}};
 
 use winit::{
@@ -222,7 +223,7 @@ pub async fn main() {
                     // let g = world.lock_unsafe(false).unwrap().chunks.chunks[21].as_ref().unwrap().to_bytes();
                     // let c = Chunk::from_bytes(&g);
                     if let EncodedChunk::Some(b) = world_regions.lock_unsafe(false).unwrap().chunk(ChunkCoords(0, 0, 0)) {
-                        world.lock_unsafe(false).unwrap().chunks.chunks[21] = Some(Box::new(Chunk::from_bytes(b.as_ref())));
+                        world.lock_unsafe(false).unwrap().chunks.chunks[21] = Some(Box::new(Chunk::decode_bytes(b.as_ref())));
                     }
                 }
 

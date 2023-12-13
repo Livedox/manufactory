@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc, sync::{mpsc::{Receiver, Sender, self}, A
 
 use itertools::iproduct;
 
-use crate::{engine::vertices::block_vertex, models::animated_model::AnimatedModel, direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, rev_qumark, vec_none, unsafe_mutex::UnsafeMutex, save_load::{WorldRegions, EncodedChunk}, bytes::DynByteInterpretation};
+use crate::{engine::vertices::block_vertex, models::animated_model::AnimatedModel, direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, rev_qumark, vec_none, unsafe_mutex::UnsafeMutex, save_load::{WorldRegions, EncodedChunk}, bytes::BytesCoder};
 
 use super::{chunk::{Chunk, CHUNK_SIZE, CHUNK_BIT_SHIFT}, voxel::Voxel, voxel_data::{VoxelAdditionalData, VoxelData, multiblock::MultiBlock}};
 
@@ -93,7 +93,7 @@ impl Chunks {
             let mut world_regions = world_regions.lock_unsafe(false).unwrap();
             *chunk = match world_regions.chunk(ChunkCoords(cx+self.ox, cy+self.oy, cz+self.oz)) {
                 EncodedChunk::None => Some(Box::new(Chunk::new(cx+self.ox, cy+self.oy, cz+self.oz))),
-                EncodedChunk::Some(b) => Some(Box::new(Chunk::from_bytes(b))),
+                EncodedChunk::Some(b) => Some(Box::new(Chunk::decode_bytes(b))),
             }
         }
     }

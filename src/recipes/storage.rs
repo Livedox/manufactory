@@ -1,5 +1,5 @@
-use crate::bytes::{DynByteInterpretation, any_as_u8_slice};
-use crate::bytes::NumFromBytes;
+use crate::bytes::{BytesCoder, AsFromBytes};
+
 use super::{item::{PossibleItem, Item}, recipe::{ActiveRecipe, Recipe}};
 use std::{fmt::Debug, time::Instant};
 
@@ -133,24 +133,39 @@ impl Debug for dyn Storage {
     }
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct ItemHeader {
+    index: u32,
+    id: u32,
+    count: u32,
+}
+impl ItemHeader {
+    #[inline]
+    fn new(index: u32, id: u32, count: u32) -> Self {Self {
+        index,
+        id,
+        count,
+    }}}
+impl AsFromBytes for ItemHeader {}
 
-impl<const N: usize> DynByteInterpretation for [PossibleItem; N] {
-    fn to_bytes(&self) -> Box<[u8]> {
-        let mut v = Vec::new();
-        for (i, item) in self.iter().enumerate() {
-            if let Some(item) = item.0 {
-                v.extend(unsafe { any_as_u8_slice(&[i as u32, item.id(), item.count]) });
-            }
-        }
-        v.into()
+
+impl<const N: usize> BytesCoder for [PossibleItem; N] {
+    fn encode_bytes(&self) -> Box<[u8]> {
+        let mut bytes = Vec::new();
+        self.iter().enumerate().for_each(|(index, item)| {
+            let Some(item) = item.0 else {return};
+            bytes.extend(ItemHeader::new(index as u32, item.id(), item.count).as_bytes());
+        });
+        bytes.into()
     }
 
-    fn from_bytes(data: &[u8]) -> Self {
-        let mut s: [PossibleItem; N] = [PossibleItem::new_none(); N];
-        for c in data.chunks(12) {
-            s[u32::from_bytes(&c[0..4]) as usize] = PossibleItem(Some(Item::new(
-                u32::from_bytes(&c[4..8]), u32::from_bytes(&c[8..12]))));
-        }
-        s
+    fn decode_bytes(bytes: &[u8]) -> Self {
+        let mut storage: [PossibleItem; N] = [PossibleItem::new_none(); N];
+        bytes.chunks(12).for_each(|header_bytes| {
+            let header = ItemHeader::from_bytes(&header_bytes);
+            storage[header.index as usize] = PossibleItem::new(header.id, header.count);
+        });
+        storage
     }
 }

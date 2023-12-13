@@ -2,16 +2,12 @@ use std::collections::HashMap;
 use std::{default, fs};
 use std::path::PathBuf;
 use std::{path::Path, fs::File};
-use std::io::prelude::*;
 
-use zerocopy::FromBytes;
-use zerocopy_derive::{FromBytes, FromZeroes, AsBytes};
-
-use crate::bytes::DynByteInterpretation;
+use crate::bytes::BytesCoder;
 use crate::voxels::chunk::Chunk;
 use crate::voxels::chunks::WORLD_HEIGHT;
 use crate::world::chunk_coords::ChunkCoords;
-use crate::bytes::NumFromBytes;
+use crate::bytes::AsFromBytes;
 
 // Must be a power of two
 const REGION_SIZE: usize = 32;
@@ -121,7 +117,7 @@ impl WorldRegions {
 
     pub fn save_chunk(&mut self, chunk: &Chunk) {
         self.get_or_create_region(chunk.xyz.into())
-            .save_chunk(chunk.xyz, chunk.to_bytes());
+            .save_chunk(chunk.xyz, chunk.encode_bytes());
     }
 
     pub fn get_or_create_region(&mut self, coords: RegionCoords) -> &mut Region {
@@ -188,20 +184,5 @@ impl WorldRegions {
 
         self.regions.insert(coords, region);
         println!("{:?} {:?} {:?}", self.path, self.path.join(&coords.filename()), Path::new(&coords.filename()));
-    }
-}
-
-pub trait Compress: Sized + Clone {
-    #[inline(always)]
-    fn as_bytes(&self) -> &[u8] {
-        let len = std::mem::size_of_val(self);
-        let slf: *const Self = self;
-        unsafe { std::slice::from_raw_parts(slf.cast::<u8>(), len) }
-    }
-
-    #[inline(always)]
-    fn from_bytes(bytes: &[u8]) -> Self {
-        let ptr = bytes.as_ptr() as *const Self;
-        unsafe {ptr.as_ref()}.unwrap().clone()
     }
 }

@@ -1,8 +1,8 @@
 use std::time::{Instant, Duration};
 
 use nalgebra_glm::vec1;
-use crate::bytes::NumFromBytes;
-use crate::{world::{global_coords::GlobalCoords, local_coords::LocalCoords}, direction::Direction, voxels::{chunks::Chunks, block::blocks::BLOCKS}, recipes::{item::PossibleItem, storage::Storage}, bytes::{DynByteInterpretation, ConstByteInterpretation}};
+use crate::bytes::{BytesCoder, AsFromBytes, cast_vec_from_bytes, cast_bytes_from_vec};
+use crate::{world::{global_coords::GlobalCoords, local_coords::LocalCoords}, direction::Direction, voxels::{chunks::Chunks, block::blocks::BLOCKS}, recipes::{item::PossibleItem, storage::Storage}};
 
 use super::multiblock::MultiBlock;
 
@@ -82,41 +82,43 @@ impl MultiBlock for Drill {
     }
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct Header {
+    storage_len: u32,
+    structure_len: u32,
+    direction: [i8; 3],
+}
+impl AsFromBytes for Header {}
 
-impl DynByteInterpretation for Drill {
-    fn from_bytes(data: &[u8]) -> Self {
-        let dir = [data[0] as i8, data[1] as i8, data[2] as i8];
-        let s_len = u32::from_bytes(&data[3..7]) as usize;
-        let s = <[PossibleItem; 1]>::from_bytes(&data[7..7+s_len]);
-        let _sc_len = u32::from_bytes(&data[7+s_len..7+s_len+4]);
+impl BytesCoder for Drill {
+    fn decode_bytes(bytes: &[u8]) -> Self {
+        let header = Header::from_bytes(&bytes[0..Header::size()]);
 
-        let mut sc = vec![];
-        for d in data[7+s_len+4..].chunks(12) {
-            sc.push(GlobalCoords::from_bytes(d));
-        }
+        let storage_size = Header::size() + header.storage_len as usize;
+        let storage = <[PossibleItem; 1]>::decode_bytes(&bytes[Header::size()..storage_size]);
+        let structure_size = storage_size+header.structure_len as usize;
+        let structure = cast_vec_from_bytes(&bytes[storage_size..structure_size]);
 
         Self {
-            dir,
-            storage: s,
-            structure_coordinates: sc,
+            dir: header.direction,
+            storage,
+            structure_coordinates: structure,
             start: Instant::now(),
         }
     }
-    fn to_bytes(&self) -> Box<[u8]> {
-        let mut v = Vec::new();
-        let storage = self.storage.to_bytes();
-        let storage_len = storage.len() as u32;
-        let sc_len = (self.structure_coordinates.len() * 12) as u32;
-        let mut sc = Vec::<u8>::new();
-        for gc in &self.structure_coordinates {
-            sc.extend(gc.to_bytes().as_ref());
-        }
+    fn encode_bytes(&self) -> Box<[u8]> {
+        let mut bytes = Vec::new();
 
-        v.extend([self.dir[0] as u8, self.dir[1] as u8, self.dir[2] as u8]);
-        v.extend(storage_len.to_le_bytes());
-        v.extend(storage.as_ref());
-        v.extend(sc_len.to_le_bytes());
-        v.extend(sc);
-        v.into()
+        let storage = self.storage.encode_bytes();
+        let structure = cast_bytes_from_vec(&self.structure_coordinates);
+        bytes.extend(Header {
+            direction: self.dir,
+            storage_len: storage.len() as u32,
+            structure_len: structure.len() as u32,
+        }.as_bytes());
+        bytes.extend(storage.as_ref());
+        bytes.extend(structure);
+        bytes.into()
     }
 }

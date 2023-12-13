@@ -1,6 +1,5 @@
 use std::time::{Instant, Duration};
-use crate::{world::{global_coords::GlobalCoords, local_coords::LocalCoords}, direction::Direction, voxels::{chunks::Chunks, block::blocks::BLOCKS}, recipes::{item::{PossibleItem, Item}, storage::Storage}, bytes::DynByteInterpretation};
-use crate::bytes::NumFromBytes;
+use crate::{world::{global_coords::GlobalCoords, local_coords::LocalCoords}, direction::Direction, voxels::{chunks::Chunks, block::blocks::BLOCKS}, recipes::{item::{PossibleItem, Item}, storage::Storage}, bytes::{BytesCoder, AsFromBytes}};
 
 #[derive(Debug)]
 pub struct Manipulator {
@@ -72,21 +71,29 @@ impl Manipulator {
     }
 }
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct Header {
+    item_id: u32,
+    direction: [i8; 3],
+}
+impl AsFromBytes for Header {}
 
-impl DynByteInterpretation for Manipulator {
-    fn from_bytes(data: &[u8]) -> Self {
-        let item_id = u32::from_bytes(&data[0..4]);
+impl BytesCoder for Manipulator {
+    fn decode_bytes(bytes: &[u8]) -> Self {
+        let header = Header::from_bytes(&bytes[0..Header::size()]);
         Self {
             start_time: None,
             return_time: None,
-            item_id: if u32::MAX == item_id {None} else {Some(item_id)},
-            direction: [data[4] as i8, data[5] as i8, data[6] as i8],
+            item_id: if u32::MAX == header.item_id {None} else {Some(header.item_id)},
+            direction: header.direction,
         }
     }
-    fn to_bytes(&self) -> Box<[u8]> {
-        let mut v = Vec::new();
-        v.extend(self.item_id.unwrap_or(u32::MAX).to_le_bytes());
-        v.extend([self.direction[0] as u8, self.direction[1] as u8, self.direction[2] as u8]);
-        v.into()
+
+    fn encode_bytes(&self) -> Box<[u8]> {
+        Header {
+            item_id: self.item_id.unwrap_or(u32::MAX),
+            direction: self.direction
+        }.as_bytes().into()
     }
 }

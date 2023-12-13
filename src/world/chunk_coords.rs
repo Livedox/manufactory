@@ -1,10 +1,11 @@
-use crate::{voxels::{chunk::{CHUNK_BIT_SHIFT, CHUNK_SIZE}, chunks::Chunks}, bytes::{DynByteInterpretation, ConstByteInterpretation}};
-use crate::bytes::NumFromBytes;
+use crate::{voxels::{chunk::{CHUNK_BIT_SHIFT, CHUNK_SIZE}, chunks::Chunks}, bytes::AsFromBytes};
 use super::{global_coords::GlobalCoords, local_coords::LocalCoords};
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(C)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct ChunkCoords(pub i32, pub i32, pub i32);
+
+impl AsFromBytes for ChunkCoords {}
 
 impl ChunkCoords {
     #[inline]
@@ -53,23 +54,6 @@ impl From<GlobalCoords> for ChunkCoords {
             coords.0 >> CHUNK_BIT_SHIFT,
             coords.1 >> CHUNK_BIT_SHIFT,
             coords.2 >> CHUNK_BIT_SHIFT)
-    }
-}
-
-
-impl DynByteInterpretation for ChunkCoords {
-    fn from_bytes(data: &[u8]) -> Self {
-        ChunkCoords(i32::from_bytes(&data[0..4]),
-            i32::from_bytes(&data[4..8]),
-            i32::from_bytes(&data[8..12]))
-    }
-
-    fn to_bytes(&self) -> Box<[u8]> {
-        let mut v = Vec::with_capacity(12);
-        v.extend(self.0.to_le_bytes());
-        v.extend(self.1.to_le_bytes());
-        v.extend(self.2.to_le_bytes());
-        v.into()
     }
 }
 

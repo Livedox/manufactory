@@ -1,6 +1,6 @@
-use crate::bytes::ConstByteInterpretation;
-use crate::bytes::NumFromBytes;
+use crate::bytes::AsFromBytes;
 
+#[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct Voxel {
     pub id: u32,
@@ -12,15 +12,4 @@ impl Voxel {
     }
 }
 
-
-impl ConstByteInterpretation for Voxel {
-    fn to_bytes(&self) -> Box<[u8]> {
-        Box::new(self.id.to_le_bytes())
-    }
-
-    fn from_bytes(data: &[u8]) -> Self {
-        Self { id: u32::from_bytes(&data[0..4]) }
-    }
-
-    fn size(&self) -> u32 {4}
-}
+impl AsFromBytes for Voxel {}
