@@ -1,3 +1,5 @@
+use crate::bytes::{BytesCoder, AsFromBytes};
+
 use super::{item::{PossibleItem, Item}, recipe::{ActiveRecipe, Recipe}};
 use std::{fmt::Debug, time::Instant};
 
@@ -128,5 +130,42 @@ pub trait Storage {
 impl Debug for dyn Storage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Storage: {:?}", self.storage())
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct ItemHeader {
+    index: u32,
+    id: u32,
+    count: u32,
+}
+impl ItemHeader {
+    #[inline]
+    fn new(index: u32, id: u32, count: u32) -> Self {Self {
+        index,
+        id,
+        count,
+    }}}
+impl AsFromBytes for ItemHeader {}
+
+
+impl<const N: usize> BytesCoder for [PossibleItem; N] {
+    fn encode_bytes(&self) -> Box<[u8]> {
+        let mut bytes = Vec::new();
+        self.iter().enumerate().for_each(|(index, item)| {
+            let Some(item) = item.0 else {return};
+            bytes.extend(ItemHeader::new(index as u32, item.id(), item.count).as_bytes());
+        });
+        bytes.into()
+    }
+
+    fn decode_bytes(bytes: &[u8]) -> Self {
+        let mut storage: [PossibleItem; N] = [PossibleItem::new_none(); N];
+        bytes.chunks(12).for_each(|header_bytes| {
+            let header = ItemHeader::from_bytes(&header_bytes);
+            storage[header.index as usize] = PossibleItem::new(header.id, header.count);
+        });
+        storage
     }
 }

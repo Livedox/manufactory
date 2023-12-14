@@ -1,7 +1,6 @@
 use itertools::Itertools;
 
-use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage}, direction::Direction, world::global_coords::GlobalCoords, voxels::chunks::Chunks};
-
+use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage}, direction::Direction, world::global_coords::GlobalCoords, voxels::chunks::Chunks, bytes::{AsFromBytes, BytesCoder}};
 // TODO: PLEASE UPDATE THIS SHIT
 
 #[derive(Debug, PartialEq, Eq)]
@@ -14,8 +13,8 @@ pub enum TransportBeltSide {
 #[derive(Debug)]
 pub struct TransportBelt {
     item_progress: [f32; 6],
-    storage: [PossibleItem; 6],
     direction: [i8; 3],
+    storage: [PossibleItem; 6],
 }
 
 
@@ -58,8 +57,7 @@ impl TransportBelt {
         let dst_coords = GlobalCoords(coords.0+self.direction[0] as i32, coords.1, coords.2+self.direction[2] as i32);
         let Some(dst) = (unsafe {
             chunks.as_mut().expect("Chunks don't exist")
-                .mut_chunk(dst_coords)
-                .and_then(|chunk| chunk.mut_voxel_data(dst_coords.into()))
+                .mut_voxel_data(dst_coords)
                 .and_then(|voxel_data| voxel_data.additionally.transport_belt())
         }) else {return};
         
@@ -151,5 +149,27 @@ impl Storage for TransportBelt {
 
         added_item.try_add(&returned_item);
         Some(added_item)
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct Header {
+    progress: [f32; 6],
+    direction: [i8; 3],
+}
+impl AsFromBytes for Header {}
+
+impl BytesCoder for TransportBelt {
+    fn decode_bytes(bytes: &[u8]) -> Self {
+        let header = Header::from_bytes(&bytes[0..Header::size()]);
+        let storage = <[PossibleItem; 6]>::decode_bytes(&bytes[Header::size()..]);
+        Self { item_progress: header.progress, direction: header.direction, storage }
+    }
+    fn encode_bytes(&self) -> Box<[u8]> {
+        let mut bytes = Vec::new();
+        bytes.extend(Header {progress: self.item_progress, direction: self.direction}.as_bytes());
+        bytes.extend(self.storage.encode_bytes().as_ref());
+        bytes.into()
     }
 }

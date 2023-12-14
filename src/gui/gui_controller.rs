@@ -26,7 +26,6 @@ pub struct GuiController {
     window: Arc<Window>,
     items_atlas: Arc<TextureAtlas>,
     is_ui: bool,
-    is_inventory: bool,
     is_menu: bool,
     is_cursor: bool,
 }
@@ -38,7 +37,6 @@ impl GuiController {
             window,
             items_atlas,
             is_ui: true,
-            is_inventory: true,
             is_menu: false,
             is_cursor: true,
         }
@@ -48,14 +46,6 @@ impl GuiController {
     }
     pub fn toggle_ui(&mut self) {
         self.is_ui = !self.is_ui;
-    }
-    pub fn toggle_inventory(&mut self) -> bool {
-        self.is_inventory = !self.is_inventory;
-        self.is_inventory
-    }
-    pub fn set_inventory(&mut self, state: bool) {
-        self.is_inventory = state;
-        self.set_cursor_lock(state);
     }
     pub fn toggle_menu(&mut self) {
         self.is_menu = !self.is_menu;
@@ -84,12 +74,12 @@ impl GuiController {
         if !self.is_ui {return self}
         let mut task: Option<Task> = None;
         let inventory = player.inventory();
-        let storage = player.open_storage.as_mut().map(|op| op.upgrade().unwrap());
+        let storage = player.open_storage.as_mut().and_then(|op| op.upgrade().map(|s| s));
         egui::Area::new("hotbar_area")
             .anchor(Align2::CENTER_BOTTOM, vec2(1.0, -1.0))
             .show(ctx, |ui| {
                 ui.set_visible(self.is_ui);
-                let storage = player.open_storage.as_mut().map(|op| op.upgrade().unwrap());
+                let storage = player.open_storage.as_mut().and_then(|op| op.upgrade().map(|s| s));
                 
                 ui.horizontal_top(|ui| {
                     for (i, item) in player.inventory().clone().lock().unwrap().storage().iter().take(10).enumerate() {
@@ -103,13 +93,15 @@ impl GuiController {
                     }
                 });
             });
-        if !self.is_inventory {return self};
+        if !player.is_inventory {return self};
         egui::Area::new("inventory_area")
             .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))
             .show(ctx, |ui| {
-                ui.set_visible(self.is_ui & self.is_inventory);
+                ui.set_visible(self.is_ui & player.is_inventory);
                 if let Some(storage) = &player.open_storage {
-                    storage.upgrade().unwrap().lock().unwrap().draw(ui, self.items_atlas.clone(), inventory.clone());
+                    if let Some(up) = storage.upgrade() {
+                        up.lock().unwrap().draw(ui, self.items_atlas.clone(), inventory.clone());
+                    }
                 }
                 let inventory_len = inventory.clone().lock().unwrap().storage().len();
                 ui.horizontal(|ui| {        

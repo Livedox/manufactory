@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage, recipe::{Recipe, ActiveRecipe}, recipes::RECIPES}, world::global_coords::GlobalCoords, gui::{draw::Draw, my_widgets::{assembling_machine_slot::assembling_machine_slot, recipe::recipe}}, player::inventory::PlayerInventory, engine::texture::TextureAtlas};
+use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage, recipe::{Recipe, ActiveRecipe}, recipes::RECIPES}, world::global_coords::GlobalCoords, gui::{draw::Draw, my_widgets::{assembling_machine_slot::assembling_machine_slot, recipe::recipe}}, player::inventory::PlayerInventory, engine::texture::TextureAtlas, bytes::{BytesCoder, AsFromBytes, cast_bytes_from_vec, cast_vec_from_bytes}};
 use crate::gui::my_widgets::container::container;
 
 use super::{multiblock::MultiBlock, DrawStorage};
@@ -165,3 +165,55 @@ impl Draw for AssemblingMachine {
 }
 
 impl DrawStorage for AssemblingMachine {}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+struct Header {
+    selected_recipe_id: u32,
+    active_recipe_id: u32,
+    storage_len: u32,
+    structure_len: u32,
+}
+impl AsFromBytes for Header {}
+
+impl BytesCoder for AssemblingMachine {
+    fn decode_bytes(bytes: &[u8]) -> Self {
+        let header = Header::from_bytes(&bytes[0..Header::size()]);
+        let selected_recipe = if header.selected_recipe_id != u32::MAX {
+            Some(&RECIPES().all[header.selected_recipe_id as usize])
+        } else {
+            None
+        };
+        let active_recipe = if header.active_recipe_id != u32::MAX {
+            Some(RECIPES().all[header.active_recipe_id as usize].start_absolute())
+        } else {
+            None
+        };
+        let storage_size = Header::size() + header.storage_len as usize;
+        let storage = <[PossibleItem; TOTAL_LENGTH]>::decode_bytes(&bytes[Header::size()..storage_size]);
+        let structure_size = storage_size+header.structure_len as usize;
+        let structure = cast_vec_from_bytes(&bytes[storage_size..structure_size]);
+
+        Self {
+            selected_recipe,
+            active_recipe,
+            storage,
+            structure_coordinates: structure,
+        }
+    }
+    fn encode_bytes(&self) -> Box<[u8]> {
+        let mut bytes = Vec::new();
+
+        let storage = self.storage.encode_bytes();
+        let structure = cast_bytes_from_vec(&self.structure_coordinates);
+        bytes.extend(Header {
+            selected_recipe_id: self.selected_recipe.map(|r| r.id).unwrap_or(u32::MAX),
+            active_recipe_id: self.active_recipe.as_ref().map(|r| r.recipe.id).unwrap_or(u32::MAX),
+            storage_len: storage.len() as u32,
+            structure_len: structure.len() as u32,
+        }.as_bytes());
+        bytes.extend(storage.as_ref());
+        bytes.extend(structure);
+        bytes.into()
+    }
+}

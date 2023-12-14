@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::{recipes::{item::PossibleItem, storage::Storage}, gui::{draw::Draw, my_widgets::inventory_slot::inventory_slot}, player::inventory::PlayerInventory, engine::texture::TextureAtlas};
+use crate::{recipes::{item::PossibleItem, storage::Storage}, gui::{draw::Draw, my_widgets::inventory_slot::inventory_slot}, player::inventory::PlayerInventory, engine::texture::TextureAtlas, bytes::BytesCoder};
 
 use super::DrawStorage;
 
@@ -57,3 +57,12 @@ impl Draw for VoxelBox {
 }
 
 impl DrawStorage for VoxelBox {}
+
+impl BytesCoder for VoxelBox {
+    fn decode_bytes(data: &[u8]) -> Self {
+        Self {storage: <[PossibleItem; 30]>::decode_bytes(&data[..])}
+    }
+    fn encode_bytes(&self) -> Box<[u8]> {
+        self.storage.encode_bytes()
+    }
+}

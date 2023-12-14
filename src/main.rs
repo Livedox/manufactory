@@ -1,18 +1,21 @@
-use std::{time::{Duration, Instant}, rc::Rc, borrow::Borrow, collections::HashMap, sync::{Arc, mpsc::channel, Mutex}, os::windows::thread};
+use std::{time::{Duration, Instant}, rc::Rc, borrow::Borrow, collections::HashMap, sync::{Arc, mpsc::channel, Mutex, Condvar}};
 
+use bytes::BytesCoder;
 use camera::frustum::Frustum;
 use direction::Direction;
 use engine::state;
 use graphic::{render_selection::render_selection, render::RenderResult};
 use gui::gui_controller::GuiController;
 use input_event::KeypressState;
-use meshes::{MeshesRenderInput, Meshes};
+use meshes::{MeshesRenderInput, Meshes, Mesh};
 use player::player::Player;
-use recipes::{storage::Storage, item::Item};
+use recipes::{storage::Storage, item::{Item, PossibleItem}};
+use save_load::{WorldRegions, EncodedChunk};
+use threads::{save::SaveState};
 use unsafe_mutex::UnsafeMutex;
-use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}, SyncUnsafeWorldCell};
-use crate::{voxels::chunk::HALF_CHUNK_SIZE, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}};
-use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::{blocks::BLOCKS, block_type::BlockType}};
+use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}};
+use crate::{voxels::chunk::{HALF_CHUNK_SIZE, Chunk}, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, save_load::Save};
+use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::{blocks::BLOCKS, block_type::BlockType}, voxel_data::{VoxelAdditionalData, multiblock::MultiBlock}};
 
 use winit::{
     event::*,
@@ -41,9 +44,18 @@ mod macros;
 mod threads;
 mod unsafe_mutex;
 mod engine;
+mod save_load;
+mod bytes;
+
+static mut WORLD_EXIT: bool = false;
+const GAME_VERSION: u32 = 1;
 
 const RENDER_DISTANCE: i32 = 6;
 const HALF_RENDER_DISTANCE: i32 = RENDER_DISTANCE / 2;
+
+const CAMERA_FOV: f32 = 1.2;
+const CAMERA_NEAR: f32 = 0.1;
+const CAMERA_FAR: f32 = 1000.0;
 
 pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
     // UPDATE
@@ -62,9 +74,11 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
     indices
 }
 
+
 #[tokio::main]
 pub async fn main() {
     let (tx, rx) = std::sync::mpsc::channel::<Vec<(usize, usize)>>();
+    let save = Save::new("./data/worlds/debug/");
     let sun = Sun::new(
         60,
         [0, 50, 60, 230, 240, 290, 300, 490, 500],
@@ -82,7 +96,6 @@ pub async fn main() {
     let mut debug_block_id = None;
     let mut debug_data = String::new();
 
-
     let event_loop = EventLoop::new();
     let window = Arc::new(WindowBuilder::new()
         .with_title("Manufactory")
@@ -90,32 +103,52 @@ pub async fn main() {
         .build(&event_loop)
         .unwrap());
 
-    let mut camera = camera::camera_controller::CameraController::new(glm::vec3(0.0, 20.0, 0.0), 1.2, 0.1, 1000.0);
+
+    let mut player = match save.world.player.lock().unwrap().load_player() {
+        Some(player) => player,
+        _ => {
+            let camera = camera::camera_controller::CameraController::new(
+                glm::vec3(0.0, 20.0, 0.0), CAMERA_FOV, CAMERA_NEAR, CAMERA_FAR);
+            let mut player = Player::new(camera, glm::vec3(0.0, 20.0, 0.0));
+            let binding = player.inventory();
+            let mut inventory = binding.lock().unwrap();
+            _ = inventory.add_by_index(&Item::new(0, 100), 10);
+            _ = inventory.add_by_index(&Item::new(1, 100), 11);
+            _ = inventory.add_by_index(&Item::new(2, 100), 12);
+            _ = inventory.add_by_index(&Item::new(3, 100), 13);
+            player
+        }
+    };
+    
     let mut meshes = meshes::Meshes::new();
     let mut input = input_event::input_service::InputService::new();
     let mut time = my_time::Time::new();
     let window_size = window.inner_size();
     let mut state = state::State::new(
-        window.clone(), &camera.proj_view(window_size.width as f32, window_size.height as f32).into()).await;
+        window.clone(), &player.camera().proj_view(window_size.width as f32, window_size.height as f32).into()).await;
     let mut gui_controller = GuiController::new(window, state.texture_atlas.clone());
 
-    let mut player = Player::new();
-    let binding = player.inventory();
-    let mut inventory = binding.lock().unwrap();
-    _ = inventory.add_by_index(&Item::new(0, 100), 10);
-    _ = inventory.add_by_index(&Item::new(1, 100), 11);
-    _ = inventory.add_by_index(&Item::new(2, 100), 12);
-    _ = inventory.add_by_index(&Item::new(3, 100), 13);
-    drop(inventory);
-
-    let player_coords = Arc::new(Mutex::new(camera.position_tuple()));
+    let player_coords = Arc::new(Mutex::new(player.camera().position_tuple()));
     let world = Arc::new(UnsafeMutex::new(World::new(RENDER_DISTANCE, WORLD_HEIGHT as i32, RENDER_DISTANCE, -HALF_RENDER_DISTANCE, 0, -HALF_RENDER_DISTANCE)));
-
-
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
-    threads::world_loader::spawn(world.clone(), player_coords.clone());
-    threads::renderer::spawn(world.clone(), player_coords.clone(), render_result.clone());
-    threads::voxel_data_updater::spawn(world.clone());
+    let save_condvar = Arc::new((Mutex::new(SaveState::Unsaved), Condvar::new()));
+    
+    let thread_save = threads::save::spawn(world.clone(), save.world.regions.clone(), save_condvar.clone());
+    let thread_world_loader = threads::world_loader::spawn(world.clone(), save.world.regions.clone(), player_coords.clone());
+    let thread_renderer = threads::renderer::spawn(world.clone(), player_coords.clone(), render_result.clone());
+    let thread_voxel_data_updater = threads::voxel_data_updater::spawn(world.clone());
+    
+    let mut finalize = Some(move || {
+        unsafe {WORLD_EXIT = true};
+        thread_renderer.join().expect("Failed to terminate thread renderer");
+        thread_world_loader.join().expect("Failed to terminate thread world_loader");
+        thread_voxel_data_updater.join().expect("Failed to terminate thread voxel_data_updater");
+
+        let (save_state, cvar) = &*save_condvar;
+        *save_state.lock().unwrap() = SaveState::WorldExit;
+        cvar.notify_one();
+        thread_save.join().expect("Failed to terminate thread save");
+    });
 
     let mut timer_16ms = Timer::new(Duration::from_millis(16));
     let mut fps = Instant::now();
@@ -145,29 +178,33 @@ pub async fn main() {
                 }
             }
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
+                player.handle_input(&input, time.delta(), gui_controller.is_cursor());
+
                 let mut world_g = world.lock_unsafe(true).unwrap();
                 time.update();
-                camera.update(&input, time.delta(), gui_controller.is_cursor());
-                let c: ChunkCoords = GlobalCoords::from(camera.position_tuple()).into();
-                debug_data = format!("{:?}", camera.position_tuple());
-                if (c.0-HALF_RENDER_DISTANCE != world_g.chunks.ox || c.2-HALF_RENDER_DISTANCE != world_g.chunks.oz) && !world_g.chunks.is_translate {
+                let c: ChunkCoords = GlobalCoords::from(player.camera().position_tuple()).into();
+                debug_data = format!("{:?}", player.camera().position_tuple());
+                if ((c.0-HALF_RENDER_DISTANCE - world_g.chunks.ox).abs() >= 2 || (c.2-HALF_RENDER_DISTANCE - world_g.chunks.oz).abs() >= 2) && !world_g.chunks.is_translate {
                     world_g.chunks.is_translate = true;
                     drop(world_g);
                     let w = world.clone();
                     let tx_clone = tx.clone();
-                    meshes.add_need_translate();
+                    let need_translate = meshes.need_translate.clone();
                     tokio::spawn(async move {
                         let mut world = w.lock().unwrap();
-                        let _ = tx_clone.send(world.chunks.translate(c.0-HALF_RENDER_DISTANCE, c.2-HALF_RENDER_DISTANCE));
+                        *need_translate.lock().unwrap() += 1;
+                        let vec = world.chunks.translate(c.0-HALF_RENDER_DISTANCE, c.2-HALF_RENDER_DISTANCE);
                         world.chunks.is_translate = false;
+                        drop(world);
+                        let _ = tx_clone.send(vec);
                     });
                 }
                 let mut world_g = world.lock_unsafe(true).unwrap();
                 let indices = frustum(
                     &mut world_g.chunks,
-                    &camera.new_frustum(state.size.width as f32/state.size.height as f32));
-                *player_coords.lock().unwrap() = camera.position_tuple();
-                state.update(&camera.proj_view(state.size.width as f32, state.size.height as f32).into(), &time);
+                    &player.camera().new_frustum(state.size.width as f32/state.size.height as f32));
+                *player_coords.lock().unwrap() = player.camera().position_tuple();
+                state.update(&player.camera().proj_view(state.size.width as f32, state.size.height as f32).into(), &time);
                 gui_controller.update_cursor_lock();
                 meshes.update_transforms_buffer(&state, &world_g, &indices);
 
@@ -175,9 +212,8 @@ pub async fn main() {
                 fps = Instant::now();
 
                 if input.is_key(&Key::E, KeypressState::AnyJustPress) {
-                    gui_controller.set_cursor_lock(!gui_controller.is_cursor());
-                    state.set_ui_interaction(gui_controller.is_cursor());
-                    if !gui_controller.toggle_inventory() {player.open_storage = None};
+                    gui_controller.set_cursor_lock(player.is_inventory);
+                    state.set_ui_interaction(player.is_inventory);
                 }
 
                 if input.is_key(&Key::F1, KeypressState::AnyJustPress) {
@@ -194,28 +230,7 @@ pub async fn main() {
                     }
                 }
 
-                if input.wheel() < 0 {
-                    player.active_slot += 1;
-                    if player.active_slot > 9 {player.active_slot = 0}
-                }
-                
-                if input.wheel() > 0 {
-                    if player.active_slot == 0 {
-                        player.active_slot = 9
-                    } else {
-                        player.active_slot -= 1;
-                    }
-                }
-                
-                [Key::Key1, Key::Key2, Key::Key3, Key::Key4, Key::Key5,
-                    Key::Key6, Key::Key7, Key::Key8, Key::Key9, Key::Key0]
-                    .iter().enumerate().for_each(|(i, key)| {
-                        if input.is_key(key, KeypressState::AnyPress) {
-                            player.active_slot = i;
-                        }
-                    });
-
-                let result = ray_cast::ray_cast(&world_g.chunks, &camera.position_array(), &camera.front_array(), 10.0);
+                let result = ray_cast::ray_cast(&world_g.chunks, &player.camera().position_array(), &player.camera().front_array(), 10.0);
                 if let Some(result) = result {
                     let (x, y, z, voxel, norm) = ((result.0) as i32, (result.1) as i32, (result.2) as i32, result.3, result.4);
                     let global_coords: GlobalCoords = (x, y, z).into();
@@ -237,24 +252,22 @@ pub async fn main() {
                         state.selection_vertex_buffer = None;
                     }
 
-                    if input.is_mouse(&Mouse::Left, KeypressState::AnyPress) && !gui_controller.is_cursor() {
+                    if input.is_mouse(&Mouse::Left, KeypressState::AnyJustPress) && !gui_controller.is_cursor() {
                         BLOCKS()[voxel_id as usize].on_block_break(&mut world_g, &mut player, &(x, y, z).into());
                     } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !gui_controller.is_cursor() {
                         let gxyz = GlobalCoords(x+norm.x as i32, y+norm.y as i32, z+norm.z as i32);
-                        if voxel_id == 13 || voxel_id == 14 || voxel_id == 1 || voxel_id == 16 {
-                            let chunk = world_g.chunks.mut_chunk(chunk_coords);
-                            let voxel_data = chunk.unwrap().mut_voxel_data(local_coords);
-                            if let Some(storage) = voxel_data.and_then(|vd| vd.player_unlockable()) {
-                                gui_controller.set_inventory(true);
-                                player.open_storage = Some(storage);
-                            }
+                        if let Some(storage) = world_g.chunks.voxel_data(global_coords).and_then(|vd| vd.player_unlockable()) {
+                            player.set_open_storage(storage);
+                            gui_controller.set_cursor_lock(player.is_inventory);
+                            state.set_ui_interaction(player.is_inventory);
                         } else {
-                            let front = camera.front();
+                            let front = player.camera().front();
+                            let direction = &Direction::new(front.x, front.y, front.z);
                             if let Some(block_id) = debug_block_id {
                                 BLOCKS()[block_id as usize].on_block_set(
-                                    &mut world_g, &mut player, &gxyz, &Direction::new(front.x, front.y, front.z));
+                                    &mut world_g, &mut player, &gxyz, direction);
                             } else {
-                                player.on_right_click(&mut world_g, &gxyz, &Direction::new(front.x, front.y, front.z));
+                                player.on_right_click(&mut world_g, &gxyz, direction);
                             }
                         }                     
                     }
@@ -285,6 +298,10 @@ pub async fn main() {
                 let (sun, sky) = sun.sun_sky();
                 state.set_sun_color(sun.into());
                 state.set_clear_color(sky.into());
+                // let m = indices.iter().map(|i| meshes.meshes().get(*i).and_then(|c| c.as_ref()))
+                //     .filter_map(|c| c)
+                //     .collect::<Vec<&Mesh>>();
+                
                 match state.render(&indices, &meshes, |ctx| {
                     gui_controller
                         .draw_inventory(ctx, &mut player)
@@ -303,8 +320,12 @@ pub async fn main() {
             Event::MainEventsCleared => {
                 state.window().request_redraw();
             }
+            Event::LoopDestroyed => {
+                finalize.take().unwrap()();
+                save.world.player.lock().unwrap().save_player(&player);
+                println!("All saved!");
+            }
             _ => {}
         }
     });
-    
 }

@@ -79,7 +79,6 @@ impl Texture {
         const BASE_SIZE: u32 = 32;
         //Maximum mipmap_count is BASE_SIZE.ilog2() + 1 (img size 1px) but it's too small
         let mipmap_count = BASE_SIZE.ilog2();
-        
         let format = wgpu::TextureFormat::Rgba8UnormSrgb;
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label,
@@ -172,7 +171,7 @@ impl Texture {
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(
-            &wgpu::SamplerDescriptor { // 4.
+            &wgpu::SamplerDescriptor {
                 address_mode_u: wgpu::AddressMode::ClampToEdge,
                 address_mode_v: wgpu::AddressMode::ClampToEdge,
                 address_mode_w: wgpu::AddressMode::ClampToEdge,

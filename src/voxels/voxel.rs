@@ -1,3 +1,6 @@
+use crate::bytes::AsFromBytes;
+
+#[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct Voxel {
     pub id: u32,
@@ -8,3 +11,5 @@ impl Voxel {
         Voxel { id }
     }
 }
+
+impl AsFromBytes for Voxel {}

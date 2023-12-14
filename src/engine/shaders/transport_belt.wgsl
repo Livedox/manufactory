@@ -12,14 +12,14 @@ var<uniform> time: f32;
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) uv: vec2<f32>,
-    @location(2) layer: f32,
+    @location(2) layer: u32,
     @location(3) light: vec4<f32>,
 }
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) uv: vec2<f32>,
-    @location(1) layer: f32,
+    @location(1) layer: u32,
     @location(2) light: vec4<f32>,
 }
 
@@ -43,7 +43,7 @@ var s_diffuse: sampler;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let texture = textureSample(t_diffuse, s_diffuse, in.uv, u32(in.layer));
+    let texture = textureSample(t_diffuse, s_diffuse, in.uv, in.layer);
     let ambient = vec4(0.0075, 0.0075, 0.0075, 0.0);
     return (ambient + in.light) * texture;
 }

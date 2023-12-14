@@ -39,11 +39,14 @@ pub struct Meshes {
     meshes: Vec<Option<Mesh>>,
     // Indicates how many translate need to be performed.
     // Use atomicity if I add this to another thread
-    need_translate: usize, 
+    pub need_translate: Arc<Mutex<usize>>, 
 }
 
 impl Meshes {
-    pub fn new() -> Self { Self {meshes: vec![], need_translate: 0 } }
+    pub fn new() -> Self { Self {
+        meshes: vec![],
+        need_translate: Arc::new(Mutex::new(0)),
+    }}
 
     pub fn render(&mut self, input: MeshesRenderInput, index: usize) {
         let MeshesRenderInput {device, animated_model_layout, all_animated_models, render_result} = input;
@@ -174,6 +177,7 @@ impl Meshes {
     pub fn update_transforms_buffer(&mut self, state: &State, world: &World, indices: &[usize]) {
         indices.iter().for_each(|index| {
             let Some(Some(chunk)) = world.chunks.chunks.get(*index).map(|c| c.as_ref()) else { return };
+            if chunk.voxels_data.is_empty() {return};
             let mut transforms_buffer: Vec<u8> = vec![];
             let mut animated_models: HashMap<String, Vec<f32>> = HashMap::new();
     
@@ -214,14 +218,14 @@ impl Meshes {
     }
 
     pub fn is_need_translate(&self) -> bool {
-        self.need_translate != 0
+        *self.need_translate.lock().unwrap() != 0
     }
 
     pub fn add_need_translate(&mut self) {
-        self.need_translate += 1;
+        *self.need_translate.lock().unwrap() += 1;
     }
 
     pub fn sub_need_translate(&mut self) {
-        self.need_translate -= 1;
+        *self.need_translate.lock().unwrap() -= 1;
     }
 }
