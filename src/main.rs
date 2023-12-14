@@ -216,12 +216,6 @@ pub async fn main() {
                     state.set_ui_interaction(player.is_inventory);
                 }
 
-                if input.is_key(&Key::F2, KeypressState::AnyJustPress) {
-                    save.world.player.lock().unwrap().save_player(&player);
-
-                    println!("{:?}", player);
-                }
-
                 if input.is_key(&Key::F1, KeypressState::AnyJustPress) {
                     gui_controller.toggle_ui();
                     state.set_crosshair(gui_controller.is_ui());
