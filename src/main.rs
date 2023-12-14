@@ -78,7 +78,7 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
 #[tokio::main]
 pub async fn main() {
     let (tx, rx) = std::sync::mpsc::channel::<Vec<(usize, usize)>>();
-    let mut save = Save::new("./data/worlds/debug/");
+    let save = Save::new("./data/worlds/debug/");
 
     println!("available_parallelism: {:?}", std::thread::available_parallelism());
     let sun = Sun::new(
