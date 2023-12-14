@@ -194,8 +194,6 @@ impl WorldRegions {
                 *chunk = EncodedChunk::Some(bytes[chunk_offset..offset as usize+chunk_offset].into());
                 chunk_offset += offset as usize;
             }
-        } else if let Err(err) = file {
-            eprintln!("Region read error: {}", err);
         }
 
         self.regions.insert(coords, region);
@@ -221,10 +219,7 @@ impl PlayerSave {
     pub fn load_player(&self) -> Option<Player> {
         match fs::read(self.path.as_path()) {
             Ok(bytes) => Some(Player::decode_bytes(&bytes)),
-            Err(err) => {
-                eprintln!("Player write error: {}", err);
-                None
-            },
+            Err(_) => {None},
         }
     }
 
@@ -255,6 +250,9 @@ pub struct Save {
 
 impl Save {
     pub fn new(world_path: impl Into<PathBuf>) -> Self {
-        Self { world: WorldSave::new(world_path.into()) }
+        let path: PathBuf = world_path.into();
+        std::fs::create_dir_all(path.join("regions/"))
+            .expect("Error creating directory");
+        Self { world: WorldSave::new(path) }
     }
 }

@@ -79,8 +79,6 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
 pub async fn main() {
     let (tx, rx) = std::sync::mpsc::channel::<Vec<(usize, usize)>>();
     let save = Save::new("./data/worlds/debug/");
-
-    println!("available_parallelism: {:?}", std::thread::available_parallelism());
     let sun = Sun::new(
         60,
         [0, 50, 60, 230, 240, 290, 300, 490, 500],
@@ -260,7 +258,7 @@ pub async fn main() {
                         state.selection_vertex_buffer = None;
                     }
 
-                    if input.is_mouse(&Mouse::Left, KeypressState::AnyPress) && !gui_controller.is_cursor() {
+                    if input.is_mouse(&Mouse::Left, KeypressState::AnyJustPress) && !gui_controller.is_cursor() {
                         BLOCKS()[voxel_id as usize].on_block_break(&mut world_g, &mut player, &(x, y, z).into());
                     } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !gui_controller.is_cursor() {
                         let gxyz = GlobalCoords(x+norm.x as i32, y+norm.y as i32, z+norm.z as i32);
