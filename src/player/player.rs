@@ -19,7 +19,6 @@ pub struct Player {
 
 impl Player {
     const SPEED: f32 = 14.0; //14.0 default
-    const SENSETIV: f32 = 0.3;
 
     pub fn new(camera: CameraController, position: glm::Vec3) -> Self {
         Self {
@@ -73,14 +72,18 @@ impl Player {
         }
         self.camera.set_position(self.position);
 
-        self.active_slot += (input.wheel() < 0) as usize;
-        if self.active_slot > 9 {self.active_slot = 0}
-        
-        if self.active_slot == 0 {
-            self.active_slot = 9
-        } else {
-            self.active_slot -= (input.wheel() > 0) as usize;
+        if input.wheel() < 0 {
+            self.active_slot += 1;
+            if self.active_slot > 9 {self.active_slot = 0}
         }
+        if input.wheel() > 0 {
+            if self.active_slot == 0 {
+                self.active_slot = 9
+            } else {
+                self.active_slot -= (input.wheel() > 0) as usize;
+            }
+        }
+        
         
         [Key::Key1, Key::Key2, Key::Key3, Key::Key4, Key::Key5,
             Key::Key6, Key::Key7, Key::Key8, Key::Key9, Key::Key0]

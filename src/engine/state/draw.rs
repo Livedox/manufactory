@@ -1,4 +1,4 @@
-use crate::meshes::Meshes;
+use crate::meshes::{Meshes, Mesh};
 
 use super::State;
 
@@ -8,8 +8,7 @@ impl State {
         &self,
         encoder: &mut wgpu::CommandEncoder,
         rpass_color_attachment: wgpu::RenderPassColorAttachment,
-        indices: &[usize],
-        meshes: &Meshes,
+        meshes: &[&Mesh],
     ) {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
@@ -32,49 +31,44 @@ impl State {
         // Set camera
         render_pass.set_bind_group(2, &self.bind_groups_buffers.camera.bind_group, &[]);
 
-        self.draw_block(&mut render_pass, indices, meshes);
-        self.draw_transport_belt(&mut render_pass, indices, meshes);
-        self.draw_animated_model(&mut render_pass, indices, meshes);
-        self.draw_model(&mut render_pass, indices, meshes);
+        self.draw_block(&mut render_pass, meshes);
+        self.draw_transport_belt(&mut render_pass, meshes);
+        self.draw_animated_model(&mut render_pass, meshes);
+        self.draw_model(&mut render_pass, meshes);
         self.draw_selection(&mut render_pass);
         self.draw_crosshair(&mut render_pass);
     }
 
     /// set bind group = 1 (block_texutre_bg)
     #[inline]
-    fn draw_block<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, indices: &[usize], meshes: &'a Meshes) {
+    fn draw_block<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &[&'a Mesh]) {
         render_pass.set_pipeline(&self.pipelines.block);
         render_pass.set_bind_group(1, &self.block_texutre_bg, &[]);
-        indices.iter().for_each(|i| {
-            if let Some(Some(mesh)) = &meshes.meshes().get(*i) {
-                render_pass.set_vertex_buffer(0, mesh.block_vertex_buffer.slice(..));
-                render_pass.set_index_buffer(mesh.block_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                render_pass.draw_indexed(0..mesh.block_index_count, 0, 0..1);
-            }
+        meshes.iter().for_each(|mesh| {
+            render_pass.set_vertex_buffer(0, mesh.block_vertex_buffer.slice(..));
+            render_pass.set_index_buffer(mesh.block_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..mesh.block_index_count, 0, 0..1);
         });
     }
 
     /// set bind group = 3 (time)
     #[inline]
-    fn draw_transport_belt<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, indices: &[usize], meshes: &'a Meshes) {
+    fn draw_transport_belt<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &[&'a Mesh]) {
         render_pass.set_pipeline(&self.pipelines.transport_belt);
         render_pass.set_bind_group(3, &self.bind_groups_buffers.time.bind_group, &[]);
-        indices.iter().for_each(|i| {
-            if let Some(Some(mesh)) = meshes.meshes().get(*i) {
-                render_pass.set_vertex_buffer(0, mesh.transport_belt_vertex_buffer.slice(..));
-                render_pass.set_index_buffer(mesh.transport_belt_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                render_pass.draw_indexed(0..mesh.transport_belt_index_count, 0, 0..1);
-            }
+        meshes.iter().for_each(|mesh| {
+            render_pass.set_vertex_buffer(0, mesh.transport_belt_vertex_buffer.slice(..));
+            render_pass.set_index_buffer(mesh.transport_belt_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..mesh.transport_belt_index_count, 0, 0..1);
         });
     }
 
     /// set bind group = 3 (transformation_matrices)
     /// set bind group = 1 (animated_model.texture)
     #[inline]
-    fn draw_animated_model<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, indices: &[usize], meshes: &'a Meshes) {
+    fn draw_animated_model<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &[&'a Mesh]) {
         render_pass.set_pipeline(&self.pipelines.animated_model);
-        indices.iter().for_each(|i| {
-            let Some(Some(mesh)) = meshes.meshes().get(*i) else {return};
+        meshes.iter().for_each(|mesh| {
             let Some(bind_group) = &mesh.transformation_matrices_bind_group else {return};
 
             render_pass.set_bind_group(3, bind_group, &[]);
@@ -93,11 +87,9 @@ impl State {
 
     /// set bind group = 1 (model.texture)
     #[inline]
-    fn draw_model<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, indices: &[usize], meshes: &'a Meshes) {
+    fn draw_model<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &[&'a Mesh]) {
         render_pass.set_pipeline(&self.pipelines.model);
-        indices.iter().for_each(|i| {
-            let Some(Some(mesh)) = &meshes.meshes().get(*i) else {return};
-
+        meshes.iter().for_each(|mesh| {
             mesh.models.iter().for_each(|(name, (instance, len))| {
                 let Some(model) = self.models.get(name) else {return};
 

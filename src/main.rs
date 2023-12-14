@@ -298,11 +298,11 @@ pub async fn main() {
                 let (sun, sky) = sun.sun_sky();
                 state.set_sun_color(sun.into());
                 state.set_clear_color(sky.into());
-                // let m = indices.iter().map(|i| meshes.meshes().get(*i).and_then(|c| c.as_ref()))
-                //     .filter_map(|c| c)
-                //     .collect::<Vec<&Mesh>>();
+                let mesh_vec = indices.iter().map(|i| meshes.meshes().get(*i).and_then(|c| c.as_ref()))
+                    .filter_map(|c| c)
+                    .collect::<Vec<&Mesh>>();
                 
-                match state.render(&indices, &meshes, |ctx| {
+                match state.render(&mesh_vec, |ctx| {
                     gui_controller
                         .draw_inventory(ctx, &mut player)
                         .draw_debug(ctx, &debug_data, &mut debug_block_id)

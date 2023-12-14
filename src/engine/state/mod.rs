@@ -1,7 +1,7 @@
 use std::{iter, collections::HashMap, sync::Arc};
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
-use crate::{meshes::Meshes, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, shaders::Shaders, bind_group_layout::Layouts, pipeline::Pipelines, egui::Egui}};
+use crate::{meshes::{Meshes, Mesh}, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, shaders::Shaders, bind_group_layout::Layouts, pipeline::Pipelines, egui::Egui}};
 use crate::engine::texture::TextureAtlas;
 use super::{texture::{self}, bind_group_buffer::BindGroupsBuffers};
 
@@ -279,7 +279,7 @@ impl State {
         self.queue.write_buffer(&self.bind_groups_buffers.time.buffer, 0, &time.current().to_le_bytes());
     }
 
-    pub fn render(&mut self, indices: &[usize], meshes: &Meshes, ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, meshes: &[&Mesh], ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -292,7 +292,7 @@ impl State {
                 label: Some("Render Encoder"),
             });
         let rpass_color_attachment = self.get_rpass_color_attachment(&view);
-        self.draw_all(&mut encoder, rpass_color_attachment, indices, meshes);
+        self.draw_all(&mut encoder, rpass_color_attachment, meshes);
 
         self.egui.end(&mut encoder, &self.device, &self.queue, &view);
 
