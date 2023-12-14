@@ -7,7 +7,7 @@ use engine::state;
 use graphic::{render_selection::render_selection, render::RenderResult};
 use gui::gui_controller::GuiController;
 use input_event::KeypressState;
-use meshes::{MeshesRenderInput, Meshes};
+use meshes::{MeshesRenderInput, Meshes, Mesh};
 use player::player::Player;
 use recipes::{storage::Storage, item::{Item, PossibleItem}};
 use save_load::{WorldRegions, EncodedChunk};
@@ -298,6 +298,10 @@ pub async fn main() {
                 let (sun, sky) = sun.sun_sky();
                 state.set_sun_color(sun.into());
                 state.set_clear_color(sky.into());
+                // let m = indices.iter().map(|i| meshes.meshes().get(*i).and_then(|c| c.as_ref()))
+                //     .filter_map(|c| c)
+                //     .collect::<Vec<&Mesh>>();
+                
                 match state.render(&indices, &meshes, |ctx| {
                     gui_controller
                         .draw_inventory(ctx, &mut player)
