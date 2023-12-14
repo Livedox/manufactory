@@ -26,7 +26,6 @@ pub struct GuiController {
     window: Arc<Window>,
     items_atlas: Arc<TextureAtlas>,
     is_ui: bool,
-    is_inventory: bool,
     is_menu: bool,
     is_cursor: bool,
 }
@@ -38,7 +37,6 @@ impl GuiController {
             window,
             items_atlas,
             is_ui: true,
-            is_inventory: true,
             is_menu: false,
             is_cursor: true,
         }
@@ -48,14 +46,6 @@ impl GuiController {
     }
     pub fn toggle_ui(&mut self) {
         self.is_ui = !self.is_ui;
-    }
-    pub fn toggle_inventory(&mut self) -> bool {
-        self.is_inventory = !self.is_inventory;
-        self.is_inventory
-    }
-    pub fn set_inventory(&mut self, state: bool) {
-        self.is_inventory = state;
-        self.set_cursor_lock(state);
     }
     pub fn toggle_menu(&mut self) {
         self.is_menu = !self.is_menu;
@@ -103,11 +93,11 @@ impl GuiController {
                     }
                 });
             });
-        if !self.is_inventory {return self};
+        if !player.is_inventory {return self};
         egui::Area::new("inventory_area")
             .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))
             .show(ctx, |ui| {
-                ui.set_visible(self.is_ui & self.is_inventory);
+                ui.set_visible(self.is_ui & player.is_inventory);
                 if let Some(storage) = &player.open_storage {
                     if let Some(up) = storage.upgrade() {
                         up.lock().unwrap().draw(ui, self.items_atlas.clone(), inventory.clone());

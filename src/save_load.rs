@@ -1,13 +1,16 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::{default, fs};
 use std::path::PathBuf;
 use std::{path::Path, fs::File};
 
 use crate::bytes::{BytesCoder, cast_vec_from_bytes};
+use crate::player::player::Player;
 use crate::voxels::chunk::Chunk;
 use crate::voxels::chunks::WORLD_HEIGHT;
 use crate::world::chunk_coords::ChunkCoords;
 use crate::bytes::AsFromBytes;
+use crate::UnsafeMutex;
 
 // Must be a power of two
 const REGION_SIZE: usize = 32;
@@ -169,7 +172,7 @@ impl WorldRegions {
             .for_each(|b| bytes.extend(b.as_ref()));
 
             
-        if let Err(err) = fs::write(self.path.join(&coords.filename()), bytes) {
+        if let Err(err) = fs::write(self.path.join("regions/").join(&coords.filename()), bytes) {
             eprintln!("Region write error: {}", err);
         } else {
             region.unsaved = false;
@@ -179,7 +182,8 @@ impl WorldRegions {
 
     pub fn load_region(&mut self, coords: RegionCoords) {
         let mut region = Region::new_empty();
-        if let Ok(bytes) = fs::read(self.path.join(&coords.filename())) {
+        let file = fs::read(self.path.join("regions/").join(&coords.filename()));
+        if let Ok(bytes) = file {
             let header = WorldRegionsHeader::from_bytes(&bytes[0..WorldRegionsHeader::size()]);
             let volume = header.width as usize * header.height as usize * header.width as usize;
             let offsets_end = WorldRegionsHeader::size()+std::mem::size_of::<u32>()*volume;
@@ -190,8 +194,67 @@ impl WorldRegions {
                 *chunk = EncodedChunk::Some(bytes[chunk_offset..offset as usize+chunk_offset].into());
                 chunk_offset += offset as usize;
             }
+        } else if let Err(err) = file {
+            eprintln!("Region read error: {}", err);
         }
 
         self.regions.insert(coords, region);
+    }
+
+    /// Only safe access in an UnsafeMutex
+    pub fn change_path(&mut self, path: PathBuf) {
+        self.path = path;
+        self.regions = HashMap::new();
+    }
+}
+
+
+pub struct PlayerSave {
+    path: PathBuf,
+}
+
+impl PlayerSave {
+    pub fn new(path: PathBuf) -> Self {
+        Self { path: path.join("player.bin") }
+    }
+
+    pub fn load_player(&self) -> Option<Player> {
+        match fs::read(self.path.as_path()) {
+            Ok(bytes) => Some(Player::decode_bytes(&bytes)),
+            Err(err) => {
+                eprintln!("Player write error: {}", err);
+                None
+            },
+        }
+    }
+
+    pub fn save_player(&self, player: &Player) {
+        if let Err(err) = fs::write(self.path.as_path(), player.encode_bytes()) {
+            eprintln!("Player write error: {}", err);
+        }
+    }
+}
+
+pub struct WorldSave {
+    pub regions: Arc<UnsafeMutex<WorldRegions>>,
+    pub player: Arc<UnsafeMutex<PlayerSave>>
+}
+
+impl WorldSave {
+    pub fn new(path: PathBuf) -> Self {
+        Self {
+            regions: Arc::new(UnsafeMutex::new(WorldRegions::new(path.clone()))),
+            player: Arc::new(UnsafeMutex::new(PlayerSave::new(path))),
+        }
+    }
+}
+
+pub struct Save {
+    pub world: WorldSave,
+}
+
+impl Save {
+    pub fn new(world_path: impl Into<PathBuf>) -> Self {
+        Self { world: WorldSave::new(world_path.into()) }
     }
 }

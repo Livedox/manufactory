@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::recipes::{recipe::{Recipe, ActiveRecipe, RecipeCrafter}, item::PossibleItem, storage::Storage};
+use crate::{recipes::{recipe::{Recipe, ActiveRecipe, RecipeCrafter}, item::PossibleItem, storage::Storage, recipes::RECIPES}, bytes::{BytesCoder, cast_bytes_from_vec, AsFromBytes, cast_vec_from_bytes}};
 
 
 #[derive(Debug)]
@@ -79,5 +79,37 @@ impl Storage for PlayerInventory {
 
     fn mut_storage(&mut self) -> &mut [PossibleItem] {
         &mut self.storage
+    }
+}
+
+
+impl BytesCoder for PlayerInventory {
+    fn encode_bytes(&self) -> Box<[u8]> {
+        let mut bytes = Vec::new();
+        let recipies: Vec<u32> = self.active_recipes.0.iter().map(|ar| ar.recipe.id).collect();
+        let recipies_bytes = cast_bytes_from_vec(&recipies);
+        let recipies_len = recipies_bytes.len();
+
+        let storage = self.storage.encode_bytes();
+        let storage_len = storage.len();
+
+        bytes.extend((recipies_len as u32).as_bytes());
+        bytes.extend((storage_len as u32).as_bytes());
+        bytes.extend(recipies_bytes);
+        bytes.extend(storage.as_ref());
+        bytes.into()
+    }
+
+    fn decode_bytes(bytes: &[u8]) -> Self {
+        let recipe_end = u32::from_bytes(&bytes[0..4]) as usize + 8;
+        let storage_end = recipe_end + u32::from_bytes(&bytes[4..8]) as usize;
+
+        let recipies_id = cast_vec_from_bytes::<u32>(&bytes[8..recipe_end]);
+        let storage = <[PossibleItem; 50]>::decode_bytes(&bytes[recipe_end..storage_end]);
+        let active_recipes = ActiveRecipes(recipies_id.iter()
+            .map(|id| RECIPES().all[*id as usize].start_absolute())
+            .collect::<Vec<ActiveRecipe>>());
+
+        Self { storage, active_recipes }
     }
 }

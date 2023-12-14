@@ -1,6 +1,6 @@
 extern crate nalgebra_glm as glm;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Camera {
     base_front: glm::Vec4,
     base_up: glm::Vec4,

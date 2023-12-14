@@ -3,6 +3,7 @@ use nalgebra_glm as glm;
 
 use super::{camera::Camera, frustum::Frustum};
 
+#[derive(Debug, Clone)]
 pub struct CameraController {
     yaw: f32,
     pitch: f32,
@@ -21,28 +22,46 @@ impl CameraController {
         }
     }
 
-    pub fn update(&mut self, input: &InputService, delta: f32, is_cursor: bool) {
+    pub fn set_angle(&mut self, yaw: f32, pitch: f32) {
+        self.yaw = yaw;
+        self.pitch = pitch;
+    }
+
+    pub fn update_rotation(&mut self, mouse_delta_x: f32, mouse_delta_y: f32, delta_time: f32) {
+        self.camera.rotation = glm::Mat4::identity();
+        self.yaw -= mouse_delta_x*Self::SENSETIV*delta_time;
+        self.pitch -= mouse_delta_y*Self::SENSETIV*delta_time;
+        if self.pitch > 1.569_051 {self.pitch = 1.569_051}
+        if self.pitch < -1.569_051 {self.pitch = -1.569_051}
+        self.camera.rotate(self.pitch, self.yaw, 0.0);
+    }
+
+    pub fn update(&mut self, input: &InputService, delta_time: f32, is_cursor: bool) {
         if !is_cursor {
             self.camera.rotation = glm::Mat4::identity();
-            self.yaw -= input.delta().0*Self::SENSETIV*delta;
-            self.pitch -= input.delta().1*Self::SENSETIV*delta;
+            self.yaw -= input.delta().0*Self::SENSETIV*delta_time;
+            self.pitch -= input.delta().1*Self::SENSETIV*delta_time;
             if self.pitch > 1.569_051 {self.pitch = 1.569_051}
             if self.pitch < -1.569_051 {self.pitch = -1.569_051}
             self.camera.rotate(self.pitch, self.yaw, 0.0); 
         }
 
         if input.is_key(&Key::W, KeypressState::AnyStayPress) {
-            self.camera.position +=  self.camera.front * Self::SPEED * delta;
+            self.camera.position +=  self.camera.front * Self::SPEED * delta_time;
         }
         if input.is_key(&Key::S, KeypressState::AnyStayPress) {
-            self.camera.position -=  self.camera.front * Self::SPEED * delta;
+            self.camera.position -=  self.camera.front * Self::SPEED * delta_time;
         }
         if input.is_key(&Key::A, KeypressState::AnyStayPress) {
-            self.camera.position -=  self.camera.right * Self::SPEED * delta;
+            self.camera.position -=  self.camera.right * Self::SPEED * delta_time;
         }
         if input.is_key(&Key::D, KeypressState::AnyStayPress) {
-            self.camera.position +=  self.camera.right * Self::SPEED * delta;
+            self.camera.position +=  self.camera.right * Self::SPEED * delta_time;
         }
+    }
+
+    pub fn set_position(&mut self, position: glm::Vec3) {
+        self.camera.position = position;
     }
 
     pub fn projection(&self, width: f32, height: f32) -> glm::Mat4 {
@@ -64,6 +83,8 @@ impl CameraController {
     pub fn near(&self) -> f32 {self.camera.near}
     pub fn far(&self) -> f32 {self.camera.far}
     pub fn fov(&self) -> f32 {self.camera.fov}
+    pub fn yaw(&self) -> f32 {self.yaw}
+    pub fn pitch(&self) -> f32 {self.pitch}
 
     pub fn new_frustum(&self, aspect: f32) -> Frustum {
         Frustum::new(self, aspect)
