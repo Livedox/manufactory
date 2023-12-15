@@ -30,7 +30,7 @@ impl Egui {
                 ..Default::default()
             },
         }),
-        rpass: RenderPass::new(&device, format, 1),
+        rpass: RenderPass::new(device, format, 1),
         screen_descriptor: ScreenDescriptor {
             physical_width: width, physical_height: height, scale_factor: scale_factor as f32 },
         textures_delta: None,

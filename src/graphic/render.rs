@@ -1,3 +1,9 @@
+use std::collections::HashMap;
+
+use crate::{voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType, light_permeability::LightPermeability}}, engine::vertices::block_vertex::BlockVertex, world::{World, chunk_coords::ChunkCoords}, engine::pipeline::IS_LINE};
+
+use super::complex_object::{ComplexObjectPart, ComplexObjectSide};
+
 #[derive(Clone, Copy)]
 enum Axis {X = 0, Y = 1, Z = 2}
 impl Axis {
@@ -6,11 +12,7 @@ impl Axis {
 
 enum Direction{Top, Left}
 
-use std::{collections::HashMap, sync::{Arc, Mutex}};
 
-use crate::{voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType, light_permeability::LightPermeability}}, engine::vertices::block_vertex::BlockVertex, world::{World, chunk_coords::ChunkCoords}, engine::pipeline::IS_LINE};
-
-use super::complex_object::{ComplexObjectPart, ComplexObjectSide};
 // Fix pixel gaps 
 //     More number => less pixel gaps
 //     Smaller number => more artifacts associated with block enlargement
@@ -556,7 +558,7 @@ pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
         xyz: chunk.xyz,
         block_vertices: buffer.buffer,
         block_indices: buffer.index_buffer,
-        models: models,
+        models,
         animated_models: animated_models_data,
         belt_vertices: transport_belt_buffer.buffer,
         belt_indices: transport_belt_buffer.index_buffer,

@@ -49,7 +49,7 @@ impl KeypressState {
         (*self & state).bits() > 0
     }
 
-    pub(super) fn to_stay(&self) -> Self {
+    pub(super) fn to_stay(self) -> Self {
         KeypressState::from_bits(self.0.bits() << 1).unwrap()
     }
 }

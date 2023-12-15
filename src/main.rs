@@ -1,28 +1,25 @@
-use std::{time::{Duration, Instant}, rc::Rc, borrow::Borrow, collections::HashMap, sync::{Arc, mpsc::channel, Mutex, Condvar}};
-
-use bytes::BytesCoder;
+use std::{time::{Duration, Instant}, sync::{Arc, Mutex, Condvar}};
 use camera::frustum::Frustum;
 use direction::Direction;
 use engine::state;
 use graphic::{render_selection::render_selection, render::RenderResult};
 use gui::gui_controller::GuiController;
 use input_event::KeypressState;
-use meshes::{MeshesRenderInput, Meshes, Mesh};
+use meshes::{MeshesRenderInput, Mesh};
 use player::player::Player;
-use recipes::{storage::Storage, item::{Item, PossibleItem}};
-use save_load::{WorldRegions, EncodedChunk};
-use threads::{save::SaveState};
+use recipes::{storage::Storage, item::Item};
+use threads::save::SaveState;
 use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}};
-use crate::{voxels::chunk::{HALF_CHUNK_SIZE, Chunk}, world::{global_coords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, save_load::Save};
-use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::{blocks::BLOCKS, block_type::BlockType}, voxel_data::{VoxelAdditionalData, multiblock::MultiBlock}};
+use crate::{voxels::chunk::HALF_CHUNK_SIZE, world::{chunk_coords::ChunkCoords, local_coords::LocalCoords}, save_load::Save};
+use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::blocks::BLOCKS};
 
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::{WindowBuilder, Fullscreen}, dpi::{PhysicalSize, LogicalSize}, monitor::VideoMode,
+    window::{WindowBuilder, Fullscreen}, dpi::PhysicalSize,
 };
-use itertools::{Itertools, iproduct};
+use itertools::iproduct;
 
 use crate::{input_event::input_service::{Key, Mouse}, voxels::ray_cast, my_time::Timer};
 use nalgebra_glm as glm;
@@ -48,7 +45,7 @@ mod save_load;
 mod bytes;
 
 static mut WORLD_EXIT: bool = false;
-const GAME_VERSION: u32 = 1;
+const _GAME_VERSION: u32 = 1;
 
 const RENDER_DISTANCE: i32 = 6;
 const HALF_RENDER_DISTANCE: i32 = RENDER_DISTANCE / 2;
@@ -94,7 +91,6 @@ pub async fn main() {
          Color(0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0),
          Color(1.0, 0.301, 0.0)]);
     let mut debug_block_id = None;
-    let mut debug_data = String::new();
 
     let event_loop = EventLoop::new();
     let window = Arc::new(WindowBuilder::new()
@@ -183,7 +179,7 @@ pub async fn main() {
                 let mut world_g = world.lock_unsafe(true).unwrap();
                 time.update();
                 let c: ChunkCoords = GlobalCoords::from(player.camera().position_tuple()).into();
-                debug_data = format!("{:?}", player.camera().position_tuple());
+                let mut debug_data = format!("{:?}", player.camera().position_tuple());
                 if ((c.0-HALF_RENDER_DISTANCE - world_g.chunks.ox).abs() >= 2 || (c.2-HALF_RENDER_DISTANCE - world_g.chunks.oz).abs() >= 2) && !world_g.chunks.is_translate {
                     world_g.chunks.is_translate = true;
                     drop(world_g);
@@ -288,7 +284,7 @@ pub async fn main() {
                             device: state.device(),
                             animated_model_layout: &state.animated_model_layout,
                             all_animated_models: &state.animated_models,
-                            render_result: render_result,
+                            render_result,
                         }, index);
                     }
                 }
@@ -298,8 +294,7 @@ pub async fn main() {
                 let (sun, sky) = sun.sun_sky();
                 state.set_sun_color(sun.into());
                 state.set_clear_color(sky.into());
-                let mesh_vec = indices.iter().map(|i| meshes.meshes().get(*i).and_then(|c| c.as_ref()))
-                    .filter_map(|c| c)
+                let mesh_vec = indices.iter().filter_map(|i| meshes.meshes().get(*i).and_then(|c| c.as_ref()))
                     .collect::<Vec<&Mesh>>();
                 
                 match state.render(&mesh_vec, |ctx| {

@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::{recipes::{recipe::{Recipe, ActiveRecipe, RecipeCrafter}, item::PossibleItem, storage::Storage, recipes::RECIPES}, bytes::{BytesCoder, cast_bytes_from_vec, AsFromBytes, cast_vec_from_bytes}};
+use crate::{recipes::{recipe::{Recipe, ActiveRecipe, RecipeCrafter}, item::PossibleItem, storage::Storage, recipes::RECIPES}, bytes::{BytesCoder, cast_bytes_from_slice, AsFromBytes, cast_vec_from_bytes}};
 
 
 #[derive(Debug)]
@@ -71,6 +71,12 @@ impl PlayerInventory {
     }
 }
 
+impl Default for PlayerInventory {
+    fn default() -> Self {
+        Self { storage: [PossibleItem::new_none(); 50], active_recipes: ActiveRecipes(vec![]) }
+    }
+}
+
 
 impl Storage for PlayerInventory {
     fn storage(&self) -> & [PossibleItem] {
@@ -87,7 +93,7 @@ impl BytesCoder for PlayerInventory {
     fn encode_bytes(&self) -> Box<[u8]> {
         let mut bytes = Vec::new();
         let recipies: Vec<u32> = self.active_recipes.0.iter().map(|ar| ar.recipe.id).collect();
-        let recipies_bytes = cast_bytes_from_vec(&recipies);
+        let recipies_bytes = cast_bytes_from_slice(&recipies);
         let recipies_len = recipies_bytes.len();
 
         let storage = self.storage.encode_bytes();

@@ -1,4 +1,4 @@
-use std::{sync::{Mutex, Arc}, time::{Duration, Instant}, thread::{self, JoinHandle}};
+use std::{sync::{Mutex, Arc}, time::Duration, thread::{self, JoinHandle}};
 
 use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, graphic::render::{RenderResult, render}, unsafe_mutex::UnsafeMutex, WORLD_EXIT};
 
@@ -11,7 +11,7 @@ pub fn spawn(
     thread::spawn(move || {loop {
         if unsafe { WORLD_EXIT } {break};
         let mut world = world.lock_unsafe(true).unwrap();
-        let pc = player_coords.lock().unwrap().clone();
+        let pc = *player_coords.lock().unwrap();
         let pc: ChunkCoords = GlobalCoords::from(pc).into();
         
         let chunk_position = world.chunks.find_pos_stable_xyz(

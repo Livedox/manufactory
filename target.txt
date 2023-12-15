@@ -1,0 +1,11 @@
+cargo build --profile full-release --target x86_64-unknown-linux-gnu
+
+https://doc.rust-lang.org/nightly/rustc/platform-support.html
+Target lists
+x86_64-apple-darwin	64-bit macOS (10.12+, Sierra+)
+x86_64-pc-windows-msvc	64-bit MSVC (Windows 7+)
+x86_64-unknown-linux-gnu	64-bit Linux (kernel 3.2+, glibc 2.17+)
+
+
+Not used
+x86_64-pc-windows-gnu	64-bit MinGW (Windows 7+)

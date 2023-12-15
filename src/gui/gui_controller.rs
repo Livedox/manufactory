@@ -1,25 +1,15 @@
-use std::{cell::RefCell, borrow::BorrowMut, sync::{Arc, Weak, Mutex}};
+use std::{borrow::BorrowMut, sync::Arc};
 
-use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText, Ui};
+use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText};
 use winit::{window::Window, dpi::PhysicalPosition};
 
-use crate::{player::{inventory::PlayerInventory, player::Player}, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, voxels::voxel_data::{voxel_box::VoxelBox, assembling_machine::AssemblingMachine, furnace::Furnace}};
-use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe, assembling_machine_slot::assembling_machine_slot}, theme::DEFAULT_THEME};
+use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas};
+use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME};
 
 enum Task {
-    ToHotbar(usize),
-    ToInventory(usize),
-    ToStorage(usize),
-}
-
-pub fn add_to_storage(src: Arc<Mutex<dyn Storage>>, dst: Arc<Mutex<dyn Storage>>, index: usize) {
-    let Some(add_item) = src.lock().unwrap().mut_storage()[index].0.take() else {
-        return;
-    };
-    let Some(remainder) = dst.lock().unwrap().add(&add_item, true) else {
-        return;
-    };
-    src.lock().unwrap().set(&remainder, index);
+    Hotbar(usize),
+    Inventory(usize),
+    Storage(usize),
 }
 
 pub struct GuiController {
@@ -74,20 +64,20 @@ impl GuiController {
         if !self.is_ui {return self}
         let mut task: Option<Task> = None;
         let inventory = player.inventory();
-        let storage = player.open_storage.as_mut().and_then(|op| op.upgrade().map(|s| s));
+        let storage = player.open_storage.as_mut().and_then(|op| op.upgrade());
         egui::Area::new("hotbar_area")
             .anchor(Align2::CENTER_BOTTOM, vec2(1.0, -1.0))
             .show(ctx, |ui| {
                 ui.set_visible(self.is_ui);
-                let storage = player.open_storage.as_mut().and_then(|op| op.upgrade().map(|s| s));
+                let storage = player.open_storage.as_mut().and_then(|op| op.upgrade());
                 
                 ui.horizontal_top(|ui| {
-                    for (i, item) in player.inventory().clone().lock().unwrap().storage().iter().take(10).enumerate() {
+                    for (i, item) in player.inventory().lock().unwrap().storage().iter().take(10).enumerate() {
                         if ui.add(hotbar_slot(&self.items_atlas, item, player.active_slot == i)).drag_started() {
-                            if let Some(storage) = &storage {
-                                task = Some(Task::ToStorage(i));
+                            if storage.is_some() {
+                                task = Some(Task::Storage(i));
                             } else {
-                                task = Some(Task::ToInventory(i));
+                                task = Some(Task::Inventory(i));
                             }
                         }
                     }
@@ -111,10 +101,10 @@ impl GuiController {
                             ui.horizontal(|ui| {
                                 for j in 0..std::cmp::min(inventory_len-10*i, 10) {
                                     if ui.add(inventory_slot(&self.items_atlas, &inventory.clone().lock().unwrap().storage()[i*10 + j])).clicked() {
-                                        if let Some(storage) = &storage {
-                                            task = Some(Task::ToStorage(i*10 + j));
+                                        if storage.is_some() {
+                                            task = Some(Task::Storage(i*10 + j));
                                         } else {
-                                            task = Some(Task::ToHotbar(i*10 + j));
+                                            task = Some(Task::Hotbar(i*10 + j));
                                         }
                                     };
                                 }
@@ -153,9 +143,9 @@ impl GuiController {
             });
         if let Some(task) = task {
             match task {
-                Task::ToHotbar(i) => {inventory.lock().unwrap().place_in_hotbar(i);},
-                Task::ToInventory(i) => {inventory.lock().unwrap().place_in_inventory(i);},
-                Task::ToStorage(i) => {
+                Task::Hotbar(i) => {inventory.lock().unwrap().place_in_hotbar(i);},
+                Task::Inventory(i) => {inventory.lock().unwrap().place_in_inventory(i);},
+                Task::Storage(i) => {
                     let Some(item) = inventory.lock().unwrap().mut_storage()[i].0.take() else {return self};
                     let remainder = storage.unwrap().lock().unwrap().add(&item, true);
                     if let Some(r) = remainder {inventory.lock().unwrap().set(&r, i)}

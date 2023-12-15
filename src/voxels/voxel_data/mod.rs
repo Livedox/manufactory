@@ -1,8 +1,8 @@
-use std::{cell::RefCell, rc::{Rc}, time::{Duration, Instant}, sync::{Arc, Mutex, Weak}};
-use crate::{direction::Direction, voxels::chunk::Chunk, recipes::{recipe::ActiveRecipe, storage::Storage, item::{PossibleItem, Item}, recipes::RECIPES}, world::{global_coords::GlobalCoords, local_coords::LocalCoords}, gui::draw::Draw, bytes::{BytesCoder, AsFromBytes}};
+use std::sync::{Arc, Mutex, Weak};
+use crate::{direction::Direction, recipes::storage::Storage, world::global_coords::GlobalCoords, gui::draw::Draw, bytes::{BytesCoder, AsFromBytes}};
 use self::{voxel_box::VoxelBox, furnace::Furnace, drill::Drill, cowboy::Cowboy, assembling_machine::AssemblingMachine, transport_belt::TransportBelt, manipulator::Manipulator, multiblock::MultiBlock};
 
-use super::{chunks::Chunks, block::blocks::BLOCKS};
+use super::chunks::Chunks;
 pub mod voxel_box;
 pub mod furnace;
 pub mod multiblock;
@@ -166,7 +166,6 @@ impl VoxelAdditionalData {
             Self::TransportBelt(b) => {b.lock().unwrap().encode_bytes()},
             Self::Drill(b) => {b.lock().unwrap().encode_bytes()},
             Self::AssemblingMachine(b) => {b.lock().unwrap().encode_bytes()},
-            _ => unimplemented!(),
         }
     }
 

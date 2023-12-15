@@ -163,7 +163,7 @@ impl<const N: usize> BytesCoder for [PossibleItem; N] {
     fn decode_bytes(bytes: &[u8]) -> Self {
         let mut storage: [PossibleItem; N] = [PossibleItem::new_none(); N];
         bytes.chunks(12).for_each(|header_bytes| {
-            let header = ItemHeader::from_bytes(&header_bytes);
+            let header = ItemHeader::from_bytes(header_bytes);
             storage[header.index as usize] = PossibleItem::new(header.id, header.count);
         });
         storage

@@ -1,10 +1,9 @@
-use std::{collections::HashMap, sync::{Mutex, Arc, atomic::{AtomicBool, Ordering, AtomicUsize}}};
+use std::{collections::HashMap, sync::{Mutex, Arc}};
 
 use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
-
-use crate::{graphic::render::{render, AnimatedModelRenderResult, ModelRenderResult, RenderResult}, voxels::{chunks::Chunks, block::{block_type::BlockType, blocks::BLOCKS}}, engine::vertices::{model_instance::ModelInstance, animated_model_instance::AnimatedModelInstance}, models::animated_model::AnimatedModel, world::{World, chunk_coords::ChunkCoords}, state::State};
+use crate::{graphic::render::{AnimatedModelRenderResult, ModelRenderResult, RenderResult}, voxels::block::{block_type::BlockType, blocks::BLOCKS}, engine::vertices::{model_instance::ModelInstance, animated_model_instance::AnimatedModelInstance}, models::animated_model::AnimatedModel, world::World, state::State};
 
 #[derive(Debug)]
 pub struct Mesh {

@@ -1,5 +1,3 @@
-use std::{sync::{mpsc::{Sender, Receiver}, Arc, Mutex}, cell::UnsafeCell, ops::{DerefMut, Deref}};
-
 use itertools::iproduct;
 
 use crate::{light::light::Light, voxels::{chunks::Chunks, voxel::Voxel}, direction::Direction};

@@ -1,7 +1,7 @@
 use std::{iter, collections::HashMap, sync::Arc};
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
-use crate::{meshes::{Meshes, Mesh}, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, shaders::Shaders, bind_group_layout::Layouts, pipeline::Pipelines, egui::Egui}};
+use crate::{meshes::Mesh, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, shaders::Shaders, bind_group_layout::Layouts, pipeline::Pipelines, egui::Egui}};
 use crate::engine::texture::TextureAtlas;
 use super::{texture::{self}, bind_group_buffer::BindGroupsBuffers};
 
@@ -27,14 +27,14 @@ async fn request_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface, pow
     rev_qumark!(instance
         .request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: power,
-            compatible_surface: Some(&surface),
+            compatible_surface: Some(surface),
             force_fallback_adapter: false,
         }).await);
     // Why is a second search needed?
     // https://sotrh.github.io/learn-wgpu/beginner/tutorial2-surface/#state-new
     instance.enumerate_adapters(wgpu::Backends::all())
         .find(|adapter| {
-            adapter.is_surface_supported(&surface)
+            adapter.is_surface_supported(surface)
         })
 }
 
@@ -327,7 +327,7 @@ impl State {
         self.queue.write_buffer(&self.bind_groups_buffers.sun.buffer, 0, bytemuck::cast_slice(&color));
     }
 
-    fn get_rpass_color_attachment<'a>(&'a self,view: &'a wgpu::TextureView) -> wgpu::RenderPassColorAttachment {
+    fn get_rpass_color_attachment<'a>(&'a self, view: &'a wgpu::TextureView) -> wgpu::RenderPassColorAttachment {
         if self.sample_count == 1 {
             wgpu::RenderPassColorAttachment {
                 view,
@@ -340,7 +340,7 @@ impl State {
         } else {
             wgpu::RenderPassColorAttachment {
                 view: &self.multisampled_framebuffer,
-                resolve_target: Some(&view),
+                resolve_target: Some(view),
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(self.clear_color),
                     // Storing pre-resolve MSAA data is unnecessary if it isn't used later.

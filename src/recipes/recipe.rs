@@ -84,7 +84,7 @@ impl Recipe {
     }
 
     pub fn start_absolute(&self) -> ActiveRecipe {
-        return ActiveRecipe { start_time: Instant::now(), recipe: self.clone() };
+        ActiveRecipe { start_time: Instant::now(), recipe: self.clone() }
     }
 }
 

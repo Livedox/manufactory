@@ -1,9 +1,6 @@
-use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex, Condvar}, time::{Duration, Instant}, cell::{UnsafeCell}};
+use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex, Condvar}, time::Duration};
 
-use itertools::iproduct;
-use wgpu::Instance;
-
-use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, voxels::{chunks::WORLD_HEIGHT, chunk::CHUNK_SIZE}, unsafe_mutex::UnsafeMutex, save_load::WorldRegions};
+use crate::{world::World, unsafe_mutex::UnsafeMutex, save_load::WorldRegions};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SaveState {

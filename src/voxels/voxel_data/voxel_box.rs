@@ -60,7 +60,7 @@ impl DrawStorage for VoxelBox {}
 
 impl BytesCoder for VoxelBox {
     fn decode_bytes(data: &[u8]) -> Self {
-        Self {storage: <[PossibleItem; 30]>::decode_bytes(&data[..])}
+        Self {storage: <[PossibleItem; 30]>::decode_bytes(data)}
     }
     fn encode_bytes(&self) -> Box<[u8]> {
         self.storage.encode_bytes()

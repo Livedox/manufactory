@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage, recipe::{Recipe, ActiveRecipe}, recipes::RECIPES}, world::global_coords::GlobalCoords, gui::{draw::Draw, my_widgets::{assembling_machine_slot::assembling_machine_slot, recipe::recipe}}, player::inventory::PlayerInventory, engine::texture::TextureAtlas, bytes::{BytesCoder, AsFromBytes, cast_bytes_from_vec, cast_vec_from_bytes}};
+use crate::{recipes::{item::{PossibleItem, Item}, storage::Storage, recipe::{Recipe, ActiveRecipe}, recipes::RECIPES}, world::global_coords::GlobalCoords, gui::{draw::Draw, my_widgets::{assembling_machine_slot::assembling_machine_slot, recipe::recipe}}, player::inventory::PlayerInventory, engine::texture::TextureAtlas, bytes::{BytesCoder, AsFromBytes, cast_bytes_from_slice, cast_vec_from_bytes}};
 use crate::gui::my_widgets::container::container;
 
 use super::{multiblock::MultiBlock, DrawStorage};
@@ -205,7 +205,7 @@ impl BytesCoder for AssemblingMachine {
         let mut bytes = Vec::new();
 
         let storage = self.storage.encode_bytes();
-        let structure = cast_bytes_from_vec(&self.structure_coordinates);
+        let structure = cast_bytes_from_slice(&self.structure_coordinates);
         bytes.extend(Header {
             selected_recipe_id: self.selected_recipe.map(|r| r.id).unwrap_or(u32::MAX),
             active_recipe_id: self.active_recipe.as_ref().map(|r| r.recipe.id).unwrap_or(u32::MAX),

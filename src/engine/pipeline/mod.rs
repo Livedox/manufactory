@@ -28,37 +28,37 @@ impl Pipelines {
       sample_count: u32
     ) -> Self {Self {
         block: new(
-            &device, &[&layouts.sun, &layouts.block_texture, &layouts.camera],
+            device, &[&layouts.sun, &layouts.block_texture, &layouts.camera],
             &[BlockVertex::desc()], &shaders.block,
             format, PRIMITIVE_TOPOLOGY,
             sample_count, "block"),
         
         transport_belt: new(
-            &device, &[&layouts.sun, &layouts.block_texture, &layouts.camera, &layouts.time],
+            device, &[&layouts.sun, &layouts.block_texture, &layouts.camera, &layouts.time],
             &[BlockVertex::desc()], &shaders.transport_belt,
             format, PRIMITIVE_TOPOLOGY,
             sample_count, "transport belt"),
         
         model: new(
-            &device, &[&layouts.sun, &layouts.model_texture, &layouts.camera],
+            device, &[&layouts.sun, &layouts.model_texture, &layouts.camera],
             &[ModelVertex::desc(), ModelInstance::desc()], &shaders.model,
             format, PRIMITIVE_TOPOLOGY,
             sample_count, "model"),
         
         animated_model: new(
-            &device, &[&layouts.sun, &layouts.model_texture, &layouts.camera, &layouts.transforms_storage],
+            device, &[&layouts.sun, &layouts.model_texture, &layouts.camera, &layouts.transforms_storage],
             &[AnimatedModelVertex::desc(), AnimatedModelInstance::desc()], &shaders.animated_model,
             format, PRIMITIVE_TOPOLOGY,
             sample_count, "animated_model"),
         
         selection: new(
-            &device, &[&layouts.camera],
+            device, &[&layouts.camera],
             &[SelectionVertex::desc()], &shaders.selection,
             format, wgpu::PrimitiveTopology::LineList,
             sample_count, "selection"),
         
         crosshair: new(
-            &device, &[&layouts.crosshair_aspect_scale],
+            device, &[&layouts.crosshair_aspect_scale],
             &[], &shaders.crosshair,
             format, wgpu::PrimitiveTopology::TriangleList,
             sample_count, "crosshair"),

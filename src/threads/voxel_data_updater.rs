@@ -1,6 +1,6 @@
-use std::{sync::{Arc, Mutex, mpsc::{Sender, channel, Receiver, SendError, TryRecvError}}, thread::{self, JoinHandle}, collections::HashMap, time::{Instant, Duration}};
+use std::{sync::Arc, thread::{self, JoinHandle}, time::{Instant, Duration}};
 
-use crate::{meshes::Meshes, voxels::chunks::Chunks, models::animated_model::AnimatedModel, graphic::render::{RenderResult, render}, world::{World}, unsafe_mutex::UnsafeMutex, WORLD_EXIT};
+use crate::{voxels::chunks::Chunks, world::World, unsafe_mutex::UnsafeMutex, WORLD_EXIT};
 
 pub fn spawn(world: Arc<UnsafeMutex<World>>) -> JoinHandle<()> {
     thread::spawn(move || {
@@ -21,7 +21,7 @@ pub fn spawn(world: Arc<UnsafeMutex<World>>) -> JoinHandle<()> {
                 }
             }
             drop(world);
-            thread::sleep(Duration::from_millis(100u64.checked_sub(now.elapsed().as_millis() as u64).unwrap_or(0)));
+            thread::sleep(Duration::from_millis(100u64.saturating_sub(now.elapsed().as_millis() as u64)));
         }
     })
 }

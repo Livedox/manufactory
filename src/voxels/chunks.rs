@@ -1,10 +1,10 @@
-use std::{collections::HashMap, rc::Rc, sync::{mpsc::{Receiver, Sender, self}, Arc, Mutex}, array::IntoIter, time::Instant, cell::UnsafeCell};
+use std::{collections::HashMap, sync::{Arc, Mutex}};
 
 use itertools::iproduct;
 
-use crate::{engine::vertices::block_vertex, models::animated_model::AnimatedModel, direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, rev_qumark, vec_none, unsafe_mutex::UnsafeMutex, save_load::{WorldRegions, EncodedChunk}, bytes::BytesCoder};
+use crate::{direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, vec_none, unsafe_mutex::UnsafeMutex, save_load::{WorldRegions, EncodedChunk}, bytes::BytesCoder};
 
-use super::{chunk::{Chunk, CHUNK_SIZE, CHUNK_BIT_SHIFT}, voxel::Voxel, voxel_data::{VoxelAdditionalData, VoxelData, multiblock::MultiBlock}};
+use super::{chunk::{Chunk, CHUNK_SIZE}, voxel::Voxel, voxel_data::{VoxelAdditionalData, VoxelData, multiblock::MultiBlock}};
 
 pub const WORLD_HEIGHT: usize = 256 / CHUNK_SIZE; // In chunks
 
@@ -195,7 +195,7 @@ impl Chunks {
 
     pub fn mut_local_chunk(&mut self, coords: ChunkCoords) -> Option<&mut Chunk> {
         let index = coords.index_without_offset(self.width, self.depth);
-        self.chunks.get_mut(index).and_then(|c| c.as_mut().map(|mut c| c.as_mut()))
+        self.chunks.get_mut(index).and_then(|c| c.as_mut().map(|c| c.as_mut()))
     }
 
     pub fn chunk<T: Into<ChunkCoords>>(&self, coords: T) -> Option<&Chunk> {
@@ -284,7 +284,6 @@ impl Chunks {
             global_coords: coords[0],
             additionally: Arc::new(VoxelAdditionalData::new_multiblock(id, dir, coords.clone())),
         });
-        drop(voxels_data);
         coords.iter().skip(1).for_each(|coord| {
             self.set(*coord, 1, None);
             let voxels_data = self.mut_voxels_data(*coord).unwrap();

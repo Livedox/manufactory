@@ -1,7 +1,6 @@
-use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex}, time::{Duration, Instant}, cell::{UnsafeCell}};
+use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex}, time::Duration};
 
 use itertools::iproduct;
-use wgpu::Instance;
 
 use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, voxels::{chunks::WORLD_HEIGHT, chunk::CHUNK_SIZE}, unsafe_mutex::UnsafeMutex, save_load::WorldRegions, WORLD_EXIT};
 
@@ -16,8 +15,8 @@ pub fn spawn(
             if unsafe { WORLD_EXIT } {break};
             
             let mut world = world.lock_unsafe(false).unwrap();
-            let p_coords = player_coords.lock().unwrap().clone();
-            let p_coords: ChunkCoords = GlobalCoords::from(p_coords).into();
+            let p_coords = *player_coords.lock().unwrap();
+            let _p_coords: ChunkCoords = GlobalCoords::from(p_coords).into();
             let cxz: Option<(i32, i32)> = world.chunks
                 .find_pos_stable_xz(&|c| c.is_none())
                 .map(|pos| (pos.0, pos.2));
@@ -29,7 +28,7 @@ pub fn spawn(
                 let cxz = (chunks.chunks[0].as_ref().unwrap().xyz.0, chunks.chunks[0].as_ref().unwrap().xyz.2);
 
                 for chunk in chunks.chunks.into_iter() {
-                    let Some(chunk) = chunk.map(|c| c) else {continue};
+                    let Some(chunk) = chunk else {continue};
                     let xyz = chunk.xyz;
                     let index = ChunkCoords(ox, xyz.1, oz).chunk_index(&world.chunks);
                     // let index = chunk.xyz.chunk_index(&world.chunks);

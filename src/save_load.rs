@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::{default, fs};
+use std::fs;
 use std::path::PathBuf;
-use std::{path::Path, fs::File};
 
 use crate::bytes::{BytesCoder, cast_vec_from_bytes};
 use crate::player::player::Player;
@@ -172,7 +171,7 @@ impl WorldRegions {
             .for_each(|b| bytes.extend(b.as_ref()));
 
             
-        if let Err(err) = fs::write(self.path.join("regions/").join(&coords.filename()), bytes) {
+        if let Err(err) = fs::write(self.path.join("regions/").join(coords.filename()), bytes) {
             eprintln!("Region write error: {}", err);
         } else {
             region.unsaved = false;

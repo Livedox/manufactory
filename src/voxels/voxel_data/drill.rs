@@ -1,8 +1,7 @@
 use std::time::{Instant, Duration};
 
-use nalgebra_glm::vec1;
-use crate::bytes::{BytesCoder, AsFromBytes, cast_vec_from_bytes, cast_bytes_from_vec};
-use crate::{world::{global_coords::GlobalCoords, local_coords::LocalCoords}, direction::Direction, voxels::{chunks::Chunks, block::blocks::BLOCKS}, recipes::{item::PossibleItem, storage::Storage}};
+use crate::bytes::{BytesCoder, AsFromBytes, cast_vec_from_bytes, cast_bytes_from_slice};
+use crate::{world::global_coords::GlobalCoords, direction::Direction, voxels::{chunks::Chunks, block::blocks::BLOCKS}, recipes::{item::PossibleItem, storage::Storage}};
 
 use super::multiblock::MultiBlock;
 
@@ -111,7 +110,7 @@ impl BytesCoder for Drill {
         let mut bytes = Vec::new();
 
         let storage = self.storage.encode_bytes();
-        let structure = cast_bytes_from_vec(&self.structure_coordinates);
+        let structure = cast_bytes_from_slice(&self.structure_coordinates);
         bytes.extend(Header {
             direction: self.dir,
             storage_len: storage.len() as u32,

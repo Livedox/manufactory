@@ -41,17 +41,17 @@ impl Chunks {
             let z_side: Box<[i32]> = Self::check_size(i, sz, self.depth);
 
             rev_qumark!(self.find_chunk_position(
-                (min_x..=max_x, min_y..=max_y, z_side.iter().map(|i| *i)), predicat));
+                (min_x..=max_x, min_y..=max_y, z_side.iter().copied()), predicat));
     
             let min_z = if sz > i {sz-i+1} else {0};
             let max_z = if i+sz < self.depth-1 {sz+i-1} else {self.depth-1};
             rev_qumark!(self.find_chunk_position(
-                (x_side.iter().map(|i| *i), min_y..=max_y, min_z..=max_z), predicat));
+                (x_side.iter().copied(), min_y..=max_y, min_z..=max_z), predicat));
     
             let min_x = if sx > i {sx-i+1} else {0};
             let max_x = if i+sx < self.width {sx+i-1} else {self.width-1};
             rev_qumark!(self.find_chunk_position(
-                (min_x..=max_x, y_side.iter().map(|i| *i), min_z..=max_z), predicat));
+                (min_x..=max_x, y_side.iter().copied(), min_z..=max_z), predicat));
         }
         None
     }
@@ -74,9 +74,9 @@ impl Chunks {
             println!("{:?} {:?} {:?}", min_x..=max_x, min_z..=max_z, z_side);
 
             rev_qumark!(self.find_chunk_position(
-                (min_x..=max_x, 0..=0, z_side.iter().map(|i| *i)), predicat));
+                (min_x..=max_x, 0..=0, z_side.iter().copied()), predicat));
             rev_qumark!(self.find_chunk_position(
-                (x_side.iter().map(|i| *i), 0..=0, min_z..=max_z), predicat));
+                (x_side.iter().copied(), 0..=0, min_z..=max_z), predicat));
         }
         None
     }

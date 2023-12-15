@@ -1,35 +1,33 @@
-use std::{collections::HashMap, rc::Rc, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}}, cell::UnsafeCell, ops::{Deref, DerefMut}, time::{SystemTime, UNIX_EPOCH}, io::Cursor, mem::MaybeUninit};
+use std::{collections::HashMap, sync::{Arc, atomic::{AtomicBool, Ordering}}, time::{SystemTime, UNIX_EPOCH}};
 
 use itertools::iproduct;
-use bitflags::bitflags;
-use crate::{light::light_map::LightMap, direction::Direction, world::{local_coords::LocalCoords, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, GAME_VERSION, engine::pipeline::new, bytes::{AsFromBytes, BytesCoder}};
+use crate::{light::light_map::LightMap, direction::Direction, world::{local_coords::LocalCoords, chunk_coords::ChunkCoords}, bytes::{AsFromBytes, BytesCoder}};
 
-use super::{voxel::{self, Voxel}, voxel_data::{VoxelData, VoxelAdditionalData, self}, chunks::Chunks, block::blocks::BLOCKS};
+use super::{voxel::{self, Voxel}, voxel_data::{VoxelData, VoxelAdditionalData}, block::blocks::BLOCKS};
 use std::io::prelude::*;
 use flate2::{Compression, read::ZlibDecoder};
 use flate2::write::ZlibEncoder;
 
 pub const CHUNK_SIZE: usize = 32;
 pub const HALF_CHUNK_SIZE: usize = CHUNK_SIZE/2;
-pub const CHUNK_SQUARE: usize = CHUNK_SIZE.pow(2);
+pub const _CHUNK_SQUARE: usize = CHUNK_SIZE.pow(2);
 pub const CHUNK_VOLUME: usize = CHUNK_SIZE.pow(3);
 pub const CHUNK_BIT_SHIFT: usize = CHUNK_SIZE.ilog2() as usize;
 pub const CHUNK_BITS: usize = CHUNK_SIZE - 1_usize;
-pub const COMPRESSION_TYPE: CompressionType = CompressionType::ZLIB;
+pub const COMPRESSION_TYPE: CompressionType = CompressionType::Zlib;
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum CompressionType {
-    NONE = 0b000000,
-    ZLIB = 0b000001,
+    None = 0b000000,
+    Zlib = 0b000001,
 }
 
 impl From<u8> for CompressionType {
     fn from(value: u8) -> Self {
         match value {
-            0 => Self::NONE,
-            1 => Self::ZLIB,
-            _ => Self::NONE
+            1 => Self::Zlib,
+            _ => Self::None
         }
     }
 }
@@ -182,7 +180,7 @@ impl BytesCoder for HashMap<usize, VoxelData> {
         let mut h = HashMap::<usize, VoxelData>::new();
         let mut offset: usize = 0;
         while offset < bytes.len() {
-            let key_end = offset as usize + u32::size();
+            let key_end = offset + u32::size();
             let key = u32::from_bytes(&bytes[offset..key_end]) as usize;
             let len_end = key_end+u32::size();
             let len = u32::from_bytes(&bytes[key_end..len_end]) as usize;

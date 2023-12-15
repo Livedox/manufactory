@@ -96,7 +96,7 @@ impl Texture {
         });
 
         let mut images: Vec<DynamicImage> = vec![];
-        srcs.iter().for_each(|src| { images.push(image::open(src).unwrap()) });
+        srcs.iter().for_each(|src| { images.push(image::open(src).expect(src)) });
         (0..mipmap_count).for_each(|mipmap| {
             let mut data: Vec<u8> = vec![];
             let img_size = BASE_SIZE / 2u32.pow(mipmap);
@@ -232,7 +232,7 @@ impl TextureAtlas {
         src: &str,
         row_count: u32
     ) -> Self {
-        let img = image::open(src).unwrap();
+        let img = image::open(src).expect(src);
         let (width, height) = (img.width(), img.height());
         
         if width != height { panic!("Use square textures") }
