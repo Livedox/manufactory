@@ -1,4 +1,4 @@
-use crate::meshes::Mesh;
+use crate::{meshes::Mesh, engine::{bind_group, texture::Texture}};
 
 use super::State;
 
@@ -8,6 +8,8 @@ impl State {
         &self,
         encoder: &mut wgpu::CommandEncoder,
         rpass_color_attachment: wgpu::RenderPassColorAttachment,
+        rpass_color_attachment2: wgpu::RenderPassColorAttachment,
+        texture: &wgpu::Texture,
         meshes: &[&Mesh],
     ) {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -37,6 +39,60 @@ impl State {
         self.draw_model(&mut render_pass, meshes);
         self.draw_selection(&mut render_pass);
         self.draw_crosshair(&mut render_pass);
+
+        drop(render_pass);
+        let size = wgpu::Extent3d {
+            width: self.config.width,
+            height: self.config.height,
+            depth_or_array_layers: 1,
+        };
+        let desc = wgpu::TextureDescriptor {
+            label: Some("copy color"),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.config.format,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        };
+        let depth_desc = wgpu::TextureDescriptor {
+            label: Some("copy depth"),
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: Texture::DEPTH_FORMAT,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        };
+        let textur_dst = self.device.create_texture(&desc);
+        let depth_dst = self.device.create_texture(&depth_desc);
+        encoder.copy_texture_to_texture(texture.as_image_copy(), textur_dst.as_image_copy(), size);
+        encoder.copy_texture_to_texture(self.depth_texture.texture.as_image_copy(), depth_dst.as_image_copy(), size);
+        let post_proccess_bg = bind_group::post_proccess::get(
+            &self.device,
+            &self.layouts.post_proccess_test,
+            &textur_dst.create_view(&wgpu::TextureViewDescriptor::default()),
+            &depth_dst.create_view(&wgpu::TextureViewDescriptor::default()));
+
+
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render Pass"),
+            color_attachments: &[Some(rpass_color_attachment2)],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.depth_texture.view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(1.0),
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+        
+       self.draw_post_proccess_test(&mut render_pass, &post_proccess_bg);
     }
 
     /// set bind group = 1 (block_texutre_bg)
@@ -122,5 +178,12 @@ impl State {
             render_pass.set_bind_group(0, &self.bind_groups_buffers.crosshair_aspect_scale.bind_group, &[]);
             render_pass.draw(0..12, 0..1);
         }
+    }
+
+    #[inline]
+    fn draw_post_proccess_test<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, post_proccess_bg: &'a wgpu::BindGroup) {
+        render_pass.set_bind_group(0, post_proccess_bg, &[]);
+        render_pass.set_pipeline(&self.pipelines.post_proccess_test);
+        render_pass.draw(0..3, 0..1);
     }
 }

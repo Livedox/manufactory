@@ -47,7 +47,7 @@ mod bytes;
 static mut WORLD_EXIT: bool = false;
 const _GAME_VERSION: u32 = 1;
 
-const RENDER_DISTANCE: i32 = 6;
+const RENDER_DISTANCE: i32 = 14;
 const HALF_RENDER_DISTANCE: i32 = RENDER_DISTANCE / 2;
 
 const CAMERA_FOV: f32 = 1.2;
@@ -136,9 +136,9 @@ pub async fn main() {
     
     let mut finalize = Some(move || {
         unsafe {WORLD_EXIT = true};
-        thread_renderer.join().expect("Failed to terminate thread renderer");
-        thread_world_loader.join().expect("Failed to terminate thread world_loader");
-        thread_voxel_data_updater.join().expect("Failed to terminate thread voxel_data_updater");
+        let _ = thread_renderer.join();
+        let _ = thread_world_loader.join();
+        let _ = thread_voxel_data_updater.join();
 
         let (save_state, cvar) = &*save_condvar;
         *save_state.lock().unwrap() = SaveState::WorldExit;
@@ -282,7 +282,7 @@ pub async fn main() {
                         let index = render_result.xyz.chunk_index(&world_g.chunks);
                         meshes.render(MeshesRenderInput {
                             device: state.device(),
-                            animated_model_layout: &state.animated_model_layout,
+                            animated_model_layout: &state.layouts.transforms_storage,
                             all_animated_models: &state.animated_models,
                             render_result,
                         }, index);

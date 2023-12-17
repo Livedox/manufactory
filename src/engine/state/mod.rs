@@ -1,14 +1,14 @@
 use std::{iter, collections::HashMap, sync::Arc};
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
-use crate::{meshes::Mesh, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, shaders::Shaders, bind_group_layout::Layouts, pipeline::Pipelines, egui::Egui}};
+use crate::{meshes::Mesh, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, shaders::Shaders, bind_group_layout::{Layouts, self}, pipeline::Pipelines, egui::Egui}};
 use crate::engine::texture::TextureAtlas;
 use super::{texture::{self}, bind_group_buffer::BindGroupsBuffers};
 
 
 pub mod draw;
 
-const MAX_SAMPLE_COUNT: u32 = 4;
+const MAX_SAMPLE_COUNT: u32 = 1;
 
 fn get_supported_multisample_count(surface_format: &TextureFormat, sample_flags: &TextureFormatFeatureFlags) -> Vec<u32> {
     let sample: [u32; 5] = [1, 2, 4, 8, 16];
@@ -78,9 +78,9 @@ pub struct State {
     pub animated_models: HashMap<String, AnimatedModel>,
 
     pub animated_model_buffer: wgpu::Buffer,
-    pub animated_model_layout: wgpu::BindGroupLayout,
 
     bind_groups_buffers: BindGroupsBuffers,
+    pub layouts: Layouts,
 
     pub texture_atlas: Arc<TextureAtlas>,
 
@@ -131,7 +131,7 @@ impl State {
         let surface_present_mode = surface_caps.present_modes[0];
         let surface_alpha_mode = surface_caps.alpha_modes[0];
         let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             format: surface_format,
             width: size.width,
             height: size.height,
@@ -216,6 +216,8 @@ impl State {
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
         });
 
+        let post_proccess_bgl = bind_group_layout::post_process::get(&device);
+
         Self {
             surface,
             device,
@@ -237,12 +239,12 @@ impl State {
             animated_models,
 
             animated_model_buffer: transforms_storage_buffer,
-            animated_model_layout: layouts.transforms_storage,
 
             texture_atlas: Arc::new(texture_atlas),
             selection_vertex_buffer: None,
 
             bind_groups_buffers,
+            layouts,
 
             is_crosshair: true,
             is_ui_interaction: true,
@@ -281,18 +283,17 @@ impl State {
 
     pub fn render(&mut self, meshes: &[&Mesh], ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-
+        let output_texture = &output.texture;
+        let view = output_texture.create_view(&wgpu::TextureViewDescriptor::default());
+        
         self.egui.start(&self.window, self.is_ui_interaction, ui);
-
         let mut encoder = self.device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
         let rpass_color_attachment = self.get_rpass_color_attachment(&view);
-        self.draw_all(&mut encoder, rpass_color_attachment, meshes);
+        let rpass_color_attachment2 = self.get_rpass_color_attachment(&view);
+        self.draw_all(&mut encoder, rpass_color_attachment, rpass_color_attachment2, output_texture, meshes);
 
         self.egui.end(&mut encoder, &self.device, &self.queue, &view);
 

@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Arc, Mutex}};
 
 use itertools::iproduct;
 
-use crate::{direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, vec_none, unsafe_mutex::UnsafeMutex, save_load::{WorldRegions, EncodedChunk}, bytes::BytesCoder};
+use crate::{direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, vec_none, unsafe_mutex::UnsafeMutex, save_load::{WorldRegions, EncodedChunk}, bytes::BytesCoder, light::light_map::Light};
 
 use super::{chunk::{Chunk, CHUNK_SIZE}, voxel::Voxel, voxel_data::{VoxelAdditionalData, VoxelData, multiblock::MultiBlock}};
 
@@ -172,16 +172,6 @@ impl Chunks {
         Some(id)
     }
 
-
-    pub fn light(&self, coords: GlobalCoords, channel: u8) -> u16 {
-        let chunk = self.chunk(coords);
-
-        if !self.is_in_area(coords.into()) || chunk.is_none() { return 0; }
-
-        chunk.unwrap().lightmap.get(LocalCoords::from(coords).into(), channel)
-    }
-
-
     pub fn is_in_area(&self, chunk_coords: ChunkCoords) -> bool {
         chunk_coords.0 - self.ox >= 0 && chunk_coords.0 - self.ox < self.width &&
         chunk_coords.1 >= 0 && chunk_coords.1 < self.height &&
@@ -325,10 +315,13 @@ impl Chunks {
             .map_or(0, |c| c.lightmap.get_sun(local.into()))
     }
 
+    pub fn light(&self, coords: GlobalCoords, channel: u8) -> u16 {
+        self.chunk(coords).map_or(0, |c| c.lightmap.get(LocalCoords::from(coords).into(), channel))
+    }
 
-    pub fn get_light(&self, coords: GlobalCoords) -> u16 {
+    pub fn get_light(&self, coords: GlobalCoords) -> Light {
         let local: LocalCoords = coords.into();
         self.chunk(coords)
-            .map_or(0, |c| c.lightmap.get_light(local.into()))
+            .map_or(Light::default(), |c| c.lightmap.get_light(local.into()))
     }
 }

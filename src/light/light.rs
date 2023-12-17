@@ -11,7 +11,7 @@ const SIDE_COORDS_OFFSET: [(i32, i32, i32); 6] = [
 ];
 
 #[derive(Debug)]
-pub struct Light {
+pub struct LightSolvers {
     solver_red: LightSolver,
     solver_green: LightSolver,
     solver_blue: LightSolver,
@@ -19,7 +19,7 @@ pub struct Light {
 }
 
 
-impl Light {
+impl LightSolvers {
     pub fn new() -> Self {Self {
         solver_red: LightSolver::new(0),
         solver_green: LightSolver::new(1),
@@ -79,7 +79,7 @@ impl Light {
             let x = cx*CHUNK_SIZE as i32 + lx;
             let y = cy*CHUNK_SIZE as i32 + ly;
             let z = cz*CHUNK_SIZE as i32 + lz;
-            if chunks.get_light((x, y, z).into()) > 0 {
+            if chunks.get_light((x, y, z).into()).0 > 0 {
                 self.add_rgbs(chunks, x, y, z);
             }
             self.solve_rgbs(chunks);

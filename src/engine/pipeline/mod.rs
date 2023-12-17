@@ -17,6 +17,7 @@ pub(crate) struct Pipelines {
     pub animated_model: RenderPipeline,
     pub selection: RenderPipeline,
     pub crosshair: RenderPipeline,
+    pub post_proccess_test: RenderPipeline,
 }
 
 impl Pipelines {
@@ -62,6 +63,12 @@ impl Pipelines {
             &[], &shaders.crosshair,
             format, wgpu::PrimitiveTopology::TriangleList,
             sample_count, "crosshair"),
+        
+        post_proccess_test: new(
+            device, &[&layouts.post_proccess_test],
+            &[], &shaders.post_proccess_test,
+            format, wgpu::PrimitiveTopology::TriangleList,
+            sample_count, "post_proccess_test"),
     }}
 }
 

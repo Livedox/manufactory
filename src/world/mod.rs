@@ -1,6 +1,6 @@
 use itertools::iproduct;
 
-use crate::{light::light::Light, voxels::{chunks::Chunks, voxel::Voxel}, direction::Direction};
+use crate::{light::light::LightSolvers, voxels::{chunks::Chunks, voxel::Voxel}, direction::Direction};
 
 use self::global_coords::GlobalCoords;
 
@@ -14,14 +14,14 @@ pub mod sun;
 #[derive(Debug)]
 pub struct World {
     pub chunks: Chunks,
-    pub light: Light
+    pub light: LightSolvers
 }
 
 impl World {
     pub fn new(width: i32, height: i32, depth: i32, ox: i32, oy: i32, oz: i32) -> Self {
         Self {
             chunks: Chunks::new(width, height, depth, ox, oy, oz),
-            light: Light::new()
+            light: LightSolvers::new()
         }
     }
 

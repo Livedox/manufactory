@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType, light_permeability::LightPermeability}}, engine::vertices::block_vertex::BlockVertex, world::{World, chunk_coords::ChunkCoords}, engine::pipeline::IS_LINE};
-
+use crate::light::light_map::Light;
 use super::complex_object::{ComplexObjectPart, ComplexObjectSide};
 
 #[derive(Clone, Copy)]
@@ -12,12 +12,48 @@ impl Axis {
 
 enum Direction{Top, Left}
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct GreedFaceLight(pub [[Light; 3]; 3]);
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct GreedFace {
+    layer: u32,
+    light: GreedFaceLight,
+    width: u8,
+    height: u8,
+}
+
+pub struct NearBlockLight(pub [[[Light; 3]; 3]; 3]);
+
+impl NearBlockLight {
+    #[inline]
+    /// Only value from -1..=1
+    pub fn get(&self, x: i32, y: i32, z: i32) -> Light {
+        self.0[(x+1) as usize][(y+1) as usize][(z+1) as usize]
+    }
+}
+
+pub struct GreedTest {
+    // mx = 0, px = 1, my = 2, py = 3, mz = 4, pz = 5
+    pub vertices: [[[[Option<GreedFace>; CHUNK_SIZE]; CHUNK_SIZE]; CHUNK_SIZE]; 6],
+}
+
+impl GreedTest {
+    pub fn set(&mut self, side: usize, x: usize, y: usize, z: usize, face: GreedFace) {
+        self.vertices[side][x][y][z] = Some(face);
+    }
+
+    pub fn greed(&mut self) {
+        
+    }
+}
 
 // Fix pixel gaps 
-//     More number => less pixel gaps
-//     Smaller number => more artifacts associated with block enlargement
+//     Bigger number => less pixel gaps, more artifacts associated with block enlargement
+//     Less number => more pixel gaps, fewer artifacts associated with block enlargement
 // https://stackoverflow.com/questions/39958039/where-do-pixel-gaps-come-from-in-opengl
-const STITCHING_COEFFICIENT: f32 = 0.0014; //0.0025
+// https://blackflux.wordpress.com/2014/03/02/meshing-in-voxel-engines-part-3/
+const STITCHING_COEFFICIENT: f32 = 0.0; //0.0025 0.0014
 
 type GreedyVertices = [[Vec<[BlockVertex; 4]>; CHUNK_SIZE]; CHUNK_SIZE];
 struct GreedMesh {
@@ -307,7 +343,6 @@ pub struct RenderResult {
 pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
     // TODO
     // Fix small pixel gaps
-    // https://stackoverflow.com/questions/39958039/where-do-pixel-gaps-come-from-in-opengl
     let chunks = &world.chunks;
     let mut buffer = Buffer::new();
 
@@ -403,12 +438,12 @@ pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
                     let l2 = light_handler.light_numbered(&ld, (px,py,z), (px,py,pz), (x,py,pz));
                     let l3 = light_handler.light_numbered(&ld, (px,py,z), (px,py,nz), (x,py,nz));
 
-                    buffer.push_triangles(&[
+                    greedy_vertices_top.push(lz, lx, [
                         get_block_vertex(gmx, gpy, gmz, 0., 0., layer, &l0),
                         get_block_vertex(gmx, gpy, gpz, 0., 1., layer, &l1),
                         get_block_vertex(gpx, gpy, gpz, 1., 1., layer, &l2),
                         get_block_vertex(gpx, gpy, gmz, 1., 0., layer, &l3)
-                    ], &[3,2,0,2,1,0]);
+                    ]);
                 }
                 if !is_blocked(x, y-1, z, chunks, LightPermeability::DOWN, block.light_permeability()) {
                     let layer = faces[2] as f32;
@@ -432,6 +467,7 @@ pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
         greedy_vertices_top.greed(&mut buffer, &Axis::Y, &[3,2,0,2,1,0]);
         greedy_vertices_bottom.greed(&mut buffer, &Axis::Y, &[0,1,2,0,2,3]);
     }
+
 
 
     for lx in 0..CHUNK_SIZE {
@@ -564,7 +600,6 @@ pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
         belt_indices: transport_belt_buffer.index_buffer,
     })
 }
-
 
 
 struct LightHandler<'a> {
