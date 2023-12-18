@@ -125,7 +125,11 @@ pub async fn main() {
     let mut gui_controller = GuiController::new(window, state.texture_atlas.clone());
 
     let player_coords = Arc::new(Mutex::new(player.camera().position_tuple()));
-    let world = Arc::new(UnsafeMutex::new(World::new(RENDER_DISTANCE, WORLD_HEIGHT as i32, RENDER_DISTANCE, -HALF_RENDER_DISTANCE, 0, -HALF_RENDER_DISTANCE)));
+    let c: ChunkCoords = GlobalCoords::from(player.camera().position_tuple()).into();
+    let ox = c.0 - HALF_RENDER_DISTANCE;
+    let oz = c.2 - HALF_RENDER_DISTANCE;
+    let world = Arc::new(UnsafeMutex::new(
+        World::new(RENDER_DISTANCE, WORLD_HEIGHT as i32, RENDER_DISTANCE, ox, 0, oz)));
     let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
     let save_condvar = Arc::new((Mutex::new(SaveState::Unsaved), Condvar::new()));
     

@@ -1,4 +1,4 @@
-pub(crate) fn get(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+pub(crate) fn get(device: &wgpu::Device, multisampled: bool) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         entries: &[
             wgpu::BindGroupLayoutEntry {
@@ -18,7 +18,7 @@ pub(crate) fn get(device: &wgpu::Device) -> wgpu::BindGroupLayout {
                 ty: wgpu::BindingType::Texture {
                     sample_type: wgpu::TextureSampleType::Depth,
                     view_dimension: wgpu::TextureViewDimension::D2,
-                    multisampled: false,
+                    multisampled,
                 },
                 count: None,
             }],

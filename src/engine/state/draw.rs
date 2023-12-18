@@ -13,7 +13,7 @@ impl State {
         meshes: &[&Mesh],
     ) {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Render Pass"),
+            label: Some("Render Pass1"),
             color_attachments: &[Some(rpass_color_attachment)],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &self.depth_texture.view,
@@ -60,39 +60,42 @@ impl State {
             label: Some("copy depth"),
             size,
             mip_level_count: 1,
-            sample_count: 1,
+            sample_count: self.sample_count,
             dimension: wgpu::TextureDimension::D2,
             format: Texture::DEPTH_FORMAT,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::RENDER_ATTACHMENT,
             view_formats: &[],
         };
         let textur_dst = self.device.create_texture(&desc);
         let depth_dst = self.device.create_texture(&depth_desc);
         encoder.copy_texture_to_texture(texture.as_image_copy(), textur_dst.as_image_copy(), size);
         encoder.copy_texture_to_texture(self.depth_texture.texture.as_image_copy(), depth_dst.as_image_copy(), size);
+        let layout = if self.sample_count == 1 {
+            &self.layouts.post_proccess_test
+        } else {
+            &self.layouts.multisampled_post_proccess
+        };
+        // let layout = &self.layouts.post_proccess_test;
         let post_proccess_bg = bind_group::post_proccess::get(
             &self.device,
-            &self.layouts.post_proccess_test,
+            layout,
             &textur_dst.create_view(&wgpu::TextureViewDescriptor::default()),
-            &depth_dst.create_view(&wgpu::TextureViewDescriptor::default()));
-
+            &self.depth_texture.view);
 
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Render Pass"),
+            label: Some("Render Pass2"),
             color_attachments: &[Some(rpass_color_attachment2)],
-            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                view: &self.depth_texture.view,
-                depth_ops: Some(wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(1.0),
-                    store: wgpu::StoreOp::Store,
-                }),
-                stencil_ops: None,
-            }),
+            depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
         });
         
-       self.draw_post_proccess_test(&mut render_pass, &post_proccess_bg);
+        // self.draw_post_proccess_test(&mut render_pass, &post_proccess_bg);
+        if self.sample_count == 1 {
+            self.draw_post_proccess_test(&mut render_pass, &post_proccess_bg);
+        } else {
+            self.draw_multisampled_post_proccess_test(&mut render_pass, &post_proccess_bg);
+        }
     }
 
     /// set bind group = 1 (block_texutre_bg)
@@ -184,6 +187,13 @@ impl State {
     fn draw_post_proccess_test<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, post_proccess_bg: &'a wgpu::BindGroup) {
         render_pass.set_bind_group(0, post_proccess_bg, &[]);
         render_pass.set_pipeline(&self.pipelines.post_proccess_test);
+        render_pass.draw(0..3, 0..1);
+    }
+
+    #[inline]
+    fn draw_multisampled_post_proccess_test<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, post_proccess_bg: &'a wgpu::BindGroup) {
+        render_pass.set_bind_group(0, post_proccess_bg, &[]);
+        render_pass.set_pipeline(&self.pipelines.multisampled_post_proccess_test);
         render_pass.draw(0..3, 0..1);
     }
 }

@@ -18,6 +18,7 @@ pub(crate) struct Pipelines {
     pub selection: RenderPipeline,
     pub crosshair: RenderPipeline,
     pub post_proccess_test: RenderPipeline,
+    pub multisampled_post_proccess_test: RenderPipeline,
 }
 
 impl Pipelines {
@@ -64,9 +65,15 @@ impl Pipelines {
             format, wgpu::PrimitiveTopology::TriangleList,
             sample_count, "crosshair"),
         
-        post_proccess_test: new(
+        post_proccess_test: new_d(
             device, &[&layouts.post_proccess_test],
             &[], &shaders.post_proccess_test,
+            format, wgpu::PrimitiveTopology::TriangleList,
+            sample_count, "post_proccess_test"),
+        
+        multisampled_post_proccess_test: new_d(
+            device, &[&layouts.multisampled_post_proccess],
+            &[], &shaders.multisampled_post_proccess,
             format, wgpu::PrimitiveTopology::TriangleList,
             sample_count, "post_proccess_test"),
     }}
@@ -130,6 +137,70 @@ pub fn new(
             stencil: wgpu::StencilState::default(),
             bias: wgpu::DepthBiasState::default(),
         }),
+        multisample: wgpu::MultisampleState {
+            count: sample_count,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },
+        // If the pipeline will be used with a multiview render pass, this
+        // indicates how many array layers the attachments will have.
+        multiview: None,
+    })
+}
+
+
+pub fn new_d(
+    device: &Device,
+    bind_group_layouts: &[&BindGroupLayout],
+    buffers: &[VertexBufferLayout<'_>],
+    shader: &ShaderModule,
+    format: TextureFormat,
+    topology: PrimitiveTopology,
+    sample_count: u32,
+    label: &str,
+) -> RenderPipeline {
+    let render_pipeline_layout =
+        device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some(&format!("Render Pipeline Layout ({})", label)),
+            bind_group_layouts,
+            push_constant_ranges: &[],
+        });
+
+    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some(&format!("Render Pipeline ({})", label)),
+        layout: Some(&render_pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: shader,
+            entry_point: "vs_main",
+            buffers,
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: shader,
+            entry_point: "fs_main",
+            targets: &[Some(wgpu::ColorTargetState {
+                format,
+                blend: Some(wgpu::BlendState {
+                    color: wgpu::BlendComponent::REPLACE,
+                    alpha: wgpu::BlendComponent::REPLACE,
+                }),
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+        }),
+
+        primitive: wgpu::PrimitiveState {
+            topology,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Cw,
+            cull_mode: Some(wgpu::Face::Back),
+            // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
+            // or Features::POLYGON_MODE_POINT
+            polygon_mode: wgpu::PolygonMode::Fill,
+            // Requires Features::DEPTH_CLIP_CONTROL
+            unclipped_depth: false,
+            // Requires Features::CONSERVATIVE_RASTERIZATION
+            conservative: false,
+        },
+        depth_stencil: None,
         multisample: wgpu::MultisampleState {
             count: sample_count,
             mask: !0,

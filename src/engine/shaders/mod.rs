@@ -6,6 +6,7 @@ pub(crate) struct Shaders {
     pub(crate) selection: wgpu::ShaderModule,
     pub(crate) crosshair: wgpu::ShaderModule,
     pub(crate) post_proccess_test: wgpu::ShaderModule,
+    pub(crate) multisampled_post_proccess: wgpu::ShaderModule,
 }
 
 impl Shaders {
@@ -17,5 +18,6 @@ impl Shaders {
         selection: device.create_shader_module(wgpu::include_wgsl!("selection.wgsl")),
         crosshair: device.create_shader_module(wgpu::include_wgsl!("crosshair.wgsl")),
         post_proccess_test: device.create_shader_module(wgpu::include_wgsl!("post_proccess_test.wgsl")),
+        multisampled_post_proccess: device.create_shader_module(wgpu::include_wgsl!("multisampled_post_proccess.wgsl")),
     }}
 }

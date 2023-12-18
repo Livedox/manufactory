@@ -1,6 +1,7 @@
 use image::DynamicImage;
 
 
+#[derive(Debug)]
 pub struct Texture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,

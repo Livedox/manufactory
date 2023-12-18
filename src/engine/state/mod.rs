@@ -8,7 +8,7 @@ use super::{texture::{self}, bind_group_buffer::BindGroupsBuffers};
 
 pub mod draw;
 
-const MAX_SAMPLE_COUNT: u32 = 1;
+const MAX_SAMPLE_COUNT: u32 = 4;
 
 fn get_supported_multisample_count(surface_format: &TextureFormat, sample_flags: &TextureFormatFeatureFlags) -> Vec<u32> {
     let sample: [u32; 5] = [1, 2, 4, 8, 16];
@@ -208,6 +208,7 @@ impl State {
 
         let multisampled_framebuffer =
             texture::Texture::create_multisampled_framebuffer(&device, &config, sample_count);
+
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture", sample_count);
         
         let transforms_storage_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -215,8 +216,6 @@ impl State {
             contents: &[],
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
         });
-
-        let post_proccess_bgl = bind_group_layout::post_process::get(&device);
 
         Self {
             surface,
@@ -291,6 +290,7 @@ impl State {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
+
         let rpass_color_attachment = self.get_rpass_color_attachment(&view);
         let rpass_color_attachment2 = self.get_rpass_color_attachment(&view);
         self.draw_all(&mut encoder, rpass_color_attachment, rpass_color_attachment2, output_texture, meshes);
