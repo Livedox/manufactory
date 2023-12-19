@@ -7,14 +7,13 @@ impl State {
     pub(super) fn draw_all(
         &self,
         encoder: &mut wgpu::CommandEncoder,
-        rpass_color_attachment: wgpu::RenderPassColorAttachment,
-        rpass_color_attachment2: wgpu::RenderPassColorAttachment,
-        texture: &wgpu::Texture,
+        output_texture: &wgpu::Texture,
+        view: &wgpu::TextureView,
         meshes: &[&Mesh],
     ) {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Render Pass1"),
-            color_attachments: &[Some(rpass_color_attachment)],
+            label: Some("Render Pass Start"),
+            color_attachments: &[Some(self.get_rpass_color_attachment(view))],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &self.depth_texture.view,
                 depth_ops: Some(wgpu::Operations {
@@ -41,61 +40,31 @@ impl State {
         self.draw_crosshair(&mut render_pass);
 
         drop(render_pass);
-        let size = wgpu::Extent3d {
-            width: self.config.width,
-            height: self.config.height,
-            depth_or_array_layers: 1,
-        };
-        let desc = wgpu::TextureDescriptor {
-            label: Some("copy color"),
-            size,
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: self.config.format,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            view_formats: &[],
-        };
-        let depth_desc = wgpu::TextureDescriptor {
-            label: Some("copy depth"),
-            size,
-            mip_level_count: 1,
-            sample_count: self.sample_count,
-            dimension: wgpu::TextureDimension::D2,
-            format: Texture::DEPTH_FORMAT,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST | wgpu::TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[],
-        };
-        let textur_dst = self.device.create_texture(&desc);
-        let depth_dst = self.device.create_texture(&depth_desc);
-        encoder.copy_texture_to_texture(texture.as_image_copy(), textur_dst.as_image_copy(), size);
-        encoder.copy_texture_to_texture(self.depth_texture.texture.as_image_copy(), depth_dst.as_image_copy(), size);
+
+
+        let texture_dst = Texture::create_copy_dst_texture(&self.device, &self.config);
+        encoder.copy_texture_to_texture(output_texture.as_image_copy(),
+            texture_dst.as_image_copy(), Texture::get_screen_size(&self.config));
+
         let layout = if self.sample_count == 1 {
-            &self.layouts.post_proccess_test
+            &self.layouts.post_process
         } else {
-            &self.layouts.multisampled_post_proccess
+            &self.layouts.multisampled_post_process
         };
-        // let layout = &self.layouts.post_proccess_test;
-        let post_proccess_bg = bind_group::post_proccess::get(
-            &self.device,
-            layout,
-            &textur_dst.create_view(&wgpu::TextureViewDescriptor::default()),
+        let post_process_bg = bind_group::post_process::get(
+            &self.device, layout,
+            &texture_dst.create_view(&wgpu::TextureViewDescriptor::default()),
             &self.depth_texture.view);
 
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Render Pass2"),
-            color_attachments: &[Some(rpass_color_attachment2)],
+            label: Some("Render Pass Post Proccess"),
+            color_attachments: &[Some(self.get_rpass_color_attachment(view))],
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
         });
         
-        // self.draw_post_proccess_test(&mut render_pass, &post_proccess_bg);
-        if self.sample_count == 1 {
-            self.draw_post_proccess_test(&mut render_pass, &post_proccess_bg);
-        } else {
-            self.draw_multisampled_post_proccess_test(&mut render_pass, &post_proccess_bg);
-        }
+        self.draw_post_process(&mut render_pass, &post_process_bg);
     }
 
     /// set bind group = 1 (block_texutre_bg)
@@ -103,7 +72,7 @@ impl State {
     fn draw_block<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &[&'a Mesh]) {
         render_pass.set_pipeline(&self.pipelines.block);
         render_pass.set_bind_group(1, &self.block_texutre_bg, &[]);
-        meshes.iter().for_each(|mesh| {
+        meshes.iter().filter(|m| m.block_index_count > 0).for_each(|mesh| {
             render_pass.set_vertex_buffer(0, mesh.block_vertex_buffer.slice(..));
             render_pass.set_index_buffer(mesh.block_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..mesh.block_index_count, 0, 0..1);
@@ -115,7 +84,7 @@ impl State {
     fn draw_transport_belt<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &[&'a Mesh]) {
         render_pass.set_pipeline(&self.pipelines.transport_belt);
         render_pass.set_bind_group(3, &self.bind_groups_buffers.time.bind_group, &[]);
-        meshes.iter().for_each(|mesh| {
+        meshes.iter().filter(|m| m.transport_belt_index_count > 0).for_each(|mesh| {
             render_pass.set_vertex_buffer(0, mesh.transport_belt_vertex_buffer.slice(..));
             render_pass.set_index_buffer(mesh.transport_belt_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..mesh.transport_belt_index_count, 0, 0..1);
@@ -184,16 +153,13 @@ impl State {
     }
 
     #[inline]
-    fn draw_post_proccess_test<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, post_proccess_bg: &'a wgpu::BindGroup) {
-        render_pass.set_bind_group(0, post_proccess_bg, &[]);
-        render_pass.set_pipeline(&self.pipelines.post_proccess_test);
-        render_pass.draw(0..3, 0..1);
-    }
-
-    #[inline]
-    fn draw_multisampled_post_proccess_test<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, post_proccess_bg: &'a wgpu::BindGroup) {
-        render_pass.set_bind_group(0, post_proccess_bg, &[]);
-        render_pass.set_pipeline(&self.pipelines.multisampled_post_proccess_test);
+    fn draw_post_process<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, post_process_bg: &'a wgpu::BindGroup) {
+        render_pass.set_bind_group(0, post_process_bg, &[]);
+        if self.sample_count == 1 {
+           render_pass.set_pipeline(&self.pipelines.post_process); 
+        } else {
+            render_pass.set_pipeline(&self.pipelines.multisampled_post_process);
+        }
         render_pass.draw(0..3, 0..1);
     }
 }

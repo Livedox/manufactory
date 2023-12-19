@@ -22,6 +22,6 @@ pub(crate) fn get(device: &wgpu::Device, multisampled: bool) -> wgpu::BindGroupL
                 },
                 count: None,
             }],
-        label: Some("post_proccess_bgl"),
+        label: Some("post_process_bgl"),
     })
 }

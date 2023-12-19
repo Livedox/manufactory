@@ -1,4 +1,4 @@
-use std::{time::{Duration, Instant}, sync::{Arc, Mutex, Condvar}};
+use std::{time::{Duration, Instant}, sync::{Arc, Mutex, Condvar}, collections::VecDeque};
 use camera::frustum::Frustum;
 use direction::Direction;
 use engine::state;
@@ -152,6 +152,7 @@ pub async fn main() {
 
     let mut timer_16ms = Timer::new(Duration::from_millis(16));
     let mut fps = Instant::now();
+    let mut fps_queue = VecDeque::from([0.0; 10]);
     event_loop.run(move |event, _, control_flow| {
         state.handle_event(&event);
         input.handle_event(&event);
@@ -208,7 +209,9 @@ pub async fn main() {
                 gui_controller.update_cursor_lock();
                 meshes.update_transforms_buffer(&state, &world_g, &indices);
 
-                debug_data += &((1.0/fps.elapsed().as_secs_f32()) as u32).to_string();
+                fps_queue.push_back(1.0/fps.elapsed().as_secs_f32());
+                debug_data += &(fps_queue.iter().sum::<f32>() / fps_queue.len() as f32).to_string();
+                fps_queue.pop_front();
                 fps = Instant::now();
 
                 if input.is_key(&Key::E, KeypressState::AnyJustPress) {

@@ -27,10 +27,6 @@ fn vs_main(
 ) -> VertexOutput {
     let light = max(sun*model.light.a/1.7, model.light.rgb);
     var position = camera.proj_view*vec4<f32>(model.position, 1.0);
-    // This fix z-fighting and need to fix this
-    // https://stackoverflow.com/questions/39958039/where-do-pixel-gaps-come-from-in-opengl
-    // model.layer & 255 == model.layer % 256
-    position.z += f32(model.layer & 255u) / 1000000.0;
     return VertexOutput(
         position,
         model.uv,

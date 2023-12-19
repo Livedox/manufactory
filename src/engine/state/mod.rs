@@ -291,9 +291,7 @@ impl State {
                 label: Some("Render Encoder"),
             });
 
-        let rpass_color_attachment = self.get_rpass_color_attachment(&view);
-        let rpass_color_attachment2 = self.get_rpass_color_attachment(&view);
-        self.draw_all(&mut encoder, rpass_color_attachment, rpass_color_attachment2, output_texture, meshes);
+        self.draw_all(&mut encoder, output_texture, &view, meshes);
 
         self.egui.end(&mut encoder, &self.device, &self.queue, &view);
 

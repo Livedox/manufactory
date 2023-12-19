@@ -16,6 +16,6 @@ pub(crate) fn get(
                 resource: wgpu::BindingResource::TextureView(&depth),
             },
         ],
-        label: Some("post_proccess_bg"),
+        label: Some("post_process_bg"),
     })
 }
