@@ -10,7 +10,7 @@ pub fn spawn(
     let mut results = Vec::<RenderResult>::new();
     thread::spawn(move || {loop {
         if unsafe { WORLD_EXIT } {break};
-        let mut world = world.lock_unsafe(true).unwrap();
+        let mut world = unsafe {world.lock_unsafe()}.unwrap();
         let pc = *player_coords.lock().unwrap();
         let pc: ChunkCoords = GlobalCoords::from(pc).into();
         

@@ -90,7 +90,7 @@ impl Chunks {
         for (cy, cz, cx) in iproduct!(0..self.height, 0..self.depth, 0..self.width) {
             let index = ChunkCoords(cx, cy, cz).index_without_offset(self.width, self.depth);
             let Some(chunk) = self.chunks.get_mut(index) else {continue};
-            let mut world_regions = world_regions.lock_unsafe(false).unwrap();
+            let mut world_regions = unsafe {world_regions.lock_unsafe()}.unwrap();
             *chunk = match world_regions.chunk(ChunkCoords(cx+self.ox, cy+self.oy, cz+self.oz)) {
                 EncodedChunk::None => Some(Box::new(Chunk::new(cx+self.ox, cy+self.oy, cz+self.oz))),
                 EncodedChunk::Some(b) => Some(Box::new(Chunk::decode_bytes(b))),

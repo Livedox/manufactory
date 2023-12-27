@@ -6,7 +6,7 @@ pub fn spawn(world: Arc<UnsafeMutex<World>>) -> JoinHandle<()> {
     thread::spawn(move || {
         loop {
             if unsafe { WORLD_EXIT } {break};
-            let mut world = world.lock_unsafe(false).unwrap();
+            let mut world = unsafe {world.lock_unsafe()}.unwrap();
             let now = Instant::now();
             let ptr = &mut world.chunks as *mut Chunks;
             for chunk in world.chunks.chunks.iter_mut() {

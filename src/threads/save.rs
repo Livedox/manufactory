@@ -20,8 +20,8 @@ pub fn spawn(
             let (mut save_state, _) = cvar.wait_timeout(lock.lock().unwrap(), Duration::new(60, 0)).unwrap();
 
             
-            let mut world = world.lock_unsafe(false).unwrap();
-            let mut world_regions = world_regions.lock_unsafe(false).unwrap();
+            let mut world = unsafe {world.lock_unsafe()}.unwrap();
+            let mut world_regions = unsafe {world_regions.lock_unsafe()}.unwrap();
 
             let mut chunks_awaiting_deletion = world.chunks.chunks_awaiting_deletion.lock().unwrap();
             chunks_awaiting_deletion.iter().for_each(|chunk| {

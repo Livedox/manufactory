@@ -10,7 +10,7 @@ const LOCK: u32 = 0b10000000_00000000_00000000_00000000;//2_147_483_648 dec
 
 
 pub struct UnsafeMutex<T: ?Sized> {
-    pub state: AtomicU32,
+    state: AtomicU32,
     wake_counter: AtomicU32,
     poison: poison::Flag,
     data: UnsafeCell<T>,
@@ -27,22 +27,35 @@ impl<T> UnsafeMutex<T> {
     }
 }
 
+// There may or may not be bugs here
+// I'm too dumb to figure it out
 impl<T: ?Sized> UnsafeMutex<T> {
-    /// If immediately = false, this can sometimes work as immediately true.
-    pub fn lock_unsafe(&self, immediately: bool) -> LockResult<UnsafeGuard<T>> {
+    /// The calling thread is blocked while safe lock is maintained
+    /// # Safety
+    /// Calling a function is safe, but working with an internal value is just as unsafe as working with pointers.
+    pub unsafe fn lock_immediately(&self) -> LockResult<UnsafeGuard<T>> {
+        unsafe {self.lock_unsafe_general(true)}
+    }
+
+    /// The calling thread blocks while safe lock is expected or maintained
+    /// # Safety
+    /// Calling a function is safe, but working with an internal value is just as unsafe as working with pointers.
+    pub unsafe fn lock_unsafe(&self) -> LockResult<UnsafeGuard<T>> {
+        unsafe {self.lock_unsafe_general(false)}
+    }
+
+    /// # Safety
+    /// Calling a function is safe, but working with an internal value is just as unsafe as working with pointers.
+    unsafe fn lock_unsafe_general(&self, immediately: bool) -> LockResult<UnsafeGuard<T>> {
         let mut state = self.state.load(Relaxed);
         loop {
             if state < WAIT || (immediately && state < LOCK) {
-                // There may or may not be bugs here
-                // I'm too dumb to figure it out.
-                let current = self.state.load(Acquire);
-                match (current < LOCK, self.state.compare_exchange_weak(current, current+1, Acquire, Relaxed)) {
-                    (true, Ok(_)) => {
-                        assert_ne!((current+1)&(WAIT-1), WAIT-1, "Too many locks");
+                match self.state.compare_exchange_weak(state, state+1, Acquire, Relaxed) {
+                    Ok(_) => {
+                        assert_ne!((state+1)&(WAIT-1), WAIT-1, "Too many locks");
                         return unsafe { UnsafeGuard::new(self) };
                     },
-                    (false, Ok(_)) => {state = current; continue;},
-                    (_, Err(s)) => {state = s; continue;},
+                    Err(s) => {state = s; continue;},
                 }
             }
             wait(&self.state, state);
@@ -50,7 +63,9 @@ impl<T: ?Sized> UnsafeMutex<T> {
         }
     }
 
-
+    /// This function will block the local thread until it is available to acquire the mutex.
+    /// Upon returning, the thread is the only thread with the lock held
+    /// Waits until lock_unsafe, lock_immediately are unlocked
     pub fn lock(&self) -> LockResult<SafeGuard<T>> {
         let mut state = self.state.load(Relaxed);
         loop {
@@ -72,7 +87,7 @@ impl<T: ?Sized> UnsafeMutex<T> {
             }
             let c = self.wake_counter.load(Acquire);
             state = self.state.load(Relaxed);
-            if state != WAIT {
+            if state != WAIT && state != 0 {
                 wait(&self.wake_counter, c);
                 state = self.state.load(Relaxed);
             }
@@ -81,14 +96,8 @@ impl<T: ?Sized> UnsafeMutex<T> {
 
 
     pub fn try_lock(&self) -> TryLockResult<SafeGuard<T>> {
-        let state = self.state.load(Relaxed);
-        if state < WAIT {
-            let _ = self.state.compare_exchange(
-                state, state|WAIT, Acquire, Relaxed
-            );
-        }
         match self.state.compare_exchange(
-            WAIT, LOCK, Acquire, Relaxed
+            0, LOCK, Acquire, Relaxed
         ) {
             Ok(_) => Ok(unsafe { SafeGuard::new(self) }?),
             Err(_) => {Err(TryLockError::WouldBlock)},
@@ -134,7 +143,7 @@ impl<T> From<T> for UnsafeMutex<T> {
 
 
 impl<T: ?Sized + Default> Default for UnsafeMutex<T> {
-    /// Creates a `Mutex<T>`, with the `Default` value for T.
+    /// Creates a `UnsafeMutex<T>`, with the `Default` value for T.
     fn default() -> UnsafeMutex<T> {
         UnsafeMutex::new(Default::default())
     }

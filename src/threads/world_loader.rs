@@ -14,7 +14,7 @@ pub fn spawn(
         loop {
             if unsafe { WORLD_EXIT } {break};
             
-            let mut world = world.lock_unsafe(false).unwrap();
+            let mut world = unsafe {world.lock_unsafe()}.unwrap();
             let p_coords = *player_coords.lock().unwrap();
             let _p_coords: ChunkCoords = GlobalCoords::from(p_coords).into();
             let cxz: Option<(i32, i32)> = world.chunks

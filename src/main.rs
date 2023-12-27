@@ -47,7 +47,7 @@ mod bytes;
 static mut WORLD_EXIT: bool = false;
 const _GAME_VERSION: u32 = 1;
 
-const RENDER_DISTANCE: i32 = 14;
+const RENDER_DISTANCE: i32 = 5;
 const HALF_RENDER_DISTANCE: i32 = RENDER_DISTANCE / 2;
 
 const CAMERA_FOV: f32 = 1.2;
@@ -90,6 +90,7 @@ pub async fn main() {
          Color(1.0, 0.654, 0.0), Color(1.0, 0.301, 0.0),
          Color(0.0, 0.0, 0.0), Color(0.0, 0.0, 0.0),
          Color(1.0, 0.301, 0.0)]);
+
     let mut debug_block_id = None;
 
     let event_loop = EventLoop::new();
@@ -98,7 +99,6 @@ pub async fn main() {
         .with_inner_size(PhysicalSize::new(1150u32, 700u32))
         .build(&event_loop)
         .unwrap());
-
 
     let mut player = match save.world.player.lock().unwrap().load_player() {
         Some(player) => player,
@@ -181,7 +181,7 @@ pub async fn main() {
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
                 player.handle_input(&input, time.delta(), gui_controller.is_cursor());
 
-                let mut world_g = world.lock_unsafe(true).unwrap();
+                let mut world_g = unsafe {world.lock_immediately()}.unwrap();
                 time.update();
                 let c: ChunkCoords = GlobalCoords::from(player.camera().position_tuple()).into();
                 let mut debug_data = format!("{:?}", player.camera().position_tuple());
@@ -200,7 +200,7 @@ pub async fn main() {
                         let _ = tx_clone.send(vec);
                     });
                 }
-                let mut world_g = world.lock_unsafe(true).unwrap();
+                let mut world_g = unsafe {world.lock_immediately()}.unwrap();
                 let indices = frustum(
                     &mut world_g.chunks,
                     &player.camera().new_frustum(state.size.width as f32/state.size.height as f32));
