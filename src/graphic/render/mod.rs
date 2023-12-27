@@ -19,43 +19,29 @@ pub struct GreedFaceLight([Light; 9]);
 
 impl GreedFaceLight {
     pub fn from_coords(chunks: &Chunks, coords: [(i32, i32, i32); 9]) -> Self {
-        // looks scary, but is actually completely safe
-        unsafe {
-            let mut lights: [MaybeUninit<Light>; 9] = MaybeUninit::uninit().assume_init();
-            coords.into_iter().enumerate().for_each(|(i, coord)| {
-                lights.get_unchecked_mut(i).write(chunks.get_light(coord.into()));
-            });
-            Self(std::mem::transmute::<_, [Light; 9]>(lights))
-        }
+        Self(coords.map(|coord| chunks.get_light(coord.into())))
     }
 
-    // FIX wrong angles
     const ANGLE_INDICES: [[usize; 3]; 4] = [
-        [3,   6,   7], // lower left corner
-        [0,   1,   3], // upper left corner
-        [1,   2,   5], // upper right corner
-        [5,   8,   7]  // lower right corner
+        [1,   0,   3],
+        [1,   2,   5],
+        [7,   8,   5],
+        [7,   6,   3]
     ];
-
+    const CHANNELS: [u8; 4] = [0, 1, 2, 3];
+    const CENTER_INFLUENCE: f32 = 1.5;
+    const MAX_LIGHT_COUNT: f32 = 15.0;
+    const COEFFICIENT: f32 = Self::MAX_LIGHT_COUNT * (Self::CENTER_INFLUENCE + 3.0);
     pub fn get(&self) -> [[f32; 4]; 4] {
-        let middle = self.0[4];
-        // looks scary, but is actually completely safe
-        unsafe {
-            let mut lights: [MaybeUninit<[f32; 4]>; 4] = MaybeUninit::uninit().assume_init();
-    
-            Self::ANGLE_INDICES.iter().enumerate().for_each(|(i, inds)| {
-                let mut data: [MaybeUninit<f32>; 4] = MaybeUninit::uninit().assume_init();
-                for i in 0u8..4 {
-                    data.get_unchecked_mut(i as usize).write(
-                        (self.0.get_unchecked(inds[0]).get(i) as f32 +
-                        self.0.get_unchecked(inds[1]).get(i) as f32 +
-                        self.0.get_unchecked(inds[2]).get(i) as f32 +
-                        (middle.get(i) as f32 / 15.0)*30.0) / 75.0);
-                }
-                lights.get_unchecked_mut(i).write(std::mem::transmute::<_, [f32; 4]>(data));
-            });
-            std::mem::transmute::<_, [[f32; 4]; 4]>(lights)
-        }
+        let center = self.0[4];
+        Self::ANGLE_INDICES.map(|inds| {
+            Self::CHANNELS.map(|i| {unsafe {
+                (self.0.get_unchecked(inds[0]).get(i) as f32 +
+                 self.0.get_unchecked(inds[1]).get(i) as f32 +
+                 self.0.get_unchecked(inds[2]).get(i) as f32 +
+                 (center.get(i) as f32 * Self::CENTER_INFLUENCE)) / Self::COEFFICIENT
+            }})
+        })
     }
 }
 
@@ -106,26 +92,26 @@ impl GreedTest {
     pub fn vertices(&self, buffer: &mut Buffer, gx: i32, gy: i32, gz: i32) {
         let proccess_mx = Box::new(|buffer: &mut Buffer, layer: f32, row: f32, column: f32, face: &GreedFace| {
             let x = gx as f32 + layer;
-            let y1 = gy as f32 + row + 1.0;
-            let y2 = y1 - face.size[1] as f32;
-            let z1 = gz as f32 + column + 1.0;
-            let z2 = z1 - face.size[0] as f32;
+            let y2 = gy as f32 + row + 1.0;
+            let y1 = y2 - face.size[1] as f32;
+            let z2 = gz as f32 + column + 1.0;
+            let z1 = z2 - face.size[0] as f32;
             let lights = face.light.get();
             let v1 = face.size[1] as f32;
             let u1 = face.size[0] as f32;
             buffer.manage_vertices(&[
                 get_block_vertex(x, y1, z1, 0.0, 0.0, face.layer as f32, &lights[0]),
-                get_block_vertex(x, y2, z1, 0.0, v1, face.layer as f32, &lights[2]),
-                get_block_vertex(x, y2, z2, u1, v1, face.layer as f32, &lights[1]),
+                get_block_vertex(x, y2, z1, 0.0, v1, face.layer as f32, &lights[1]),
+                get_block_vertex(x, y2, z2, u1, v1, face.layer as f32, &lights[2]),
                 get_block_vertex(x, y1, z2, u1, 0.0, face.layer as f32, &lights[3])
             ], &[0,1,2,0,2,3]);
         });
         let proccess_px = Box::new(|buffer: &mut Buffer, layer: f32, row: f32, column: f32, face: &GreedFace| {
             let x = gx as f32 + layer + 1.0;
-            let y1 = gy as f32 + row + 1.0;
-            let y2 = y1 - face.size[1] as f32;
-            let z1 = gz as f32 + column + 1.0;
-            let z2 = z1 - face.size[0] as f32;
+            let y2 = gy as f32 + row + 1.0;
+            let y1 = y2 - face.size[1] as f32;
+            let z2 = gz as f32 + column + 1.0;
+            let z1 = z2 - face.size[0] as f32;
             let lights = face.light.get();
             let v1 = face.size[1] as f32;
             let u1 = face.size[0] as f32;
@@ -139,26 +125,26 @@ impl GreedTest {
 
         let proccess_my = Box::new(|buffer: &mut Buffer, layer: f32, row: f32, column: f32, face: &GreedFace| {
             let y = gy as f32 + layer;
-            let x1 = gx as f32 + row + 1.0;
-            let x2 = x1 - face.size[1] as f32;
-            let z1 = gz as f32 + column + 1.0;
-            let z2 = z1 - face.size[0] as f32;
+            let x2 = gx as f32 + row + 1.0;
+            let x1 = x2 - face.size[1] as f32;
+            let z2 = gz as f32 + column + 1.0;
+            let z1 = z2 - face.size[0] as f32;
             let lights = face.light.get();
             let v1 = face.size[0] as f32;
             let u1 = face.size[1] as f32;
             buffer.manage_vertices(&[
                 get_block_vertex(x1, y, z1, 0.0, 0.0, face.layer as f32, &lights[0]),
-                get_block_vertex(x1, y, z2, 0.0, v1, face.layer as f32, &lights[2]),
-                get_block_vertex(x2, y, z2, u1, v1, face.layer as f32, &lights[1]),
+                get_block_vertex(x1, y, z2, 0.0, v1, face.layer as f32, &lights[1]),
+                get_block_vertex(x2, y, z2, u1, v1, face.layer as f32, &lights[2]),
                 get_block_vertex(x2, y, z1, u1, 0.0, face.layer as f32, &lights[3])
             ], &[0,1,2,0,2,3]);
         });
         let proccess_py = Box::new(|buffer: &mut Buffer, layer: f32, row: f32, column: f32, face: &GreedFace| {
             let y = gy as f32 + layer + 1.0;
-            let x1 = gx as f32 + row + 1.0;
-            let x2 = x1 - face.size[1] as f32;
-            let z1 = gz as f32 + column + 1.0;
-            let z2 = z1 - face.size[0] as f32;
+            let x2 = gx as f32 + row + 1.0;
+            let x1 = x2 - face.size[1] as f32;
+            let z2 = gz as f32 + column + 1.0;
+            let z1 = z2 - face.size[0] as f32;
             let lights = face.light.get();
             let v1 = face.size[0] as f32;
             let u1 = face.size[1] as f32;
@@ -172,13 +158,13 @@ impl GreedTest {
 
         let proccess_mz = Box::new(|buffer: &mut Buffer, layer: f32, row: f32, column: f32, face: &GreedFace| {
             let z = gz as f32 + layer;
-            let x1 = gx as f32 + row + 1.0;
-            let x2 = x1 - face.size[1] as f32;
-            let y1 = gy as f32 + column + 1.0;
-            let y2 = y1 - face.size[0] as f32;
+            let x2 = gx as f32 + row + 1.0;
+            let x1 = x2 - face.size[1] as f32;
+            let y2 = gy as f32 + column + 1.0;
+            let y1 = y2 - face.size[0] as f32;
             let lights = face.light.get();
-            let v1 = face.size[0] as f32;
-            let u1 = face.size[1] as f32;
+            let v1 = face.size[1] as f32;
+            let u1 = face.size[0] as f32;
             buffer.manage_vertices(&[
                 get_block_vertex(x1, y1, z, 0.0, 0.0, face.layer as f32, &lights[0]),
                 get_block_vertex(x2, y1, z, 0.0, v1, face.layer as f32, &lights[3]),
@@ -188,18 +174,18 @@ impl GreedTest {
         });
         let proccess_pz = Box::new(|buffer: &mut Buffer, layer: f32, row: f32, column: f32, face: &GreedFace| {
             let z = gz as f32 + layer + 1.0;
-            let x1 = gx as f32 + row + 1.0;
-            let x2 = x1 - face.size[1] as f32;
-            let y1 = gy as f32 + column + 1.0;
-            let y2 = y1 - face.size[0] as f32;
+            let x2 = gx as f32 + row + 1.0;
+            let x1 = x2 - face.size[1] as f32;
+            let y2 = gy as f32 + column + 1.0;
+            let y1 = y2 - face.size[0] as f32;
             let lights = face.light.get();
-            let v1 = face.size[0] as f32;
-            let u1 = face.size[1] as f32;
+            let v1 = face.size[1] as f32;
+            let u1 = face.size[0] as f32;
             buffer.manage_vertices(&[
                 get_block_vertex(x1, y1, z, 0.0, 0.0, face.layer as f32, &lights[0]),
-                get_block_vertex(x2, y1, z, 0.0, v1, face.layer as f32, &lights[3]),
-                get_block_vertex(x2, y2, z, u1, v1, face.layer as f32, &lights[1]),
-                get_block_vertex(x1, y2, z, u1, 0.0, face.layer as f32, &lights[2])
+                get_block_vertex(x2, y1, z, 0.0, v1, face.layer as f32, &lights[1]),
+                get_block_vertex(x2, y2, z, u1, v1, face.layer as f32, &lights[2]),
+                get_block_vertex(x1, y2, z, u1, 0.0, face.layer as f32, &lights[3])
             ], &[3,2,0,2,1,0]);
         });
 
@@ -859,18 +845,18 @@ pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
         };
         if !is_blocked(x-1, y, z, chunks, LightPermeability::LEFT, block.light_permeability()) {
             let light = GreedFaceLight::from_coords(chunks, [
-                (nx, ny, nz), (nx, ny, z), (nx, ny, pz),
-                (nx, y, nz),  (nx, y,  z), (nx, y,  pz),
-                (nx, py, nz), (nx, py, z), (nx, py, pz)
+                (nx, ny, nz), (nx, y, nz), (nx, py, nz),
+                (nx, ny,  z), (nx, y, z),  (nx, py, z),
+                (nx, ny, pz), (nx, y, pz), (nx, py, pz)
             ]);
             greed_test.set(0, lx, ly, lz, GreedFace::new(faces[0], light));
         }
 
         if !is_blocked(x+1, y, z, chunks, LightPermeability::RIGHT, block.light_permeability()) {
             let light = GreedFaceLight::from_coords(chunks, [
-                (px, ny, nz), (px, ny, z), (px, ny, pz),
-                (px, y,  nz), (px, y,  z), (px, y,  pz),
-                (px, py, nz), (px, py, z), (px, py, pz)
+                (px, ny, nz), (px, y, nz), (px, py, nz),
+                (px, ny,  z), (px, y, z),  (px, py, z),
+                (px, ny, pz), (px, y, pz), (px, py, pz)
             ]);
             greed_test.set(1, lx, ly, lz, GreedFace::new(faces[1], light));
         }
@@ -905,9 +891,9 @@ pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
 
         if !is_blocked(x, y, z+1, chunks, LightPermeability::UP, block.light_permeability()) {
             let light = GreedFaceLight::from_coords(chunks, [
-                (nx, ny, pz), (nx, y, pz), (nx, py, pz),
-                (x,  ny, pz), (x,  y, pz), (x,  py, pz),
-                (px, ny, pz), (px, y, pz), (px, py, pz)
+                (nx, ny, pz), (x, ny, pz), (px, ny, pz),
+                (nx,  y, pz), (x,  y, pz), (px,  y, pz),
+                (nx, py, pz), (x, py, pz), (px, py, pz)
             ]);
             greed_test.set(5, lz, lx, ly, GreedFace::new(faces[5], light));
         }

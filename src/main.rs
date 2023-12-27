@@ -210,7 +210,7 @@ pub async fn main() {
                 meshes.update_transforms_buffer(&state, &world_g, &indices);
 
                 fps_queue.push_back(1.0/fps.elapsed().as_secs_f32());
-                debug_data += &(fps_queue.iter().sum::<f32>() / fps_queue.len() as f32).to_string();
+                debug_data += &(fps_queue.iter().sum::<f32>() / fps_queue.len() as f32).floor().to_string();
                 fps_queue.pop_front();
                 fps = Instant::now();
 
