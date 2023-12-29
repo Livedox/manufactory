@@ -14,6 +14,8 @@ pub struct Chunks {
     pub chunks: Vec<Option<Box<Chunk>>>,
     pub chunks_awaiting_deletion: Arc<Mutex<Vec<Box<Chunk>>>>,
     pub volume: i32,
+    pub width_with_offset: i32, //Needed to optimize the function (is_in_area)
+    pub depth_with_offset: i32, //Needed to optimize the function (is_in_area)
     pub width: i32,
     pub height: i32,
     pub depth: i32,
@@ -37,6 +39,8 @@ impl Chunks {
             chunks,
             volume,
             width,
+            width_with_offset: width+ox,
+            depth_with_offset: depth+oz,
             height,
             depth,
             ox,
@@ -82,6 +86,8 @@ impl Chunks {
         self.chunks = new_chunks;
         self.ox = ox;
         self.oz = oz;
+        self.width_with_offset = self.width + ox;
+        self.depth_with_offset = self.depth + oz;
         indices
     }
 
@@ -172,10 +178,11 @@ impl Chunks {
         Some(id)
     }
 
+    #[inline]
     pub fn is_in_area(&self, chunk_coords: ChunkCoords) -> bool {
-        chunk_coords.0 - self.ox >= 0 && chunk_coords.0 - self.ox < self.width &&
+        chunk_coords.0 >= self.ox && chunk_coords.0 < self.width_with_offset &&
         chunk_coords.1 >= 0 && chunk_coords.1 < self.height &&
-        chunk_coords.2 - self.oz >= 0 && chunk_coords.2 - self.oz < self.depth
+        chunk_coords.2 >= self.oz && chunk_coords.2 < self.depth_with_offset
     }
 
     pub fn local_chunk(&self, coords: ChunkCoords) -> Option<&Chunk> {
@@ -192,18 +199,16 @@ impl Chunks {
         let coords: ChunkCoords = coords.into();
         if !self.is_in_area(coords) { return None; }
         let index = coords.nindex(self.width, self.depth, self.ox, self.oz);
-        let chunk = self.chunks.get(index);
-        if let Some(chunk) = chunk { return chunk.as_ref().map(|c| c.as_ref()) }
-        None
+        // It's safe because we checked the coordinates
+        unsafe {self.chunks.get_unchecked(index).as_ref().map(|c| c.as_ref())}
     }
 
     pub fn mut_chunk<T: Into<ChunkCoords>>(&mut self, coords: T) -> Option<&mut Chunk> {
         let coords: ChunkCoords = coords.into();
         if !self.is_in_area(coords) { return None; }
         let index = coords.nindex(self.width, self.depth, self.ox, self.oz);
-        let chunk = self.chunks.get_mut(index);
-        if let Some(chunk) = chunk { return chunk.as_mut().map(|c| c.as_mut()) }
-        None
+        // It's safe because we checked the coordinates
+        unsafe {self.chunks.get_unchecked_mut(index).as_mut().map(|c| c.as_mut())}
     }
 
     pub fn voxels_data<T: Into<ChunkCoords>>(&self, coords: T) -> Option<&HashMap<usize, VoxelData>> {

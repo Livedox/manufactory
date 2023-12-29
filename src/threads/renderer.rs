@@ -8,7 +8,8 @@ pub fn spawn(
     render_result: Arc<Mutex<Option<RenderResult>>>
 ) -> JoinHandle<()> {
     let mut results = Vec::<RenderResult>::new();
-    thread::spawn(move || {loop {
+    let b = thread::Builder::new().name("renderer".to_owned()).stack_size(32 * 1024 * 1024);
+    b.spawn(move || {loop {
         if unsafe { WORLD_EXIT } {break};
         let mut world = unsafe {world.lock_unsafe()}.unwrap();
         let pc = *player_coords.lock().unwrap();
@@ -50,5 +51,5 @@ pub fn spawn(
             drop(world);
             thread::sleep(Duration::from_millis(16));
         }
-    }})
+    }}).unwrap()
 }

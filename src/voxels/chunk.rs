@@ -89,6 +89,10 @@ impl Chunk {
         self.voxel(coords).id == 0
     }
 
+    pub unsafe fn get_unchecked_voxel(&self, local_coords: LocalCoords) -> &Voxel {
+        self.voxels.get_unchecked(local_coords.index())
+    } 
+
     pub fn voxel(&self, local_coords: LocalCoords) -> &Voxel {
         &self.voxels[local_coords.index()]
     }
