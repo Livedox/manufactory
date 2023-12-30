@@ -52,6 +52,7 @@ impl Chunk {
             let real_x = x as i32 + pos_x*CHUNK_SIZE as i32;
             let real_y = y as i32 + pos_y*CHUNK_SIZE as i32;
             let real_z = z as i32 + pos_z*CHUNK_SIZE as i32;
+
             if real_y as f64 <= ((real_x as f64 *0.3).sin() * 0.5 + 0.5) * 10. {
                 voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 7;
             }
@@ -65,9 +66,9 @@ impl Chunk {
                 voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 7;
             }
 
-            if real_z == 200 {
-                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 7;
-            }
+            // if real_z == 200 {
+            //     voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 7;
+            // }
         }
 
         Chunk {

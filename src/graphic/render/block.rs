@@ -6,6 +6,7 @@ use super::block_managers::BlockManagers;
 pub struct BlockFaceLight([Light; 9]);
 
 impl BlockFaceLight {
+    #[inline]
     pub fn new(chunks: &Chunks, coords: [(i32, i32, i32); 9]) -> Self {
         Self(coords.map(|coord| chunks.get_light(coord.into())))
     }

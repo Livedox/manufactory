@@ -74,7 +74,7 @@ impl State {
         render_pass.set_bind_group(1, &self.block_texutre_bg, &[]);
         meshes.iter().filter(|m| m.block_index_count > 0).for_each(|mesh| {
             render_pass.set_vertex_buffer(0, mesh.block_vertex_buffer.slice(..));
-            render_pass.set_index_buffer(mesh.block_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.set_index_buffer(mesh.block_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..mesh.block_index_count, 0, 0..1);
         });
     }
@@ -86,7 +86,7 @@ impl State {
         render_pass.set_bind_group(3, &self.bind_groups_buffers.time.bind_group, &[]);
         meshes.iter().filter(|m| m.transport_belt_index_count > 0).for_each(|mesh| {
             render_pass.set_vertex_buffer(0, mesh.transport_belt_vertex_buffer.slice(..));
-            render_pass.set_index_buffer(mesh.transport_belt_index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.set_index_buffer(mesh.transport_belt_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..mesh.transport_belt_index_count, 0, 0..1);
         });
     }

@@ -17,27 +17,29 @@ const IS_GREEDY_MESHING: bool = true;
 #[derive(Debug, Clone)]
 pub struct Buffer {
     pub buffer: Vec<BlockVertex>,
-    pub index_buffer: Vec<u16>,
+    pub index_buffer: Vec<u32>,
 }
 
 impl Buffer {
+    #[inline]
     pub fn new() -> Self { Self { buffer: vec![], index_buffer: vec![] }}
 
-    pub fn push_line(&mut self, vertices: &[BlockVertex; 4], indices: &[usize]) {
+    #[inline]
+    fn push_line(&mut self, vertices: &[BlockVertex; 4], indices: &[usize; 6]) {
         let mut index_vertex: [Option<usize>; 4] = [None, None, None, None];
         indices.iter().for_each(|i| {
             let current_index = self.buffer.len();
             index_vertex[*i] = Some(current_index);
             self.buffer.push(vertices[*i]);
-            self.index_buffer.push(current_index as u16);
+            self.index_buffer.push(current_index as u32);
             if *i != 0 && *i < indices.len() - 1 {
                 self.buffer.push(vertices[*i]);
-                self.index_buffer.push(current_index as u16);
+                self.index_buffer.push(current_index as u32);
             }
         });
     }
 
-    pub fn manage_vertices(&mut self, vertices: &[BlockVertex; 4], indices: &[usize]) {
+    pub fn manage_vertices(&mut self, vertices: &[BlockVertex; 4], indices: &[usize; 6]) {
         if !IS_LINE {
             self.push_triangles(vertices, indices);
         } else {
@@ -45,17 +47,18 @@ impl Buffer {
         }
     }
 
-    pub fn push_triangles(&mut self, vertices: &[BlockVertex], indices: &[usize]) {
+    #[inline]
+    fn push_triangles(&mut self, vertices: &[BlockVertex], indices: &[usize; 6]) {
         let mut index_vertex: [Option<usize>; 4] = [None, None, None, None];
         indices.iter().for_each(|i| {
             if let Some(index_vertex) = index_vertex[*i] {
-                self.index_buffer.push(index_vertex as u16);
+                self.index_buffer.push(index_vertex as u32);
                 return;
             }
             let current_index = self.buffer.len();
             index_vertex[*i] = Some(current_index);
             self.buffer.push(vertices[*i]);
-            self.index_buffer.push(current_index as u16);
+            self.index_buffer.push(current_index as u32);
         });
     }
 }
@@ -65,9 +68,9 @@ pub struct RenderResult {
     pub chunk_index: usize,
     pub xyz: ChunkCoords,
     pub block_vertices: Vec<BlockVertex>,
-    pub block_indices: Vec<u16>,
+    pub block_indices: Vec<u32>,
     pub belt_vertices: Vec<BlockVertex>,
-    pub belt_indices: Vec<u16>,
+    pub belt_indices: Vec<u32>,
 
     pub models: Models,
     pub animated_models: AnimatedModels,

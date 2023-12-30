@@ -1,4 +1,4 @@
-use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex}, time::Duration};
+use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex}, time::{Duration, Instant}};
 
 use itertools::iproduct;
 

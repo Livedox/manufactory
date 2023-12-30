@@ -16,7 +16,7 @@ pub(crate) fn manage_x(
   global: (f32, f32, f32),
   lrw: (f32, f32, f32),
   offset: f32,
-  indices: &[usize],
+  indices: &[usize; 6],
   face: &BlockFace
 ) {
     let x = global.0 as f32 + lrw.0 + offset;
@@ -24,6 +24,8 @@ pub(crate) fn manage_x(
     let ny = py - face.size[1] as f32 - STITCHING;
     let pz = global.2 as f32 + lrw.2 + 1.0 + STITCHING;
     let nz = pz - face.size[0] as f32 - STITCHING;
+
+    let light = face.light.get();
 
     insert_vertices_into_buffer(buffer, face.size[0] as f32, face.size[1] as f32, face.layer,
         face.light.get(), indices, [[x, ny, nz], [x, py, nz], [x, py, pz], [x, ny, pz]]);
@@ -35,7 +37,7 @@ pub(crate) fn manage_y(
   global: (f32, f32, f32),
   lrw: (f32, f32, f32),
   offset: f32,
-  indices: &[usize],
+  indices: &[usize; 6],
   face: &BlockFace
 ) {
     let y = global.1 as f32 + lrw.0 + offset;
@@ -54,7 +56,7 @@ pub(crate) fn manage_z(
   global: (f32, f32, f32),
   lrw: (f32, f32, f32),
   offset: f32,
-  indices: &[usize],
+  indices: &[usize; 6],
   face: &BlockFace
 ) {
     let z = global.2 as f32 + lrw.0 + offset;
@@ -74,7 +76,7 @@ pub(crate) fn insert_vertices_into_buffer(
   pv: f32,
   layer: u32, 
   lights: [[f32; 4]; 4],
-  indices: &[usize],
+  indices: &[usize; 6],
   coords: [[f32; 3]; 4],
 ) {
     buffer.manage_vertices(&[
