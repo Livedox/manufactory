@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::{Arc, atomic::{AtomicBool, Ordering}}, time::{SystemTime, UNIX_EPOCH}};
 
 use itertools::iproduct;
-use crate::{light::light_map::LightMap, direction::Direction, world::{local_coords::LocalCoords, chunk_coords::ChunkCoords}, bytes::{AsFromBytes, BytesCoder}};
+use crate::{light::light_map::{LightMap, Light}, direction::Direction, world::{local_coords::LocalCoords, chunk_coords::ChunkCoords}, bytes::{AsFromBytes, BytesCoder}};
 
 use super::{voxel::{self, Voxel}, voxel_data::{VoxelData, VoxelAdditionalData}, block::blocks::BLOCKS};
 use std::io::prelude::*;
@@ -144,6 +144,11 @@ impl Chunk {
 
     pub fn add_voxel_data(&mut self, local_coords: LocalCoords, voxel_data: VoxelData) -> Option<VoxelData> {
         self.voxels_data.insert(local_coords.index(), voxel_data)
+    }
+
+    #[inline]
+    pub fn get_light(&self, local_coords: LocalCoords) -> Light {
+        self.lightmap.get_light(local_coords.into())
     }
 }
 

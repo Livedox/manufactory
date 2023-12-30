@@ -2,8 +2,8 @@ pub mod greed_manager;
 pub(crate) mod face_managers;
 pub mod default_manager;
 use self::{greed_manager::GreedManager, default_manager::DefaultManager};
-use super::{BlockFace, Buffer};
-
+use super::{Buffer};
+use crate::graphic::render::block::BlockFace;
 
 pub enum BlockManagers {
     Greed(GreedManager),

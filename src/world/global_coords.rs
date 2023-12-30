@@ -26,6 +26,11 @@ impl From<GlobalCoords> for (f32, f32, f32) {
     fn from(xyz: GlobalCoords) -> Self {(xyz.0 as f32, xyz.1 as f32, xyz.2 as f32)}
 }
 
+impl From<GlobalCoords> for [f32; 3] {
+    #[inline]
+    fn from(xyz: GlobalCoords) -> Self {[xyz.0 as f32, xyz.1 as f32, xyz.2 as f32]}
+}
+
 impl From<GlobalCoords> for [i32; 3] {
     #[inline]
     fn from(xyz: GlobalCoords) -> Self {[xyz.0, xyz.1, xyz.2]}

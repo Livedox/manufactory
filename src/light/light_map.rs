@@ -8,6 +8,7 @@ impl Default for Light {
 }
 
 impl Light {
+    const MAX_VALUE: u8 = 15;
     #[inline] pub fn new(light: u16) -> Self {Self(light)}
 
     #[inline] pub fn get(self, channel: u8) -> u16 {(self.0 >> (channel << 2)) & 0xF}
@@ -24,6 +25,13 @@ impl Light {
     #[inline] pub fn set_green(&mut self, value: u16) {self.0 = self.0 & 0xFFF0 | (value << 4)}
     #[inline] pub fn set_blue(&mut self, value: u16) {self.0 = self.0 & 0xFFF0 | (value << 8)}
     #[inline] pub fn set_sun(&mut self, value: u16) {self.0 = self.0 & 0xFFF0 | (value << 12)}
+
+    pub fn get_normalized(&self) -> [f32; 4] {
+        [self.get_red() as f32 / Self::MAX_VALUE as f32,
+         self.get_green() as f32 / Self::MAX_VALUE as f32,
+         self.get_blue() as f32 / Self::MAX_VALUE as f32,
+         self.get_sun() as f32 / Self::MAX_VALUE as f32]
+    }
 }
 
 #[derive(Debug)]

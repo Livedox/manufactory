@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::{Mutex, Arc}};
 use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
-use crate::{graphic::render::{AnimatedModelRenderResult, ModelRenderResult, RenderResult}, voxels::block::{block_type::BlockType, blocks::BLOCKS}, engine::vertices::{model_instance::ModelInstance, animated_model_instance::AnimatedModelInstance}, models::animated_model::AnimatedModel, world::World, state::State};
+use crate::{graphic::render::{RenderResult, animated_model::AnimatedModelRenderResult, model::ModelRenderResult}, voxels::block::{block_type::BlockType, blocks::BLOCKS}, engine::vertices::{model_instance::ModelInstance, animated_model_instance::AnimatedModelInstance}, models::animated_model::AnimatedModel, world::World, state::State};
 
 #[derive(Debug)]
 pub struct Mesh {

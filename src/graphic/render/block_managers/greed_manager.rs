@@ -1,5 +1,6 @@
 use std::ops::Range;
-use crate::graphic::render::{Buffer, BlockFace};
+use crate::graphic::render::{Buffer};
+use crate::graphic::render::block::BlockFace;
 use crate::CHUNK_SIZE;
 use super::face_managers::{manage_z, manage_y, manage_x};
 
