@@ -47,7 +47,7 @@ mod bytes;
 static mut WORLD_EXIT: bool = false;
 const _GAME_VERSION: u32 = 1;
 
-const RENDER_DISTANCE: i32 = 30;
+const RENDER_DISTANCE: i32 = 10;
 const HALF_RENDER_DISTANCE: i32 = RENDER_DISTANCE / 2;
 
 const CAMERA_FOV: f32 = 1.2;
@@ -75,6 +75,7 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
 #[tokio::main]
 pub async fn main() {
     let (tx, rx) = std::sync::mpsc::channel::<Vec<(usize, usize)>>();
+    let (render_sender, render_recv) = std::sync::mpsc::channel::<RenderResult>();
     let save = Save::new("./data/worlds/debug/");
     let sun = Sun::new(
         60,
@@ -135,7 +136,7 @@ pub async fn main() {
     
     let thread_save = threads::save::spawn(world.clone(), save.world.regions.clone(), save_condvar.clone());
     let thread_world_loader = threads::world_loader::spawn(world.clone(), save.world.regions.clone(), player_coords.clone());
-    let thread_renderer = threads::renderer::spawn(world.clone(), player_coords.clone(), render_result.clone());
+    let thread_renderer = threads::renderer::spawn(world.clone(), render_sender, render_result.clone());
     let thread_voxel_data_updater = threads::voxel_data_updater::spawn(world.clone());
     
     let mut finalize = Some(move || {
@@ -284,15 +285,16 @@ pub async fn main() {
                 }
 
                 if !meshes.is_need_translate() {
-                    let render_result = render_result.lock().unwrap().take();
-                    if let Some(render_result) = render_result {
-                        let index = render_result.xyz.chunk_index(&world_g.chunks);
-                        meshes.render(MeshesRenderInput {
-                            device: state.device(),
-                            animated_model_layout: &state.layouts.transforms_storage,
-                            all_animated_models: &state.animated_models,
-                            render_result,
-                        }, index);
+                    while let Ok(result) = render_recv.try_recv() {
+                        if world_g.chunks.is_in_area(result.xyz) {
+                            let index = result.xyz.chunk_index(&world_g.chunks);
+                            meshes.render(MeshesRenderInput {
+                                device: state.device(),
+                                animated_model_layout: &state.layouts.transforms_storage,
+                                all_animated_models: &state.animated_models,
+                                render_result: result,
+                            }, index);
+                        }
                     }
                 }
 

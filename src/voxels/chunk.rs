@@ -102,10 +102,12 @@ impl Chunk {
         &mut self.voxels[local_coords.index()]
     }
 
+    #[inline]
     pub fn modified(&self) -> bool {
         self.modified.load(Ordering::Acquire)
     }
 
+    #[inline]
     pub fn modify(&mut self, value: bool) {
         self.modified.store(value, Ordering::Release);
     }

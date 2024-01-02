@@ -13,13 +13,9 @@ pub fn spawn(
     thread::spawn(move || {
         loop {
             if unsafe { WORLD_EXIT } {break};
-            
             let mut world = unsafe {world.lock_unsafe()}.unwrap();
-            let p_coords = *player_coords.lock().unwrap();
-            let _p_coords: ChunkCoords = GlobalCoords::from(p_coords).into();
-            let cxz: Option<(i32, i32)> = world.chunks
-                .find_pos_stable_xz(&|c| c.is_none())
-                .map(|pos| (pos.0, pos.2));
+            let cxz: Option<(i32, i32)> = world.chunks.find_unloaded();
+            println!("{:?}", cxz);
             if let Some((ox, oz)) = cxz {
                 let mut new_chunks = World::new(1, WORLD_HEIGHT as i32, 1, ox, 0, oz);
                 new_chunks.chunks.load_all(world_regions.clone());
