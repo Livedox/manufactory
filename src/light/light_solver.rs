@@ -74,6 +74,12 @@ impl LightSolver {
         self.add_with_emission(chunks, x, y, z, emission);
     }
 
+    pub fn add_debug(&mut self, chunks: &mut Chunks, x: i32, y: i32, z: i32) {
+        let emission = chunks.light((x,y,z).into(), self.channel) as u8;
+        // println!("{:?}", emission);
+        self.add_with_emission(chunks, x, y, z, emission);
+    }
+
 
     pub fn remove(&mut self, chunks: &mut Chunks, x: i32, y: i32, z: i32) {
         if let Some(chunk) = chunks.mut_chunk(GlobalCoords(x, y, z)) {

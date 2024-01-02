@@ -149,8 +149,6 @@ pub async fn main() {
         cvar.notify_one();
         thread_save.join().expect("Failed to terminate thread save");
     });
-    let mut max_time: f32 = 0.0;
-    let mut max_count: usize = 0;
     let mut timer_16ms = Timer::new(Duration::from_millis(16));
     let mut fps = Instant::now();
     let mut fps_queue = VecDeque::from([0.0; 10]);

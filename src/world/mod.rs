@@ -46,6 +46,12 @@ impl World {
     }
 
 
+    pub fn build_chunk(&mut self, cx: i32, cy: i32, cz: i32) {
+        self.light.build_sky_light_chunk(&mut self.chunks, cx, cy, cz);
+        self.light.on_chunk_loaded(&mut self.chunks, cx, cy, cz);
+    }
+
+
     pub fn break_voxel(&mut self, xyz: &GlobalCoords) {
         self.chunks.set(*xyz, 0, None);
         self.light.on_block_break(&mut self.chunks, xyz.0, xyz.1, xyz.2);

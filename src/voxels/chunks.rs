@@ -59,7 +59,7 @@ impl Chunks {
         self.chunks[index] = Some(Box::new(Chunk::new(coords.0, coords.1, coords.2)));
     }
 
-    // ONLY SAFE ACCESS
+    /// ONLY SAFE ACCESS
     pub fn translate(&mut self, ox: i32, oz: i32) -> Vec<(usize, usize)> {
         let mut indices = Vec::<(usize, usize)>::new();
         let mut new_chunks: Vec<Option<Box<Chunk>>> = vec_none!(self.chunks.len());

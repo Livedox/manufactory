@@ -28,6 +28,41 @@ impl LightSolvers {
     }}
 
 
+    pub fn build_sky_light_chunk(&mut self, chunks: &mut Chunks, cx: i32, cy: i32, cz: i32) {
+        let chunks_ptr = chunks as *mut Chunks;
+        let ox = chunks.ox;
+        let oz = chunks.oz;
+        let cx = cx - ox;
+        let cz = cz - oz;
+        let Some(chunk) = chunks.mut_local_chunk(ChunkCoords(cx, cy, cz)) else {return};
+
+        if chunk.xyz.1 == (WORLD_HEIGHT-1) as i32 {
+            for (lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE) {
+                chunk.lightmap.set_sun((lx as u8, (CHUNK_SIZE-1) as u8, lz as u8), 15);
+            }
+        }
+
+        if let Some(top_chunk) = unsafe {chunks_ptr.as_ref().expect("Chunks don't found").local_chunk(ChunkCoords(cx, cy+1, cz))} {
+            for (lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE) {
+                if top_chunk.lightmap.get_sun((lx as u8, 0, lz as u8)) == 15 {
+                    chunk.lightmap.set_sun((lx as u8, (CHUNK_SIZE-1) as u8, lz as u8), 15);
+                }
+            }
+        }
+
+        for (ly, lz, lx) in iproduct!((0..CHUNK_SIZE-1).rev(), 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
+            if chunk.lightmap.get_sun((lx as u8, (ly+1) as u8, lz as u8)) == 15
+                && BLOCKS()[chunk.voxel((lx as u8, ly as u8, lz as u8).into()).id as usize].id() == 0 {
+                chunk.lightmap.set_sun((lx as u8, ly as u8, lz as u8), 15);
+                let global = ChunkCoords(cx + ox, cy, cz + oz)
+                    .to_global((lx as u8, ly as u8, lz as u8).into());
+                self.solver_sun.add_debug(unsafe {chunks_ptr.as_mut().unwrap()}, global.0, global.1, global.2);
+            }
+        }
+        self.solver_sun.solve(chunks);
+    }
+
+
     pub fn build_sky_light(&mut self, chunks: &mut Chunks) {
         for (cy, cz, cx) in iproduct!((0..chunks.height).rev(), 0..chunks.depth, 0..chunks.width) {
             let chunks_ptr = chunks as *mut Chunks;
@@ -64,11 +99,13 @@ impl LightSolvers {
         for (ly, lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
             let xyz = ChunkCoords(cx, cy, cz).to_global((lx as u8, ly as u8, lz as u8).into());
             let id = chunks.voxel_global(xyz).map_or(0, |v| v.id as usize);
-            let emission = &BLOCKS()[id].emission();
+            let emission = BLOCKS()[id].emission();
             if emission.iter().any(|e| *e > 0) {
+                println!("{:?}", emission);
                 self.add_with_emission_rgb(chunks, xyz.0, xyz.1, xyz.2, emission);
             }
         }
+        self.solve_rgb(chunks);
 
         for (ly, lz, lx) in iproduct!(-1..=CHUNK_SIZE as i32, -1..=CHUNK_SIZE as i32, -1..=CHUNK_SIZE as i32) {
             if lx != -1 && lx != CHUNK_SIZE as i32
