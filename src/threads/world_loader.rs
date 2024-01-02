@@ -7,15 +7,13 @@ use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoord
 
 pub fn spawn(
     world: Arc<UnsafeMutex<World>>,
-    world_regions: Arc<UnsafeMutex<WorldRegions>>,
-    player_coords: Arc<Mutex<(f32, f32, f32)>>
+    world_regions: Arc<UnsafeMutex<WorldRegions>>
 ) -> JoinHandle<()> {
     thread::spawn(move || {
         loop {
             if unsafe { WORLD_EXIT } {break};
             let mut world = unsafe {world.lock_unsafe()}.unwrap();
             let cxz: Option<(i32, i32)> = world.chunks.find_unloaded();
-            println!("{:?}", cxz);
             if let Some((ox, oz)) = cxz {
                 let mut new_chunks = World::new(1, WORLD_HEIGHT as i32, 1, ox, 0, oz);
                 new_chunks.chunks.load_all(world_regions.clone());

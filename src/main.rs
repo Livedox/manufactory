@@ -47,7 +47,7 @@ mod bytes;
 static mut WORLD_EXIT: bool = false;
 const _GAME_VERSION: u32 = 1;
 
-const RENDER_DISTANCE: i32 = 10;
+const RENDER_DISTANCE: i32 = 7;
 const HALF_RENDER_DISTANCE: i32 = RENDER_DISTANCE / 2;
 
 const CAMERA_FOV: f32 = 1.2;
@@ -131,12 +131,11 @@ pub async fn main() {
     let oz = c.2 - HALF_RENDER_DISTANCE;
     let world = Arc::new(UnsafeMutex::new(
         World::new(RENDER_DISTANCE, WORLD_HEIGHT as i32, RENDER_DISTANCE, ox, 0, oz)));
-    let render_result: Arc<Mutex<Option<RenderResult>>> = Arc::new(Mutex::new(None));
     let save_condvar = Arc::new((Mutex::new(SaveState::Unsaved), Condvar::new()));
     
     let thread_save = threads::save::spawn(world.clone(), save.world.regions.clone(), save_condvar.clone());
-    let thread_world_loader = threads::world_loader::spawn(world.clone(), save.world.regions.clone(), player_coords.clone());
-    let thread_renderer = threads::renderer::spawn(world.clone(), render_sender, render_result.clone());
+    let thread_world_loader = threads::world_loader::spawn(world.clone(), save.world.regions.clone());
+    let thread_renderer = threads::renderer::spawn(world.clone(), render_sender);
     let thread_voxel_data_updater = threads::voxel_data_updater::spawn(world.clone());
     
     let mut finalize = Some(move || {
@@ -150,7 +149,8 @@ pub async fn main() {
         cvar.notify_one();
         thread_save.join().expect("Failed to terminate thread save");
     });
-
+    let mut max_time: f32 = 0.0;
+    let mut max_count: usize = 0;
     let mut timer_16ms = Timer::new(Duration::from_millis(16));
     let mut fps = Instant::now();
     let mut fps_queue = VecDeque::from([0.0; 10]);
