@@ -7,3 +7,4 @@ pub mod shaders;
 pub mod pipeline;
 pub mod vertices;
 pub mod egui;
+pub mod setting;

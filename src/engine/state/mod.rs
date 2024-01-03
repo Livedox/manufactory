@@ -1,9 +1,9 @@
 use std::{iter, collections::HashMap, sync::Arc};
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
-use crate::{meshes::Mesh, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, shaders::Shaders, bind_group_layout::{Layouts, self}, pipeline::Pipelines, egui::Egui}};
+use crate::{meshes::Mesh, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, shaders::Shaders, bind_group_layout::{Layouts, self}, pipeline::Pipelines, egui::Egui}, size::{change_vw, change_vh}};
 use crate::engine::texture::TextureAtlas;
-use super::{texture::{self}, bind_group_buffer::BindGroupsBuffers};
+use super::{texture::{self}, bind_group_buffer::BindGroupsBuffers, setting::GraphicSetting};
 
 
 pub mod draw;
@@ -92,7 +92,7 @@ pub struct State {
 }
 
 impl State {
-    pub async fn new(window: Arc<Window>, proj_view: &[[f32; 4]; 4]) -> Self {
+    pub async fn new(window: Arc<Window>, proj_view: &[[f32; 4]; 4], setting: &GraphicSetting) -> Self {
         let size = window.inner_size();
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
@@ -102,7 +102,7 @@ impl State {
         });
         
         for i in instance.enumerate_adapters(wgpu::Backends::all()) {
-            println!("{:?} {:?}", i.get_info().device_type, i.get_info().name);
+            println!("{:?} {:?} {:?}", i.get_info().device_type, i.get_info().name, i.get_info().backend);
         }
         
         // # Safety

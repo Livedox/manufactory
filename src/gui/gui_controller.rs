@@ -1,10 +1,10 @@
 use std::{borrow::BorrowMut, sync::Arc};
 
-use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText};
-use winit::{window::Window, dpi::PhysicalPosition};
+use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText, Style, Visuals, style::WidgetVisuals};
+use winit::{window::Window, dpi::PhysicalPosition, event_loop::ControlFlow};
 
-use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas};
-use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME};
+use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, size::vw};
+use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME, main_screen};
 
 enum Task {
     Hotbar(usize),
@@ -59,6 +59,28 @@ impl GuiController {
     }
 
     pub fn is_cursor(&self) -> bool { self.is_cursor }
+
+    pub fn draw_menu(&self, ctx: &Context, control_flow: &mut ControlFlow) -> &Self {
+        egui::Area::new("MainScreen")
+            .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(ctx, |ui| {
+                ui.visuals_mut().widgets.hovered = ui.visuals().widgets.inactive;
+                ui.style_mut().spacing.item_spacing = vec2(0.0, 4.0);
+                if ui.add(main_screen::button::continue_button()).clicked() {
+                    println!("Clicked");
+                };
+                if ui.add(main_screen::button::button("Play")).clicked() {
+                    println!("Clicked");
+                };
+                if ui.add(main_screen::button::button("Setting")).clicked() {
+                    println!("Clicked");
+                };
+                if ui.add(main_screen::button::exit()).clicked() {
+                    *control_flow = ControlFlow::Exit;
+                };
+            });
+        self
+    } 
 
     pub fn draw_inventory(&self, ctx: &Context, player: &mut Player) -> &Self {
         if !self.is_ui {return self}

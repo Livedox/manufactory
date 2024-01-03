@@ -9,6 +9,7 @@ use meshes::{MeshesRenderInput, Mesh};
 use player::player::Player;
 use recipes::{storage::Storage, item::Item};
 use rodio::{OutputStream, Decoder, Source};
+use setting::Setting;
 use threads::save::SaveState;
 use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}};
@@ -44,6 +45,8 @@ mod unsafe_mutex;
 mod engine;
 mod save_load;
 mod bytes;
+mod size;
+mod setting;
 
 static mut WORLD_EXIT: bool = false;
 const _GAME_VERSION: u32 = 1;
@@ -85,7 +88,9 @@ pub async fn main() {
 
     let (tx, rx) = std::sync::mpsc::channel::<Vec<(usize, usize)>>();
     let (render_sender, render_recv) = std::sync::mpsc::channel::<RenderResult>();
-    let save = Save::new("./data/worlds/debug/");
+    let save = Save::new("./data/worlds/debug/", "./data/");
+    let setting = save.setting.load().unwrap_or(Setting::new());
+    save.setting.save(&setting);
     let sun = Sun::new(
         60,
         [0, 50, 60, 230, 240, 290, 300, 490, 500],
@@ -131,7 +136,9 @@ pub async fn main() {
     let mut time = my_time::Time::new();
     let window_size = window.inner_size();
     let mut state = state::State::new(
-        window.clone(), &player.camera().proj_view(window_size.width as f32, window_size.height as f32).into()).await;
+        window.clone(),
+        &player.camera().proj_view(window_size.width as f32, window_size.height as f32).into(),
+        &setting.graphic).await;
     let mut gui_controller = GuiController::new(window, state.texture_atlas.clone());
 
     let player_coords = Arc::new(Mutex::new(player.camera().position_tuple()));
@@ -317,7 +324,8 @@ pub async fn main() {
                     gui_controller
                         .draw_inventory(ctx, &mut player)
                         .draw_debug(ctx, &debug_data, &mut debug_block_id)
-                        .draw_active_recieps(ctx, &mut player);
+                        .draw_active_recieps(ctx, &mut player)
+                        .draw_menu(ctx, control_flow);
                 }) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {

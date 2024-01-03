@@ -1,4 +1,5 @@
-use egui::Color32;
+use egui::{Color32};
+use egui::ecolor::hex_color;
 
 pub struct Theme {
     pub primary: Color32,
@@ -31,6 +32,12 @@ pub struct Theme {
     pub on_surface_variant: Color32,
 
     pub outline: Color32,
+
+    pub green: Color32,
+    pub on_green: Color32,
+
+    pub red: Color32,
+    pub on_red: Color32,
 }
 
 pub const DEFAULT_THEME: Theme = Theme {
@@ -64,4 +71,10 @@ pub const DEFAULT_THEME: Theme = Theme {
     on_surface_variant: Color32::from_rgb(202,196,207),
 
     outline: Color32::from_rgb(148,143,153),
+
+    green: Color32::from_rgb(0x2e, 0xcc, 0x71),
+    on_green: Color32::from_rgb(54, 75, 56),
+
+    red: Color32::from_rgb(0xe7, 0x4c, 0x3c),
+    on_red: Color32::from_rgb(31, 10, 8),
 };
