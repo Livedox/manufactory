@@ -34,4 +34,8 @@ impl LightPermeability {
     pub fn check_permeability(&self, permeability: &Self, side: &Self) -> bool {
         (*self & permeability.get_opposite_side() & *side).bits() > 0
     }
+
+    pub fn sky_passing(&self) -> bool {
+        self.contains(Self::Y)
+    }
 }

@@ -1,4 +1,4 @@
-use std::{time::{Duration, Instant}, sync::{Arc, Mutex, Condvar}, collections::VecDeque};
+use std::{time::{Duration, Instant}, sync::{Arc, Mutex, Condvar}, collections::VecDeque, io::BufReader, fs::File};
 use camera::frustum::Frustum;
 use direction::Direction;
 use engine::state;
@@ -8,6 +8,7 @@ use input_event::KeypressState;
 use meshes::{MeshesRenderInput, Mesh};
 use player::player::Player;
 use recipes::{storage::Storage, item::Item};
+use rodio::{OutputStream, Decoder, Source};
 use threads::save::SaveState;
 use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}};
@@ -47,7 +48,7 @@ mod bytes;
 static mut WORLD_EXIT: bool = false;
 const _GAME_VERSION: u32 = 1;
 
-const RENDER_DISTANCE: i32 = 7;
+const RENDER_DISTANCE: i32 = 30;
 const HALF_RENDER_DISTANCE: i32 = RENDER_DISTANCE / 2;
 
 const CAMERA_FOV: f32 = 1.2;
@@ -74,6 +75,14 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
 
 #[tokio::main]
 pub async fn main() {
+    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    // Load a sound from a file, using a path relative to Cargo.toml
+    let file = BufReader::new(File::open("./audio/music/Kyle Gabler - Years of Work.mp3").unwrap());
+    // Decode that sound file into a source
+    let source = Decoder::new(file).unwrap();
+    // Play the sound directly on the device
+    let _ = stream_handle.play_raw(source.convert_samples());
+
     let (tx, rx) = std::sync::mpsc::channel::<Vec<(usize, usize)>>();
     let (render_sender, render_recv) = std::sync::mpsc::channel::<RenderResult>();
     let save = Save::new("./data/worlds/debug/");

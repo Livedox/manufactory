@@ -17,6 +17,8 @@ itertools = "0.11.0"
 atomic-wait = "1.1.0"
 tokio = { version = "1.34.0", features = ["full"] }
 
+rodio = "0.17.3"
+
 flate2 = "1.0.28"
 
 egui_wgpu_backend = "0.27"

@@ -13,18 +13,10 @@ pub fn spawn(
         loop {
             if unsafe { WORLD_EXIT } {break};
             let mut world = unsafe {world.lock_unsafe()}.unwrap();
-            let cxz: Option<(i32, i32)> = world.chunks.find_unloaded();
-            if let Some((ox, oz)) = cxz {
-                for cy in (0..WORLD_HEIGHT as i32).rev() {
-                    let chunk = match unsafe {world_regions.lock_unsafe()}.unwrap().chunk((ox, cy, oz).into()) {
-                        EncodedChunk::None => Chunk::new(ox, cy, oz),
-                        EncodedChunk::Some(b) => Chunk::decode_bytes(b),
-                    };
-                    let index = chunk.xyz.chunk_index(&world.chunks);
-                    world.chunks.chunks[index] = Some(Box::new(chunk));
-                    world.build_chunk(ox, cy, oz);
-                }
-                world.solve_rgbs();
+            
+            if let Some((cx, cz)) = world.chunks.find_unloaded() {
+                let mut regions = unsafe {world_regions.lock_unsafe()}.unwrap();
+                world.load_column_of_chunks(&mut regions, cx, cz);
             } else {
                 drop(world);
                 thread::sleep(Duration::from_millis(200));

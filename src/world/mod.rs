@@ -1,6 +1,6 @@
 use itertools::iproduct;
 
-use crate::{light::light::LightSolvers, voxels::{chunks::Chunks, voxel::Voxel}, direction::Direction};
+use crate::{light::light::LightSolvers, voxels::{chunks::{Chunks, WORLD_HEIGHT}, voxel::Voxel, chunk::Chunk}, direction::Direction, save_load::{WorldRegions, EncodedChunk}, bytes::BytesCoder};
 
 use self::global_coords::GlobalCoords;
 
@@ -25,26 +25,22 @@ impl World {
         }
     }
 
-
-    pub fn add_rgbs(&mut self, x: i32, y: i32, z: i32) {
-        self.light.add_rgbs(&mut self.chunks, x, y, z);
-    }
-
     pub fn solve_rgbs(&mut self) {
         self.light.solve_rgbs(&mut self.chunks);
     }
 
-
-    pub fn build_sky_light(&mut self) {
-        let height = self.chunks.height;
-        let depth = self.chunks.depth;
-        let width = self.chunks.width;
-        for (cy, cz, cx) in iproduct!(0..height, 0..depth, 0..width) {
-            self.light.on_chunk_loaded(&mut self.chunks, cx, cy, cz);
+    pub fn load_column_of_chunks(&mut self, regions: &mut WorldRegions, cx: i32, cz: i32) {
+        for cy in (0..WORLD_HEIGHT as i32).rev() {
+            let chunk = match regions.chunk((cx, cy, cz).into()) {
+                EncodedChunk::None => Chunk::new(cx, cy, cz),
+                EncodedChunk::Some(b) => Chunk::decode_bytes(b),
+            };
+            let index = chunk.xyz.chunk_index(&self.chunks);
+            self.chunks.chunks[index] = Some(Box::new(chunk));
+            self.build_chunk(cx, cy, cz);
         }
-        self.light.build_sky_light(&mut self.chunks);
+        self.solve_rgbs();
     }
-
 
     pub fn build_chunk(&mut self, cx: i32, cy: i32, cz: i32) {
         self.light.build_sky_light_chunk(&mut self.chunks, cx, cy, cz);
