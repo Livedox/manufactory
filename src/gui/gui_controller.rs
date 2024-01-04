@@ -3,7 +3,7 @@ use std::{borrow::BorrowMut, sync::Arc};
 use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText, Style, Visuals, style::WidgetVisuals};
 use winit::{window::Window, dpi::PhysicalPosition, event_loop::ControlFlow};
 
-use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, size::vw};
+use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, size::vw, setting::Setting, save_load::SettingSave};
 use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME, main_screen};
 
 enum Task {
@@ -60,7 +60,58 @@ impl GuiController {
 
     pub fn is_cursor(&self) -> bool { self.is_cursor }
 
-    pub fn draw_menu(&self, ctx: &Context, control_flow: &mut ControlFlow) -> &Self {
+    pub fn draw_menu(&self, ctx: &Context, control_flow: &mut ControlFlow, setting: &mut Setting, save: &SettingSave) -> &Self {
+        let setting_save = unsafe { &*(setting as *mut Setting) };
+        let mut open = true;
+        let device_type: &mut Option<wgpu::DeviceType> = &mut setting.graphic.device_type;
+        let backends: &mut Option<wgpu::Backends> = &mut setting.graphic.backends;
+        let sample_count: &mut u32 = &mut setting.graphic.sample_count;
+        egui::Window::new("Setting")
+            .open(&mut open)
+            .movable(true)
+            .resizable(false)
+            .collapsible(false)
+            // .title_bar(false)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(&format!("Render radius: {} ", setting.render_radius));
+                    ui.add(
+                        egui::Slider::new(&mut setting.render_radius, 3..=100).show_value(false)
+                    );
+                });
+                ui.label("Graphics Settings (Restart required)");
+                ui.horizontal(|ui| {
+                    ui.label("Vsync:");
+                    ui.checkbox(&mut setting.graphic.vsync, "");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Backend:");
+                    ui.selectable_value(backends, None, "Auto");
+                    ui.selectable_value(backends, Some(wgpu::Backends::VULKAN), "Vulkan");
+                    ui.selectable_value(backends, Some(wgpu::Backends::DX12), "Dx12");
+                    ui.selectable_value(backends, Some(wgpu::Backends::DX11), "Dx11");
+                    ui.selectable_value(backends, Some(wgpu::Backends::METAL), "Metal");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Device:");
+                    ui.selectable_value(device_type, None, "Auto");
+                    ui.selectable_value(device_type, Some(wgpu::DeviceType::DiscreteGpu), "DiscreteGpu");
+                    ui.selectable_value(device_type, Some(wgpu::DeviceType::IntegratedGpu), "IntegratedGpu");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sample count:");
+                    ui.selectable_value(sample_count, 1, "X1");
+                    ui.selectable_value(sample_count, 2, "X2");
+                    ui.selectable_value(sample_count, 4, "X4");
+                    ui.selectable_value(sample_count, 8, "X8");
+                    ui.selectable_value(sample_count, 16, "X16");
+                });
+
+                if ui.button("Save setting").clicked() {
+                    save.save(setting_save);
+                };
+            });
+
         egui::Area::new("MainScreen")
             .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
             .show(ctx, |ui| {
@@ -80,7 +131,7 @@ impl GuiController {
                 };
             });
         self
-    } 
+    }
 
     pub fn draw_inventory(&self, ctx: &Context, player: &mut Player) -> &Self {
         if !self.is_ui {return self}

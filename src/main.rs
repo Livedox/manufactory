@@ -89,7 +89,7 @@ pub async fn main() {
     let (tx, rx) = std::sync::mpsc::channel::<Vec<(usize, usize)>>();
     let (render_sender, render_recv) = std::sync::mpsc::channel::<RenderResult>();
     let save = Save::new("./data/worlds/debug/", "./data/");
-    let setting = save.setting.load().unwrap_or(Setting::new());
+    let mut setting = save.setting.load().unwrap_or(Setting::new());
     save.setting.save(&setting);
     let sun = Sun::new(
         60,
@@ -325,7 +325,7 @@ pub async fn main() {
                         .draw_inventory(ctx, &mut player)
                         .draw_debug(ctx, &debug_data, &mut debug_block_id)
                         .draw_active_recieps(ctx, &mut player)
-                        .draw_menu(ctx, control_flow);
+                        .draw_menu(ctx, control_flow, &mut setting, &save.setting);
                 }) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
