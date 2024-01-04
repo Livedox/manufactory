@@ -1348,6 +1348,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "wgpu",
+ "wgpu-types",
  "winit",
 ]
 
@@ -2943,6 +2944,7 @@ checksum = "0d5ed5f0edf0de351fe311c53304986315ce866f394a2e6df0c4b3c70774bcdd"
 dependencies = [
  "bitflags 2.4.1",
  "js-sys",
+ "serde",
  "web-sys",
 ]
 
