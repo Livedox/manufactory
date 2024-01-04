@@ -3,7 +3,7 @@ use std::{borrow::BorrowMut, sync::Arc};
 use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText, Style, Visuals, style::WidgetVisuals};
 use winit::{window::Window, dpi::PhysicalPosition, event_loop::ControlFlow};
 
-use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, size::vw, setting::Setting, save_load::SettingSave};
+use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, setting::Setting, save_load::SettingSave, world::loader::WorldData};
 use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME, main_screen};
 
 enum Task {
@@ -71,14 +71,24 @@ impl GuiController {
             .movable(true)
             .resizable(false)
             .collapsible(false)
-            // .title_bar(false)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label(&format!("Render radius: {} ", setting.render_radius));
+                    ui.label("Render radius:");
                     ui.add(
                         egui::Slider::new(&mut setting.render_radius, 3..=100).show_value(false)
                     );
+                    ui.label(&format!(" {}", setting.render_radius));
                 });
+                ui.horizontal(|ui| {
+                    ui.label("Greedy meshing:");
+                    ui.checkbox(&mut setting.is_greedy_meshing, "");
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Fullscreen:");
+                    ui.checkbox(&mut true, "");
+                });
+
                 ui.label("Graphics Settings (Restart required)");
                 ui.horizontal(|ui| {
                     ui.label("Vsync:");
@@ -129,6 +139,48 @@ impl GuiController {
                 if ui.add(main_screen::button::exit()).clicked() {
                     *control_flow = ControlFlow::Exit;
                 };
+            });
+        self
+    }
+
+    pub fn draw_worlds(&self, ctx: &Context, worlds: &[WorldData]) -> &Self {
+        egui::Window::new("Worlds")
+            .open(&mut true)
+            .movable(false)
+            .collapsible(false)
+            .show(ctx, |ui| {
+                worlds.iter().for_each(|w| {
+                    ui.style_mut().spacing.item_spacing = vec2(0.0, 5.0);
+                    ui.horizontal(|ui| {
+                        egui::Frame::none()
+                            .fill(Color32::WHITE)
+                            .outer_margin(vec2(0.0, 0.0))
+                            .show(ui, |ui| {
+                                egui::Resize::default()
+                                    .fixed_size(vec2(100.0, 30.0))
+                                    .show(ui, |ui| {
+                                        ui.horizontal(|ui| {
+                                            ui.vertical(|ui| {
+                                                ui.label(&w.name);
+                                                ui.label(w.seed.to_string());
+                                            });
+                                            ui.add_space(ui.available_width());
+                                            ui.label(w.creation_time.to_string());
+                                        });
+                                    });
+                            });
+                        ui.add_space(5.0);
+                        let text = egui::RichText::new("🗑")
+                            .color(DEFAULT_THEME.on_red)
+                            .size(20.0);
+                        let button = egui::Button::new(text)
+                            .min_size(vec2(35.0, 35.0))
+                            .fill(DEFAULT_THEME.red).small();
+                        if ui.add(button).clicked() {
+                            println!("Delete");
+                        }
+                    });
+                });
             });
         self
     }

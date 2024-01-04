@@ -9,6 +9,7 @@ pub mod chunk_coords;
 pub mod local_coords;
 pub mod coords;
 pub mod sun;
+pub mod loader;
 
 
 #[derive(Debug)]

@@ -1,4 +1,4 @@
-use std::{time::{Duration, Instant}, sync::{Arc, Mutex, Condvar}, collections::VecDeque, io::BufReader, fs::File};
+use std::{time::{Duration, Instant}, sync::{Arc, Mutex, Condvar}, collections::VecDeque, io::BufReader, fs::File, path::Path};
 use camera::frustum::Frustum;
 use direction::Direction;
 use engine::state;
@@ -12,7 +12,7 @@ use rodio::{OutputStream, Decoder, Source};
 use setting::Setting;
 use threads::save::SaveState;
 use unsafe_mutex::UnsafeMutex;
-use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}};
+use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}, loader::WorldLoader};
 use crate::{voxels::chunk::HALF_CHUNK_SIZE, world::{chunk_coords::ChunkCoords, local_coords::LocalCoords}, save_load::Save};
 use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::blocks::BLOCKS};
 
@@ -45,7 +45,6 @@ mod unsafe_mutex;
 mod engine;
 mod save_load;
 mod bytes;
-mod size;
 mod setting;
 
 static mut WORLD_EXIT: bool = false;
@@ -78,6 +77,7 @@ pub fn frustum(chunks: &mut Chunks, frustum: &Frustum) -> Vec<usize> {
 
 #[tokio::main]
 pub async fn main() {
+    let world_loader = WorldLoader::new(Path::new("./data/worlds/"));
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     // Load a sound from a file, using a path relative to Cargo.toml
     let file = BufReader::new(File::open("./audio/music/Kyle Gabler - Years of Work.mp3").unwrap());
@@ -325,7 +325,8 @@ pub async fn main() {
                         .draw_inventory(ctx, &mut player)
                         .draw_debug(ctx, &debug_data, &mut debug_block_id)
                         .draw_active_recieps(ctx, &mut player)
-                        .draw_menu(ctx, control_flow, &mut setting, &save.setting);
+                        .draw_menu(ctx, control_flow, &mut setting, &save.setting)
+                        .draw_worlds(ctx, &world_loader.worlds);
                 }) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
