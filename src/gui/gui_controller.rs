@@ -1,11 +1,11 @@
-use std::{borrow::BorrowMut, sync::Arc};
+use std::{borrow::BorrowMut, sync::Arc, time::SystemTime};
 
-use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText, Style, Visuals, style::WidgetVisuals};
+use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText, Style, Visuals, style::WidgetVisuals, Widget, Stroke};
 use winit::{window::Window, dpi::PhysicalPosition, event_loop::ControlFlow};
 
 use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, setting::Setting, save_load::SettingSave, world::loader::WorldData};
 use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME, main_screen};
-
+use chrono::{Utc, TimeZone};
 enum Task {
     Hotbar(usize),
     Inventory(usize),
@@ -149,36 +149,69 @@ impl GuiController {
             .movable(false)
             .collapsible(false)
             .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label("World name: ");
+                    ui.text_edit_singleline(&mut "");
+                    ui.label("Seed: ");
+                    ui.text_edit_singleline(&mut "");
+                    if ui.button("Create").clicked() {
+                        println!("Create world!");
+                    };
+                });
                 worlds.iter().for_each(|w| {
-                    ui.style_mut().spacing.item_spacing = vec2(0.0, 5.0);
-                    ui.horizontal(|ui| {
+                    ui.horizontal_top(|ui| {
                         egui::Frame::none()
                             .fill(Color32::WHITE)
                             .outer_margin(vec2(0.0, 0.0))
+                            .inner_margin(vec2(3.0, 3.0))
+                            .rounding(3.0)
                             .show(ui, |ui| {
                                 egui::Resize::default()
-                                    .fixed_size(vec2(100.0, 30.0))
+                                    .fixed_size(vec2(300.0, 30.0))
                                     .show(ui, |ui| {
                                         ui.horizontal(|ui| {
                                             ui.vertical(|ui| {
-                                                ui.label(&w.name);
-                                                ui.label(w.seed.to_string());
+                                                let name = egui::RichText::new(&w.name)
+                                                    .size(19.0);
+                                                ui.heading(name);
+                                                ui.horizontal(|ui| {
+                                                    ui.horizontal(|ui| {
+                                                        ui.label("Seed: ");
+                                                        ui.label(w.seed.to_string());
+                                                    });
+                                                    ui.add_space(ui.available_width());
+                                                    let time = format!("{}", Utc.timestamp_opt(w.creation_time as i64, 0).unwrap()
+                                                    .format("%Y-%m-%d"));
+                                                    let time = egui::RichText::new(time)
+                                                        .size(17.0);
+                                                    ui.label(time);
+                                                });
                                             });
-                                            ui.add_space(ui.available_width());
-                                            ui.label(w.creation_time.to_string());
                                         });
                                     });
                             });
-                        ui.add_space(5.0);
-                        let text = egui::RichText::new("🗑")
-                            .color(DEFAULT_THEME.on_red)
-                            .size(20.0);
-                        let button = egui::Button::new(text)
-                            .min_size(vec2(35.0, 35.0))
-                            .fill(DEFAULT_THEME.red).small();
-                        if ui.add(button).clicked() {
-                            println!("Delete");
-                        }
+                        ui.horizontal_top(|ui| {
+                            ui.add_space(5.0);
+                            let text = egui::RichText::new("▶")
+                                .color(DEFAULT_THEME.on_green)
+                                .size(22.0);
+                            let button = egui::Button::new(text)
+                                .min_size(vec2(47.0, 47.0))
+                                .fill(DEFAULT_THEME.green).stroke(Stroke::NONE);
+                            if ui.add_sized([47.0, 47.0], button).clicked() {
+                                println!("Run");
+                            }
+                            ui.add_space(5.0);
+                            let text = egui::RichText::new("🗑")
+                                .color(DEFAULT_THEME.on_red)
+                                .size(22.0);
+                            let button = egui::Button::new(text)
+                                .min_size(vec2(47.0, 47.0))
+                                .fill(DEFAULT_THEME.red).stroke(Stroke::NONE);
+                            if ui.add_sized([47.0, 47.0], button).clicked() {
+                                println!("Delete");
+                            }
+                        }); 
                     });
                 });
             });
