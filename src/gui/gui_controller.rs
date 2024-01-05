@@ -4,7 +4,7 @@ use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Marg
 use winit::{window::Window, dpi::PhysicalPosition, event_loop::ControlFlow};
 
 use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, setting::Setting, save_load::SettingSave, world::loader::WorldData};
-use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME, main_screen};
+use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME, main_screen::{self, MainScreen}};
 use chrono::{Utc, TimeZone};
 enum Task {
     Hotbar(usize),
@@ -18,6 +18,9 @@ pub struct GuiController {
     is_ui: bool,
     is_menu: bool,
     is_cursor: bool,
+    world_name: String,
+    seed: String,
+    main_screen: MainScreen,
 }
 
 
@@ -29,6 +32,9 @@ impl GuiController {
             is_ui: true,
             is_menu: false,
             is_cursor: true,
+            world_name: String::new(),
+            seed: String::new(),
+            main_screen: MainScreen::new(),
         }
     }
     pub fn is_ui(&self) -> bool {
@@ -60,165 +66,19 @@ impl GuiController {
 
     pub fn is_cursor(&self) -> bool { self.is_cursor }
 
-    pub fn draw_menu(&self, ctx: &Context, control_flow: &mut ControlFlow, setting: &mut Setting, save: &SettingSave) -> &Self {
-        let setting_save = unsafe { &*(setting as *mut Setting) };
-        let mut open = true;
-        let device_type: &mut Option<wgpu::DeviceType> = &mut setting.graphic.device_type;
-        let backends: &mut Option<wgpu::Backends> = &mut setting.graphic.backends;
-        let sample_count: &mut u32 = &mut setting.graphic.sample_count;
-        egui::Window::new("Setting")
-            .open(&mut open)
-            .movable(true)
-            .resizable(false)
-            .collapsible(false)
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("Render radius:");
-                    ui.add(
-                        egui::Slider::new(&mut setting.render_radius, 3..=100).show_value(false)
-                    );
-                    ui.label(&format!(" {}", setting.render_radius));
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Greedy meshing:");
-                    ui.checkbox(&mut setting.is_greedy_meshing, "");
-                });
-
-                ui.horizontal(|ui| {
-                    ui.label("Fullscreen:");
-                    ui.checkbox(&mut true, "");
-                });
-
-                ui.label("Graphics Settings (Restart required)");
-                ui.horizontal(|ui| {
-                    ui.label("Vsync:");
-                    ui.checkbox(&mut setting.graphic.vsync, "");
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Backend:");
-                    ui.selectable_value(backends, None, "Auto");
-                    ui.selectable_value(backends, Some(wgpu::Backends::VULKAN), "Vulkan");
-                    ui.selectable_value(backends, Some(wgpu::Backends::DX12), "Dx12");
-                    ui.selectable_value(backends, Some(wgpu::Backends::DX11), "Dx11");
-                    ui.selectable_value(backends, Some(wgpu::Backends::METAL), "Metal");
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Device:");
-                    ui.selectable_value(device_type, None, "Auto");
-                    ui.selectable_value(device_type, Some(wgpu::DeviceType::DiscreteGpu), "DiscreteGpu");
-                    ui.selectable_value(device_type, Some(wgpu::DeviceType::IntegratedGpu), "IntegratedGpu");
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Sample count:");
-                    ui.selectable_value(sample_count, 1, "X1");
-                    ui.selectable_value(sample_count, 2, "X2");
-                    ui.selectable_value(sample_count, 4, "X4");
-                    ui.selectable_value(sample_count, 8, "X8");
-                    ui.selectable_value(sample_count, 16, "X16");
-                });
-
-                if ui.button("Save setting").clicked() {
-                    save.save(setting_save);
-                };
-            });
-
-        egui::Area::new("MainScreen")
-            .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
-            .show(ctx, |ui| {
-                ui.visuals_mut().widgets.hovered = ui.visuals().widgets.inactive;
-                ui.style_mut().spacing.item_spacing = vec2(0.0, 4.0);
-                if ui.add(main_screen::button::continue_button()).clicked() {
-                    println!("Clicked");
-                };
-                if ui.add(main_screen::button::button("Play")).clicked() {
-                    println!("Clicked");
-                };
-                if ui.add(main_screen::button::button("Setting")).clicked() {
-                    println!("Clicked");
-                };
-                if ui.add(main_screen::button::exit()).clicked() {
-                    *control_flow = ControlFlow::Exit;
-                };
-            });
+    pub fn draw_main_screen(
+        &mut self,
+        ctx: &Context,
+        control_flow: &mut ControlFlow,
+        worlds: &[WorldData],
+        setting: &mut Setting,
+        save: &SettingSave
+    ) -> &mut Self {
+        self.main_screen.draw(ctx, control_flow, worlds, setting, save);
         self
     }
 
-    pub fn draw_worlds(&self, ctx: &Context, worlds: &[WorldData]) -> &Self {
-        egui::Window::new("Worlds")
-            .open(&mut true)
-            .movable(false)
-            .collapsible(false)
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("World name: ");
-                    ui.text_edit_singleline(&mut "");
-                    ui.label("Seed: ");
-                    ui.text_edit_singleline(&mut "");
-                    if ui.button("Create").clicked() {
-                        println!("Create world!");
-                    };
-                });
-                worlds.iter().for_each(|w| {
-                    ui.horizontal_top(|ui| {
-                        egui::Frame::none()
-                            .fill(Color32::WHITE)
-                            .outer_margin(vec2(0.0, 0.0))
-                            .inner_margin(vec2(3.0, 3.0))
-                            .rounding(3.0)
-                            .show(ui, |ui| {
-                                egui::Resize::default()
-                                    .fixed_size(vec2(300.0, 30.0))
-                                    .show(ui, |ui| {
-                                        ui.horizontal(|ui| {
-                                            ui.vertical(|ui| {
-                                                let name = egui::RichText::new(&w.name)
-                                                    .size(19.0);
-                                                ui.heading(name);
-                                                ui.horizontal(|ui| {
-                                                    ui.horizontal(|ui| {
-                                                        ui.label("Seed: ");
-                                                        ui.label(w.seed.to_string());
-                                                    });
-                                                    ui.add_space(ui.available_width());
-                                                    let time = format!("{}", Utc.timestamp_opt(w.creation_time as i64, 0).unwrap()
-                                                    .format("%Y-%m-%d"));
-                                                    let time = egui::RichText::new(time)
-                                                        .size(17.0);
-                                                    ui.label(time);
-                                                });
-                                            });
-                                        });
-                                    });
-                            });
-                        ui.horizontal_top(|ui| {
-                            ui.add_space(5.0);
-                            let text = egui::RichText::new("▶")
-                                .color(DEFAULT_THEME.on_green)
-                                .size(22.0);
-                            let button = egui::Button::new(text)
-                                .min_size(vec2(47.0, 47.0))
-                                .fill(DEFAULT_THEME.green).stroke(Stroke::NONE);
-                            if ui.add_sized([47.0, 47.0], button).clicked() {
-                                println!("Run");
-                            }
-                            ui.add_space(5.0);
-                            let text = egui::RichText::new("🗑")
-                                .color(DEFAULT_THEME.on_red)
-                                .size(22.0);
-                            let button = egui::Button::new(text)
-                                .min_size(vec2(47.0, 47.0))
-                                .fill(DEFAULT_THEME.red).stroke(Stroke::NONE);
-                            if ui.add_sized([47.0, 47.0], button).clicked() {
-                                println!("Delete");
-                            }
-                        }); 
-                    });
-                });
-            });
-        self
-    }
-
-    pub fn draw_inventory(&self, ctx: &Context, player: &mut Player) -> &Self {
+    pub fn draw_inventory(&mut self, ctx: &Context, player: &mut Player) -> &mut Self {
         if !self.is_ui {return self}
         let mut task: Option<Task> = None;
         let inventory = player.inventory();
@@ -314,7 +174,7 @@ impl GuiController {
     }
 
 
-    pub fn draw_debug(&self, ctx: &Context, debug_data: &str, debug_block_id: &mut Option<u32>) -> &Self {
+    pub fn draw_debug(&mut self, ctx: &Context, debug_data: &str, debug_block_id: &mut Option<u32>) -> &mut Self {
         if !self.is_ui {return self}
         egui::Window::new("Debug")
             .anchor(Align2([Align::RIGHT, Align::TOP]), vec2(0.0, 20.0))
@@ -351,7 +211,7 @@ impl GuiController {
     }
 
 
-    pub fn draw_active_recieps(&self, ctx: &Context, player: &mut Player) -> &Self {
+    pub fn draw_active_recieps(&mut self, ctx: &Context, player: &mut Player) -> &mut Self {
         let binding = player.borrow_mut().inventory();
         let mut inventory = binding.lock().unwrap();
         let active = inventory.active_recipe();

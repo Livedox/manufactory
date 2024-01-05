@@ -325,8 +325,7 @@ pub async fn main() {
                         .draw_inventory(ctx, &mut player)
                         .draw_debug(ctx, &debug_data, &mut debug_block_id)
                         .draw_active_recieps(ctx, &mut player)
-                        .draw_menu(ctx, control_flow, &mut setting, &save.setting)
-                        .draw_worlds(ctx, &world_loader.worlds);
+                        .draw_main_screen(ctx, control_flow, &world_loader.worlds, &mut setting, &save.setting);
                 }) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
