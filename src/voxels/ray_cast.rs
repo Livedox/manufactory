@@ -8,7 +8,7 @@ pub fn ray_cast(
     direction: &[f32; 3],
     radius: f32
 )
--> Option<(f32, f32, f32, Option<Voxel>, glm::TVec3<f32>)>
+-> Option<((f32, f32, f32), Option<Voxel>, glm::TVec3<f32>)>
 {
     let px = origin[0];
     let py = origin[1];
@@ -58,7 +58,7 @@ pub fn ray_cast(
 			if stepped_index == 0 { face.x = -stepx };
 			if stepped_index == 1 { face.y = -stepy };
 			if stepped_index == 2 { face.z = -stepz };
-            return Some((ix, iy, iz, voxel.copied(), face));
+            return Some(((ix, iy, iz), voxel.copied(), face));
         }
 
         if tx_max < ty_max {

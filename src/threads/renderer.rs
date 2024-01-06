@@ -1,4 +1,4 @@
-use std::{sync::{Mutex, Arc, mpsc::Sender}, time::{Duration, Instant}, thread::{JoinHandle}};
+use std::{sync::{Mutex, Arc, mpsc::Sender, atomic::Ordering}, time::{Duration, Instant}, thread::{JoinHandle}};
 
 use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, graphic::render::{RenderResult, render}, unsafe_mutex::UnsafeMutex, WORLD_EXIT};
 
@@ -8,7 +8,7 @@ pub fn spawn(
 ) -> JoinHandle<()> {
     let thread = std::thread::Builder::new().name("renderer".to_owned()).stack_size(32 * 1024 * 1024);
     thread.spawn(move || {loop {
-        if unsafe { WORLD_EXIT } {break};
+        if WORLD_EXIT.load(Ordering::Relaxed) {break};
         let mut world = unsafe {world.lock_unsafe()}.unwrap();
 
         let ox = world.chunks.ox;

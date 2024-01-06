@@ -230,12 +230,12 @@ impl PlayerSave {
     }
 }
 
-pub struct WorldSave {
+pub struct WorldSaver {
     pub regions: Arc<UnsafeMutex<WorldRegions>>,
     pub player: Arc<UnsafeMutex<PlayerSave>>
 }
 
-impl WorldSave {
+impl WorldSaver {
     pub fn new(path: PathBuf) -> Self {
         Self {
             regions: Arc::new(UnsafeMutex::new(WorldRegions::new(path.clone()))),
@@ -268,7 +268,7 @@ impl SettingSave {
 }
 
 pub struct Save {
-    pub world: WorldSave,
+    pub world: WorldSaver,
     pub setting: SettingSave,
 }
 
@@ -277,6 +277,6 @@ impl Save {
         let path: PathBuf = world_path.into();
         std::fs::create_dir_all(path.join("regions/"))
             .expect("Error creating directory");
-        Self { world: WorldSave::new(path), setting: SettingSave::new(setting_path.into()) }
+        Self { world: WorldSaver::new(path), setting: SettingSave::new(setting_path.into()) }
     }
 }

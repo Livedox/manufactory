@@ -1,4 +1,4 @@
-use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex}, time::{Duration, Instant}};
+use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex, atomic::Ordering}, time::{Duration, Instant}};
 
 use itertools::iproduct;
 
@@ -11,7 +11,7 @@ pub fn spawn(
 ) -> JoinHandle<()> {
     thread::spawn(move || {
         loop {
-            if unsafe { WORLD_EXIT } {break};
+            if WORLD_EXIT.load(Ordering::Relaxed) {break};
             let mut world = unsafe {world.lock_unsafe()}.unwrap();
             
             if let Some((cx, cz)) = world.chunks.find_unloaded() {

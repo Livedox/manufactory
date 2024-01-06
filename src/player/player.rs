@@ -93,6 +93,7 @@ impl Player {
     }
 
     pub fn camera(&self) -> &CameraController {&self.camera}
+    pub fn position(&self) -> &glm::Vec3 {&self.position}
 }
 
 
