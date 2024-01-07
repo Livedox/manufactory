@@ -3,7 +3,7 @@ use std::{borrow::BorrowMut, sync::Arc, time::SystemTime};
 use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText, Style, Visuals, style::WidgetVisuals, Widget, Stroke};
 use winit::{window::Window, dpi::PhysicalPosition, event_loop::ControlFlow};
 
-use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, setting::Setting, save_load::SettingSave, world::loader::WorldData};
+use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, setting::Setting, save_load::SettingSave, world::loader::{WorldData, WorldLoader}, level::Level};
 use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME, main_screen::{self, MainScreen}};
 use chrono::{Utc, TimeZone};
 enum Task {
@@ -70,11 +70,12 @@ impl GuiController {
         &mut self,
         ctx: &Context,
         control_flow: &mut ControlFlow,
-        worlds: &[WorldData],
+        world_loader: &mut WorldLoader,
         setting: &mut Setting,
-        save: &SettingSave
+        save: &SettingSave,
+        level: &mut Option<Level>
     ) -> &mut Self {
-        self.main_screen.draw(ctx, control_flow, worlds, setting, save);
+        self.main_screen.draw(ctx, control_flow, world_loader, setting, save, level);
         self
     }
 

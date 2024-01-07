@@ -171,7 +171,7 @@ impl WorldRegions {
             .filter_map(|chunk| if let EncodedChunk::Some(b) = chunk {Some(b)} else {None})
             .for_each(|b| bytes.extend(b.as_ref()));
 
-            
+        let _ = fs::create_dir_all(self.path.join("regions/"));
         if let Err(err) = fs::write(self.path.join("regions/").join(coords.filename()), bytes) {
             eprintln!("Region write error: {}", err);
         } else {

@@ -1,36 +1,70 @@
+use std::{collections::hash_map::DefaultHasher, hash::{Hash, Hasher}};
+
 use chrono::{Utc, TimeZone};
 use egui::{vec2, Color32, RichText, Ui, Stroke};
 
-use crate::{world::loader::WorldData, gui::theme::DEFAULT_THEME};
+use crate::{world::loader::{WorldData, WorldLoader}, gui::theme::DEFAULT_THEME, level::Level, setting::Setting};
 
-pub(crate) fn draw_world_creation(ui: &mut Ui, world_edit: &mut String, seed_edit: &mut String) {
-    ui.horizontal(|ui| {
-        egui::Frame::none()
-            .fill(Color32::WHITE)
-            .inner_margin(vec2(3.0, 3.0))
-            .rounding(3.0)
-            .show(ui, |ui| {
-                ui.horizontal_top(|ui| {
-                    ui.style_mut().override_text_style = Some(egui::TextStyle::Heading);
-                    ui.label(RichText::new("World name: ").size(21.0));
-                    let world_edit = egui::TextEdit::singleline(world_edit)
-                        .text_color(Color32::BLACK).frame(false);
-                    ui.add_sized(vec2(121.0, 20.0), world_edit);
-                    ui.label(RichText::new("Seed: ").size(21.0));
-                    let seed_edit = egui::TextEdit::singleline(seed_edit)
-                        .text_color(Color32::BLACK).frame(false);
-                    ui.add_sized(vec2(121.0, 20.0), seed_edit);
+#[derive(Debug, Clone)]
+pub struct WorldCreator {
+    pub world_name: String,
+    pub seed: String,
+}
+
+impl WorldCreator {
+    pub fn new() -> Self {Self::default()}
+
+    pub fn draw(&mut self, ui: &mut Ui, level: &mut Option<Level>, world_loader: &mut WorldLoader) {
+        ui.horizontal(|ui| {
+            egui::Frame::none()
+                .fill(Color32::WHITE)
+                .inner_margin(vec2(3.0, 3.0))
+                .rounding(3.0)
+                .show(ui, |ui| {
+                    ui.horizontal_top(|ui| {
+                        ui.style_mut().override_text_style = Some(egui::TextStyle::Heading);
+                        ui.label(RichText::new("World name: ").size(21.0));
+                        let world_edit = egui::TextEdit::singleline(&mut self.world_name)
+                            .text_color(Color32::BLACK).frame(false);
+                        ui.add_sized(vec2(121.0, 20.0), world_edit);
+                        ui.label(RichText::new("Seed: ").size(21.0));
+                        let seed_edit = egui::TextEdit::singleline(&mut self.seed)
+                            .text_color(Color32::BLACK).frame(false);
+                        ui.add_sized(vec2(121.0, 20.0), seed_edit);
+                    });
                 });
-            });
-        ui.add_space(5.0);
-        if ui.button(RichText::new("Create").size(24.0)).clicked() {
-            println!("Create world!");
-        };
-    });
+            ui.add_space(5.0);
+            if ui.button(RichText::new("Create").size(24.0)).clicked() {
+                if self.world_name.len() > 0 && self.world_name.len() < 50 {
+                    let seed = if self.seed.len() > 0 {
+                        let mut hasher = DefaultHasher::new();
+                        self.seed.hash(&mut hasher);
+                        let hash = hasher.finish();
+                        self.seed.parse::<u64>().unwrap_or(hash)
+                    } else {
+                        rand::random::<u64>()
+                    };
+
+                    let _ = world_loader.create_world(&self.world_name, seed);
+                    self.world_name = String::new();
+                    self.seed = String::new();
+                }
+            };
+        });
+    }
+}
+
+impl Default for WorldCreator {
+    fn default() -> Self {
+        Self {
+            world_name: String::new(),
+            seed: String::new(),
+        }
+    }
 }
 
 
-pub(crate) fn draw_world_display(ui: &mut Ui, world: &WorldData) {
+pub(crate) fn draw_world_display(ui: &mut Ui, world: &WorldData, level: &mut Option<Level>, setting: &Setting) {
     egui::Frame::none()
         .fill(Color32::WHITE)
         .outer_margin(vec2(0.0, 0.0))
@@ -72,7 +106,7 @@ pub(crate) fn draw_world_display(ui: &mut Ui, world: &WorldData) {
             .fill(DEFAULT_THEME.green)
             .stroke(Stroke::NONE);
         if ui.add(button).clicked() {
-            println!("Run");
+            *level = Some(Level::new(&world.name, &setting));
         }
         ui.add_space(5.0);
         let text = egui::RichText::new("🗑")

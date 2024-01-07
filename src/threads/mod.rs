@@ -1,6 +1,6 @@
-use std::{thread::JoinHandle, sync::{Arc, mpsc::Sender, Mutex, Condvar, atomic::Ordering}};
+use std::{thread::JoinHandle, sync::{Arc, mpsc::Sender, Mutex, Condvar, atomic::{Ordering, AtomicBool}}};
 
-use crate::{unsafe_mutex::UnsafeMutex, world::World, save_load::WorldRegions, graphic::render::RenderResult, WORLD_EXIT};
+use crate::{unsafe_mutex::UnsafeMutex, world::World, save_load::{WorldRegions, WorldSaver}, graphic::render::RenderResult, WORLD_EXIT, player::player::Player};
 
 use self::save::SaveState;
 
@@ -15,26 +15,32 @@ pub struct Threads {
     world_loader: JoinHandle<()>,
     voxel_data_updater: JoinHandle<()>,
     renderer: JoinHandle<()>,
+    save_condvar: Arc<(Mutex<SaveState>, Condvar)>,
+    exit: Arc<AtomicBool>,
 }
 
 impl Threads {
     pub fn new(
         world: Arc<UnsafeMutex<World>>,
-        world_regions: Arc<UnsafeMutex<WorldRegions>>,
+        player: Arc<UnsafeMutex<Player>>,
+        world_saver: Arc<WorldSaver>,
         sender: Sender<RenderResult>,
         save_condvar: Arc<(Mutex<SaveState>, Condvar)>,
     ) -> Self {
+        let exit = Arc::new(AtomicBool::new(false));
         Self {
-            save: save::spawn(world.clone(), world_regions.clone(), save_condvar),
-            world_loader: world_loader::spawn(world.clone(), world_regions),
-            voxel_data_updater: voxel_data_updater::spawn(world.clone()),
-            renderer: renderer::spawn(world, sender),
+            save: save::spawn(world.clone(), player, world_saver.clone(), save_condvar.clone()),
+            world_loader: world_loader::spawn(world.clone(), world_saver.regions.clone(), exit.clone()),
+            voxel_data_updater: voxel_data_updater::spawn(world.clone(), exit.clone()),
+            renderer: renderer::spawn(world, sender, exit.clone()),
+            save_condvar,
+            exit
         }
     }
 
 
-    pub fn finalize(self, save_condvar: Arc<(Mutex<SaveState>, Condvar)>) {
-        WORLD_EXIT.store(true, Ordering::Release);
+    pub fn finalize(self) {
+        self.exit.store(true, Ordering::Release);
         if self.voxel_data_updater.join().is_err() {
             eprintln!("Failed to finish voxel_data_updater thread!");
         }
@@ -44,7 +50,7 @@ impl Threads {
         if self.renderer.join().is_err() {
             eprintln!("Failed to finish renderer thread!");
         }
-        let (save_state, cvar) = &*save_condvar;
+        let (save_state, cvar) = &*self.save_condvar;
         *save_state.lock().unwrap() = SaveState::WorldExit;
         cvar.notify_one();
         if self.save.join().is_err() {

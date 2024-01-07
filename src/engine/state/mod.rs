@@ -307,10 +307,12 @@ impl State {
         }
     }
 
-
-    pub fn update(&mut self, proj_view: &[[f32; 4]; 4], time: &Time) {
-        self.queue.write_buffer(&self.bind_groups_buffers.camera.buffer, 0, bytemuck::cast_slice(proj_view));
+    pub fn update_time(&mut self, time: &Time) {
         self.queue.write_buffer(&self.bind_groups_buffers.time.buffer, 0, &time.current().to_le_bytes());
+    }
+
+    pub fn update_camera(&mut self, proj_view: &[[f32; 4]; 4]) {
+        self.queue.write_buffer(&self.bind_groups_buffers.camera.buffer, 0, bytemuck::cast_slice(proj_view));
     }
 
     pub fn render(&mut self, meshes: &[&Mesh], ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {

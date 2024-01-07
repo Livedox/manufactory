@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::{Path, PathBuf}, time::{SystemTime, UNIX_EPOCH}, fs};
 
 use serde::{Serialize, Deserialize};
 
@@ -25,6 +25,7 @@ impl Default for WorldData {
 
 pub struct WorldLoader {
     pub worlds: Vec<WorldData>,
+    pub path_buf: PathBuf,
 }
 
 impl WorldLoader {
@@ -43,6 +44,28 @@ impl WorldLoader {
             }
         }
 
-        Self {worlds}
+        Self {
+            worlds,
+            path_buf: path.to_path_buf()
+        }
+    }
+
+
+    pub fn create_world(&mut self, name: &str, seed: u64) -> Result<(), ()> {
+        let path = self.path_buf.join(name);
+        println!("{:?}", path);
+        if fs::read_dir(&path).is_ok() {
+            return Err(());
+        }
+
+        let creation_time: u64 = SystemTime::now().duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs()).unwrap_or(0);
+        let data = WorldData::new(name.to_string(), creation_time, seed);
+        
+        fs::create_dir(&path).unwrap();
+        fs::write(&path.join("./world.json"), serde_json::to_vec_pretty(&data).unwrap()).unwrap();
+        
+        self.worlds.push(data);
+        Ok(())
     }
 }

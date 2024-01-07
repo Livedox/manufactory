@@ -1,9 +1,9 @@
 use egui::{vec2, Align2};
 use winit::event_loop::ControlFlow;
 
-use crate::{world::loader::WorldData, save_load::SettingSave, setting::Setting};
+use crate::{world::loader::{WorldData, WorldLoader}, save_load::SettingSave, setting::Setting, level::Level, engine::state};
 
-use self::worlds::{draw_world_display, draw_world_creation};
+use self::worlds::{draw_world_display, WorldCreator};
 
 use super::setting::draw_setting;
 
@@ -14,8 +14,8 @@ pub mod worlds;
 pub struct MainScreen {
     is_setting: bool,
     is_worlds: bool,
-    world_edit: String,
-    seed_edit: String,
+    world_creator: WorldCreator,
+    scroll: f32,
 }
 
 impl MainScreen {
@@ -25,12 +25,13 @@ impl MainScreen {
       &mut self, 
       ctx: &egui::Context,
       control_flow: &mut ControlFlow,
-      worlds: &[WorldData],
+      worlds: &mut WorldLoader,
       setting: &mut Setting,
-      save: &SettingSave
+      save: &SettingSave,
+      level: &mut Option<Level>
     ) {
         self.draw_main_screen(ctx, control_flow);
-        self.draw_worlds(ctx, worlds);
+        self.draw_worlds(ctx, worlds, level, setting);
         draw_setting(ctx, &mut self.is_setting, setting, save);
     }
 
@@ -57,20 +58,24 @@ impl MainScreen {
     }
 
 
-    fn draw_worlds(&mut self, ctx: &egui::Context, worlds: &[WorldData]) {
+    fn draw_worlds(&mut self, ctx: &egui::Context, world_loader: &mut WorldLoader, level: &mut Option<Level>, setting: &Setting) {
         egui::Window::new("Worlds")
             .open(&mut self.is_worlds)
             .movable(false)
             .collapsible(false)
+            .resizable(false)
             .anchor(Align2::CENTER_TOP, vec2(0.0, 20.0))
             .show(ctx, |ui| {
                 ui.spacing_mut().item_spacing.y = 7.0;
-                draw_world_creation(ui, &mut self.world_edit, &mut self.seed_edit);
-                worlds.iter().for_each(|world| {
-                    ui.horizontal_top(|ui| {
-                        draw_world_display(ui, world);
+                self.world_creator.draw(ui, level, world_loader);
+                egui::ScrollArea::vertical()
+                    .show(ui, |ui| {
+                        world_loader.worlds.iter().for_each(|world| {
+                            ui.horizontal_top(|ui| {
+                                draw_world_display(ui, world, level, setting);
+                            });
+                        });
                     });
-                });
             });
     }
 }
@@ -80,8 +85,8 @@ impl Default for MainScreen {
         Self {
             is_setting: false,
             is_worlds: false,
-            world_edit: String::new(),
-            seed_edit: String::new()
+            world_creator: WorldCreator::new(),
+            scroll: 0.0,
         }
     }
 }

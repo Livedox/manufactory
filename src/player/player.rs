@@ -97,6 +97,9 @@ impl Player {
 }
 
 
+unsafe impl Send for Player {}
+
+
 const PLAYER_FROMAT_VERSION: u32 = 1;
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]

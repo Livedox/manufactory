@@ -1,6 +1,6 @@
 use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex, Condvar}, time::Duration};
 
-use crate::{world::World, unsafe_mutex::UnsafeMutex, save_load::WorldRegions};
+use crate::{world::World, unsafe_mutex::UnsafeMutex, save_load::{WorldRegions, WorldSaver}, player::player::Player};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SaveState {
@@ -11,7 +11,8 @@ pub enum SaveState {
 
 pub fn spawn(
     world: Arc<UnsafeMutex<World>>,
-    world_regions: Arc<UnsafeMutex<WorldRegions>>,
+    player: Arc<UnsafeMutex<Player>>,
+    world_saver: Arc<WorldSaver>,
     save_condvar: Arc<(Mutex<SaveState>, Condvar)>
 ) -> JoinHandle<()> {
     thread::spawn(move || {
@@ -21,7 +22,7 @@ pub fn spawn(
 
             
             let mut world = unsafe {world.lock_unsafe()}.unwrap();
-            let mut world_regions = unsafe {world_regions.lock_unsafe()}.unwrap();
+            let mut world_regions = unsafe {world_saver.regions.lock_unsafe()}.unwrap();
 
             let mut chunks_awaiting_deletion = world.chunks.chunks_awaiting_deletion.lock().unwrap();
             chunks_awaiting_deletion.iter().for_each(|chunk| {
@@ -37,7 +38,12 @@ pub fn spawn(
                 chunk.unsaved = false;
             });
             world_regions.save_all_regions();
+            drop(world_regions);
+            drop(world);
 
+            let player = unsafe {player.lock_unsafe()}.unwrap();
+            let player_saver = unsafe {world_saver.player.lock_unsafe()}.unwrap();
+            player_saver.save_player(&player);
 
             if *save_state == SaveState::WorldExit {break};
             *save_state = SaveState::Saved;

@@ -1,11 +1,11 @@
-use std::{sync::{Arc, atomic::Ordering}, thread::{self, JoinHandle}, time::{Instant, Duration}};
+use std::{sync::{Arc, atomic::{Ordering, AtomicBool}}, thread::{self, JoinHandle}, time::{Instant, Duration}};
 
 use crate::{voxels::chunks::Chunks, world::World, unsafe_mutex::UnsafeMutex, WORLD_EXIT};
 
-pub fn spawn(world: Arc<UnsafeMutex<World>>) -> JoinHandle<()> {
+pub fn spawn(world: Arc<UnsafeMutex<World>>, exit: Arc<AtomicBool>) -> JoinHandle<()> {
     thread::spawn(move || {
         loop {
-            if WORLD_EXIT.load(Ordering::Relaxed) {break};
+            if exit.load(Ordering::Relaxed) {break};
             let mut world = unsafe {world.lock_unsafe()}.unwrap();
             let now = Instant::now();
             let ptr = &mut world.chunks as *mut Chunks;

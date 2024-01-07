@@ -1,19 +1,28 @@
-use std::sync::{Arc, Mutex, Condvar, mpsc::Sender};
-use crate::{unsafe_mutex::UnsafeMutex, world::{World, sun::{Sun, Color}, global_coords::GlobalCoords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, threads::{Threads, save::SaveState}, player::player::Player, save_load::WorldSaver, camera, recipes::{storage::Storage, item::Item}, CAMERA_FOV, CAMERA_NEAR, CAMERA_FAR, setting::Setting, voxels::{chunks::WORLD_HEIGHT, ray_cast::ray_cast, block::blocks::BLOCKS}, graphic::{render::RenderResult, render_selection::render_selection}, nalgebra_converter::Conventer, input_event::{input_service::{InputService, Mouse}, KeypressState}, my_time::Time, direction::Direction, engine::state::State, gui::gui_controller::{self, GuiController}};
+use std::{sync::{Arc, Mutex, Condvar, mpsc::{Sender, Receiver}}, path::PathBuf};
+use crate::{unsafe_mutex::UnsafeMutex, world::{World, sun::{Sun, Color}, global_coords::GlobalCoords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, threads::{Threads, save::SaveState}, player::player::Player, save_load::WorldSaver, camera, recipes::{storage::Storage, item::Item}, CAMERA_FOV, CAMERA_NEAR, CAMERA_FAR, setting::Setting, voxels::{chunks::WORLD_HEIGHT, ray_cast::ray_cast, block::blocks::BLOCKS}, graphic::{render::RenderResult, render_selection::render_selection}, nalgebra_converter::Conventer, input_event::{input_service::{InputService, Mouse}, KeypressState}, my_time::Time, direction::Direction, engine::state::State, gui::gui_controller::{self, GuiController}, meshes::{Meshes, MeshesRenderInput, Mesh}, frustum};
 
 use nalgebra_glm as glm;
 
 pub struct Level {
-    sun: Sun<9>,
-    world_saver: WorldSaver,
+    pub sun: Sun<9>,
+    world_saver: Arc<WorldSaver>,
     pub world: Arc<UnsafeMutex<World>>,
-    pub player: Player,
-    threads: Option<Threads>,
+    pub player: Arc<UnsafeMutex<Player>>,
+    pub threads: Option<Threads>,
+    pub meshes: Meshes,
+    pub render_recv: Receiver<RenderResult>,
+
+    indices_sender: Sender<Vec<(usize, usize)>>,
+    indices_recv: Receiver<Vec<(usize, usize)>>
 }
 
 impl Level {
-    pub fn new(world_name: &str, setting: &Setting, render_sender: Sender<RenderResult>) -> Self {
-        let world_saver = WorldSaver::new(world_name.into());
+    pub fn new(world_name: &str, setting: &Setting) -> Self {
+        let (render_sender, render_recv) = std::sync::mpsc::channel::<RenderResult>();
+        let (indices_sender, indices_recv) = std::sync::mpsc::channel::<Vec<(usize, usize)>>();
+        let mut path = PathBuf::from("./data/worlds/");
+        path.push(world_name);
+        let world_saver = Arc::new(WorldSaver::new(path));
         let player = match world_saver.player.lock().unwrap().load_player() {
             Some(player) => player,
             _ => {
@@ -38,9 +47,11 @@ impl Level {
             World::new(render_diameter, WORLD_HEIGHT as i32, render_diameter, ox, 0, oz)));
         let save_condvar = Arc::new((Mutex::new(SaveState::Unsaved), Condvar::new()));
         
+        let player = Arc::new(UnsafeMutex::new(player));
         let threads = Some(Threads::new(
             world.clone(),
-            world_saver.regions.clone(),
+            player.clone(),
+            world_saver.clone(),
             render_sender,
             save_condvar.clone()
         ));
@@ -64,17 +75,52 @@ impl Level {
             player,
             sun,
             threads,
-            world
+            world,
+            meshes: Meshes::new(),
+            render_recv,
+            indices_sender,
+            indices_recv,
         }
     }
 
-    pub fn update(&mut self, input: &InputService, time: &Time, is_cursor: bool, state: &mut State, gui_controller: &mut GuiController, debug_block_id: &mut Option<u32>) {
-        self.player.handle_input(input, time.delta(), is_cursor);
-        self.player.inventory().lock().unwrap().update_recipe();
+    pub fn update(
+      &mut self,
+      input: &InputService,
+      time: &Time,
+      state: &mut State,
+      gui_controller: &mut GuiController,
+      debug_block_id: &mut Option<u32>,
+      render_radius: u32,
+    ) -> Vec<&Mesh> {
+        let mut player = unsafe {self.player.lock_unsafe()}.unwrap();
+        let is_cursor = gui_controller.is_cursor();
+        player.handle_input(input, time.delta(), is_cursor);
+        player.inventory().lock().unwrap().update_recipe();
 
-        let mut world = unsafe {self.world.lock_unsafe()}.unwrap();
-        let result = ray_cast(&world.chunks, &self.player.position().array(),
-            &self.player.camera().front_array(), 10.0);
+        let mut world = unsafe {self.world.lock_immediately()}.unwrap();
+
+        let ChunkCoords(px, _, pz) = ChunkCoords::from(GlobalCoords::from(player.position().tuple()));
+        if ((px-render_radius as i32 - world.chunks.ox).abs() > 2 ||
+            (pz-render_radius as i32 - world.chunks.oz).abs() > 2) &&
+            !world.chunks.is_translate
+        {
+            let sender = self.indices_sender.clone();
+            let need_translate = self.meshes.need_translate.clone();
+            world.chunks.is_translate = true;
+            let w = self.world.clone();
+            tokio::spawn(async move {
+                let mut world = w.lock().unwrap();
+                *need_translate.lock().unwrap() += 1;
+                let vec = world.chunks.translate(px as i32-render_radius as i32, pz as i32-render_radius as i32);
+                world.chunks.is_translate = false;
+                drop(world);
+                let _ = sender.send(vec);
+            });
+        }
+
+        state.selection_vertex_buffer = None;
+        let result = ray_cast(&world.chunks, &player.position().array(),
+            &player.camera().front_array(), 10.0);
 
         if let Some(result) = result {
             let (global, voxel, norm) = (result.0, result.1, result.2);
@@ -90,29 +136,64 @@ impl Level {
                         &min.into(),
                         &max.into()
                     ));
-            } else {
-                state.selection_vertex_buffer = None;
             }
 
             if input.is_mouse(&Mouse::Left, KeypressState::AnyJustPress) && !is_cursor {
-                BLOCKS()[voxel_id as usize].on_block_break(&mut world, &mut self.player, &global);
+                BLOCKS()[voxel_id as usize].on_block_break(&mut world, &mut player, &global);
             } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !is_cursor {
                 let gxyz = global + norm.tuple().into();
                 if let Some(storage) = world.chunks.voxel_data(global).and_then(|vd| vd.player_unlockable()) {
-                    self.player.set_open_storage(storage);
-                    gui_controller.set_cursor_lock(self.player.is_inventory);
-                    state.set_ui_interaction(self.player.is_inventory);
+                    player.set_open_storage(storage);
+                    gui_controller.set_cursor_lock(player.is_inventory);
+                    state.set_ui_interaction(player.is_inventory);
                 } else {
-                    let front = self.player.camera().front();
+                    let front = player.camera().front();
                     let direction = &Direction::new(front.x, front.y, front.z);
                     if let Some(block_id) = debug_block_id {
                         BLOCKS()[*block_id as usize].on_block_set(
-                            &mut world, &mut self.player, &gxyz, direction);
+                            &mut world, &mut player, &gxyz, direction);
                     } else {
-                        self.player.on_right_click(&mut world, &gxyz, direction);
+                        player.on_right_click(&mut world, &gxyz, direction);
                     }
                 }                     
             }
         }
+
+
+        let indices = frustum(
+            &mut world.chunks,
+            &player.camera().new_frustum(state.size.width as f32/state.size.height as f32));
+        self.meshes.update_transforms_buffer(&state, &world, &indices);
+
+        if let Ok(indices) = self.indices_recv.try_recv() {
+            self.meshes.translate(&indices);
+            self.meshes.sub_need_translate();
+        }
+
+        if !self.meshes.is_need_translate() {
+            while let Ok(result) = self.render_recv.try_recv() {
+                if world.chunks.is_in_area(result.xyz) {
+                    let index = result.xyz.chunk_index(&world.chunks);
+                    self.meshes.render(MeshesRenderInput {
+                        device: state.device(),
+                        animated_model_layout: &state.layouts.transforms_storage,
+                        all_animated_models: &state.animated_models,
+                        render_result: result,
+                    }, index);
+                }
+            }
+        }
+
+        indices.iter().filter_map(|i| self.meshes.meshes().get(*i).and_then(|c| c.as_ref()))
+            .collect::<Vec<&Mesh>>()
+    }
+}
+
+
+impl Drop for Level {
+    fn drop(&mut self) {
+        let Some(threads) = self.threads.take() else {return};
+        threads.finalize();
+        println!("All saved!");
     }
 }
