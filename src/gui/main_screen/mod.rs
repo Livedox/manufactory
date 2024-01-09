@@ -40,9 +40,10 @@ impl MainScreen {
             .show(ctx, |ui| {
                 ui.visuals_mut().widgets.hovered = ui.visuals().widgets.inactive;
                 ui.style_mut().spacing.item_spacing = vec2(0.0, 4.0);
-                if ui.add(self::button::continue_button()).clicked() {
-                    println!("Clicked");
-                };
+                // ADD IN FUTTURE
+                // if ui.add(self::button::continue_button()).clicked() {
+                //     println!("Clicked");
+                // };
                 if ui.add(self::button::button("Play")).clicked() {
                     self.is_worlds = true;
                 };

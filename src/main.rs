@@ -121,6 +121,15 @@ pub async fn main() {
             input.update_delta_mouse();
         }
         match event {
+            Event::WindowEvent {
+                ref event,
+                window_id,
+            } if window_id == state.window().id() => {
+                match event {
+                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                    _ => {}
+                }
+            }
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
                 if exit_level {
                     level = None;

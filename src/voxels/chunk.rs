@@ -35,10 +35,11 @@ impl From<u8> for CompressionType {
 #[derive(Debug)]
 pub struct Chunk {
     pub voxels: [voxel::Voxel; CHUNK_VOLUME],
+    pub lightmap: LightMap,
+    
     pub voxels_data: HashMap<usize, VoxelData>,
     modified: AtomicBool,
     pub unsaved: bool,
-    pub lightmap: LightMap,
     pub xyz: ChunkCoords,
 }
 
