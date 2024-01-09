@@ -316,23 +316,25 @@ impl State {
     }
 
     pub fn render(&mut self, meshes: &[&Mesh], ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {
+        println!("10");
         let output = self.surface.get_current_texture()?;
         let output_texture = &output.texture;
         let view = output_texture.create_view(&wgpu::TextureViewDescriptor::default());
         
         self.egui.start(&self.window, self.is_ui_interaction, ui);
+        println!("10.1");
         let mut encoder = self.device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
-
+        println!("10.2");
         self.draw_all(&mut encoder, output_texture, &view, meshes);
-
+        println!("10.3");
         self.egui.end(&mut encoder, &self.device, &self.queue, &view);
 
         self.queue.submit(iter::once(encoder.finish()));
         output.present();
-
+        println!("11");
         Ok(())
     }
 

@@ -1,4 +1,4 @@
-use std::{sync::{Arc, Mutex, Condvar, mpsc::{Sender, Receiver}}, path::PathBuf};
+use std::{sync::{Arc, Mutex, Condvar, mpsc::{Sender, Receiver}}, path::PathBuf, marker::PhantomPinned};
 use crate::{unsafe_mutex::UnsafeMutex, world::{World, sun::{Sun, Color}, global_coords::GlobalCoords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, threads::{Threads, save::SaveState}, player::player::Player, save_load::WorldSaver, camera, recipes::{storage::Storage, item::Item}, CAMERA_FOV, CAMERA_NEAR, CAMERA_FAR, setting::Setting, voxels::{chunks::WORLD_HEIGHT, ray_cast::ray_cast, block::blocks::BLOCKS}, graphic::{render::RenderResult, render_selection::render_selection}, nalgebra_converter::Conventer, input_event::{input_service::{InputService, Mouse}, KeypressState}, my_time::Time, direction::Direction, engine::state::State, gui::gui_controller::{self, GuiController}, meshes::{Meshes, MeshesRenderInput, Mesh}, frustum};
 
 use nalgebra_glm as glm;
@@ -13,7 +13,7 @@ pub struct Level {
     pub render_recv: Receiver<RenderResult>,
 
     indices_sender: Sender<Vec<(usize, usize)>>,
-    indices_recv: Receiver<Vec<(usize, usize)>>
+    indices_recv: Receiver<Vec<(usize, usize)>>,
 }
 
 impl Level {
@@ -79,7 +79,7 @@ impl Level {
             meshes: Meshes::new(),
             render_recv,
             indices_sender,
-            indices_recv,
+            indices_recv
         }
     }
 

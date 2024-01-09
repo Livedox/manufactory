@@ -1,3 +1,5 @@
+use std::{marker::PhantomPinned, pin::Pin};
+
 use itertools::iproduct;
 
 use crate::{light::light::LightSolvers, voxels::{chunks::{Chunks, WORLD_HEIGHT}, voxel::Voxel, chunk::Chunk}, direction::Direction, save_load::{WorldRegions, EncodedChunk}, bytes::BytesCoder};
@@ -14,15 +16,15 @@ pub mod loader;
 
 #[derive(Debug)]
 pub struct World {
-    pub chunks: Chunks,
-    pub light: LightSolvers
+    pub chunks: Pin<Box<Chunks>>,
+    pub light: Pin<Box<LightSolvers>>,
 }
 
 impl World {
     pub fn new(width: i32, height: i32, depth: i32, ox: i32, oy: i32, oz: i32) -> Self {
         Self {
-            chunks: Chunks::new(width, height, depth, ox, oy, oz),
-            light: LightSolvers::new()
+            chunks: Box::pin(Chunks::new(width, height, depth, ox, oy, oz)),
+            light: Box::pin(LightSolvers::new()),
         }
     }
 
@@ -50,12 +52,14 @@ impl World {
 
 
     pub fn break_voxel(&mut self, xyz: &GlobalCoords) {
-        self.chunks.set(*xyz, 0, None);
+        Chunks::set(&mut self.chunks, *xyz, 0, None);
+        // self.chunks.set(*xyz, 0, None);
         self.light.on_block_break(&mut self.chunks, xyz.0, xyz.1, xyz.2);
     }
 
     pub fn set_voxel(&mut self, xyz: &GlobalCoords, id: u32, dir: &Direction) {
-        self.chunks.set(*xyz, id, Some(dir));
+        Chunks::set(&mut self.chunks, *xyz, id, Some(dir));
+        // self.chunks.set(*xyz, id, Some(dir));
         self.light.on_block_set(&mut self.chunks, xyz.0, xyz.1, xyz.2, id);
     }
 

@@ -12,7 +12,7 @@ wgpu = "0.18.0"
 
 
 winit = "0.28"
-bytemuck = { version = "1.13.1", features = ["derive"] }
+bytemuck = { version = "1.14", features = ["derive"] }
 image = "0.24.6"
 nalgebra-glm = "0.18.0"
 bitflags = "2.3.3"

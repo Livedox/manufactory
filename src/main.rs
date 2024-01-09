@@ -77,14 +77,15 @@ pub fn frustum(chunks: &Chunks, frustum: &Frustum) -> Vec<usize> {
 
 #[tokio::main]
 pub async fn main() {
+    println!("{:?}", Path::new("./data/").canonicalize());
     let mut world_loader = WorldLoader::new(Path::new("./data/worlds/"));
-    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    //let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     // Load a sound from a file, using a path relative to Cargo.toml
-    let file = BufReader::new(File::open("./audio/music/Kyle Gabler - Years of Work.mp3").unwrap());
+    //let file = BufReader::new(File::open("./audio/music/Kyle Gabler - Years of Work.mp3").unwrap());
     // Decode that sound file into a source
-    let source = Decoder::new(file).unwrap();
+    //let source = Decoder::new(file).unwrap();
     // Play the sound directly on the device
-    let _ = stream_handle.play_raw(source.convert_samples());
+    //let _ = stream_handle.play_raw(source.convert_samples());
     let save = Save::new("./data/worlds/debug/", "./data/");
     let mut setting = save.setting.load().unwrap_or(Setting::new());
     save.setting.save(&setting);
@@ -102,6 +103,7 @@ pub async fn main() {
     let mut time = my_time::Time::new();
 
     let mut level: Option<Level> = None;
+    let mut exit_level = false;
 
     let mut state = state::State::new(
         window.clone(),
@@ -119,25 +121,12 @@ pub async fn main() {
             input.update_delta_mouse();
         }
         match event {
-            Event::WindowEvent {
-                ref event,
-                window_id,
-            } if window_id == state.window().id() => {
-                match event {
-                    WindowEvent::CloseRequested
-                    | WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                ..
-                            },
-                        ..
-                    } => *control_flow = ControlFlow::Exit,
-                    _ => {}
-                }
-            }
             Event::RedrawRequested(window_id) if window_id == state.window().id() => {
+                if exit_level {
+                    level = None;
+                    exit_level = false;
+                };
+
                 let mut debug_data = String::new();
                 let mesh_vec = if let Some(level) = &mut level {
                     let result = unsafe {&mut *(level as *mut Level)}.update(
@@ -187,17 +176,29 @@ pub async fn main() {
                         window.set_fullscreen(Some(Fullscreen::Borderless(None)));
                     }
                 }
+
+                if input.is_key(&Key::Escape, KeypressState::AnyJustPress) {
+                    gui_controller.toggle_menu();
+                    gui_controller.set_cursor_lock(gui_controller.is_menu);
+                    state.set_ui_interaction(gui_controller.is_menu);
+                }
                 
                 match state.render(&mesh_vec, |ctx| {
-                    if let Some(level) = &level {
-                        let mut player = unsafe {level.player.lock_unsafe()}.unwrap();
+                    if let Some(l) = &level {
+                        let mut player = unsafe {l.player.lock_unsafe()}.unwrap();
                         gui_controller
                             .draw_inventory(ctx, &mut player)
                             .draw_debug(ctx, &debug_data, &mut debug_block_id)
                             .draw_active_recieps(ctx, &mut player);
+
+                        drop(player);
+                        gui_controller.draw_in_game_menu(ctx, &mut exit_level);
+                    } else {
+                        gui_controller
+                            .draw_main_screen(ctx, control_flow, &mut world_loader, &mut setting, &mut level);
                     }
-                    gui_controller
-                        .draw_main_screen(ctx, control_flow, &mut world_loader, &mut setting, &save.setting, &mut level);
+
+                    gui_controller.draw_setting(ctx, &mut setting, &save.setting);
                 }) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
@@ -206,11 +207,6 @@ pub async fn main() {
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                     Err(wgpu::SurfaceError::Timeout) => eprintln!("Surface timeout"),
                 }
-
-                if input.is_key(&Key::F2, KeypressState::AnyJustPress) {
-                    level = Some(Level::new("debug2", &setting));
-                }
-
                 input.update();
             }
             Event::MainEventsCleared => {

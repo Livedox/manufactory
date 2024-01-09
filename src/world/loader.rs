@@ -32,6 +32,7 @@ impl WorldLoader {
     pub fn new(path: &Path) -> Self {
         let mut worlds: Vec<WorldData> = vec![];
 
+        fs::create_dir_all(&path).unwrap();
         for dir in std::fs::read_dir(path).unwrap() {
             let Ok(dir) = dir else {continue};
             let mut path = dir.path().clone();

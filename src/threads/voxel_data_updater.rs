@@ -8,7 +8,7 @@ pub fn spawn(world: Arc<UnsafeMutex<World>>, exit: Arc<AtomicBool>) -> JoinHandl
             if exit.load(Ordering::Relaxed) {break};
             let mut world = unsafe {world.lock_unsafe()}.unwrap();
             let now = Instant::now();
-            let ptr = &mut world.chunks as *mut Chunks;
+            let ptr = &mut (*world.chunks) as *mut Chunks;
             for chunk in world.chunks.chunks.iter_mut() {
                 let Some(chunk) = chunk.as_mut() else {continue};
 

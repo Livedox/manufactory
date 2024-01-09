@@ -9,13 +9,12 @@ use super::setting::draw_setting;
 
 pub mod button;
 pub mod worlds;
+pub mod in_game_menu;
 
 #[derive(Clone, Debug)]
 pub struct MainScreen {
-    is_setting: bool,
     is_worlds: bool,
     world_creator: WorldCreator,
-    scroll: f32,
 }
 
 impl MainScreen {
@@ -27,16 +26,15 @@ impl MainScreen {
       control_flow: &mut ControlFlow,
       worlds: &mut WorldLoader,
       setting: &mut Setting,
-      save: &SettingSave,
-      level: &mut Option<Level>
+      level: &mut Option<Level>,
+      is_setting: &mut bool,
     ) {
-        self.draw_main_screen(ctx, control_flow);
+        self.draw_main_screen(ctx, control_flow, is_setting);
         self.draw_worlds(ctx, worlds, level, setting);
-        draw_setting(ctx, &mut self.is_setting, setting, save);
     }
 
-    fn draw_main_screen(&mut self, ctx: &egui::Context, control_flow: &mut ControlFlow) {
-        if self.is_worlds || self.is_setting {return};
+    fn draw_main_screen(&mut self, ctx: &egui::Context, control_flow: &mut ControlFlow, is_setting: &mut bool) {
+        if self.is_worlds || *is_setting {return};
         egui::Area::new("MainScreen")
             .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
             .show(ctx, |ui| {
@@ -49,7 +47,7 @@ impl MainScreen {
                     self.is_worlds = true;
                 };
                 if ui.add(self::button::button("Setting")).clicked() {
-                    self.is_setting = !self.is_setting;
+                    *is_setting = !*is_setting;
                 };
                 if ui.add(self::button::exit()).clicked() {
                     *control_flow = ControlFlow::Exit;
@@ -83,10 +81,8 @@ impl MainScreen {
 impl Default for MainScreen {
     fn default() -> Self {
         Self {
-            is_setting: false,
             is_worlds: false,
             world_creator: WorldCreator::new(),
-            scroll: 0.0,
         }
     }
 }

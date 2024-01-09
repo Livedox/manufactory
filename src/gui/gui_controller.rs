@@ -4,7 +4,7 @@ use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Marg
 use winit::{window::Window, dpi::PhysicalPosition, event_loop::ControlFlow};
 
 use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, setting::Setting, save_load::SettingSave, world::loader::{WorldData, WorldLoader}, level::Level};
-use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME, main_screen::{self, MainScreen}};
+use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME, main_screen::{self, MainScreen, in_game_menu::draw_in_game_menu}, setting::draw_setting};
 use chrono::{Utc, TimeZone};
 enum Task {
     Hotbar(usize),
@@ -16,11 +16,12 @@ pub struct GuiController {
     window: Arc<Window>,
     items_atlas: Arc<TextureAtlas>,
     is_ui: bool,
-    is_menu: bool,
+    pub is_menu: bool,
     is_cursor: bool,
     world_name: String,
     seed: String,
     main_screen: MainScreen,
+    is_setting: bool,
 }
 
 
@@ -31,6 +32,7 @@ impl GuiController {
             items_atlas,
             is_ui: true,
             is_menu: false,
+            is_setting: false,
             is_cursor: true,
             world_name: String::new(),
             seed: String::new(),
@@ -72,10 +74,19 @@ impl GuiController {
         control_flow: &mut ControlFlow,
         world_loader: &mut WorldLoader,
         setting: &mut Setting,
-        save: &SettingSave,
         level: &mut Option<Level>
     ) -> &mut Self {
-        self.main_screen.draw(ctx, control_flow, world_loader, setting, save, level);
+        self.main_screen.draw(ctx, control_flow, world_loader, setting, level, &mut self.is_setting);
+        self
+    }
+
+    pub fn draw_setting(&mut self, ctx: &Context, setting: &mut Setting, save: &SettingSave) -> &mut Self {
+        draw_setting(ctx, &mut self.is_setting, setting, save);
+        self
+    }
+
+    pub fn draw_in_game_menu(&mut self, ctx: &Context, exit_level: &mut bool) -> &mut Self {
+        draw_in_game_menu(ctx, exit_level, &mut self.is_setting, &mut self.is_menu);
         self
     }
 
