@@ -1,11 +1,11 @@
-use std::{borrow::BorrowMut, sync::Arc};
+use std::{borrow::BorrowMut, sync::Arc, time::SystemTime};
 
-use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText};
-use winit::{window::Window, dpi::PhysicalPosition};
+use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText, Style, Visuals, style::WidgetVisuals, Widget, Stroke};
+use winit::{window::Window, dpi::PhysicalPosition, event_loop::ControlFlow};
 
-use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas};
-use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME};
-
+use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, setting::Setting, save_load::SettingSave, world::loader::{WorldData, WorldLoader}, level::Level};
+use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME, main_screen::{self, MainScreen, in_game_menu::draw_in_game_menu}, setting::draw_setting};
+use chrono::{Utc, TimeZone};
 enum Task {
     Hotbar(usize),
     Inventory(usize),
@@ -16,8 +16,12 @@ pub struct GuiController {
     window: Arc<Window>,
     items_atlas: Arc<TextureAtlas>,
     is_ui: bool,
-    is_menu: bool,
+    pub is_menu: bool,
     is_cursor: bool,
+    world_name: String,
+    seed: String,
+    main_screen: MainScreen,
+    is_setting: bool,
 }
 
 
@@ -28,7 +32,11 @@ impl GuiController {
             items_atlas,
             is_ui: true,
             is_menu: false,
+            is_setting: false,
             is_cursor: true,
+            world_name: String::new(),
+            seed: String::new(),
+            main_screen: MainScreen::new(),
         }
     }
     pub fn is_ui(&self) -> bool {
@@ -60,7 +68,29 @@ impl GuiController {
 
     pub fn is_cursor(&self) -> bool { self.is_cursor }
 
-    pub fn draw_inventory(&self, ctx: &Context, player: &mut Player) -> &Self {
+    pub fn draw_main_screen(
+        &mut self,
+        ctx: &Context,
+        control_flow: &mut ControlFlow,
+        world_loader: &mut WorldLoader,
+        setting: &mut Setting,
+        level: &mut Option<Level>
+    ) -> &mut Self {
+        self.main_screen.draw(ctx, control_flow, world_loader, setting, level, &mut self.is_setting);
+        self
+    }
+
+    pub fn draw_setting(&mut self, ctx: &Context, setting: &mut Setting, save: &SettingSave) -> &mut Self {
+        draw_setting(ctx, &mut self.is_setting, setting, save);
+        self
+    }
+
+    pub fn draw_in_game_menu(&mut self, ctx: &Context, exit_level: &mut bool) -> &mut Self {
+        draw_in_game_menu(ctx, exit_level, &mut self.is_setting, &mut self.is_menu);
+        self
+    }
+
+    pub fn draw_inventory(&mut self, ctx: &Context, player: &mut Player) -> &mut Self {
         if !self.is_ui {return self}
         let mut task: Option<Task> = None;
         let inventory = player.inventory();
@@ -156,7 +186,7 @@ impl GuiController {
     }
 
 
-    pub fn draw_debug(&self, ctx: &Context, debug_data: &str, debug_block_id: &mut Option<u32>) -> &Self {
+    pub fn draw_debug(&mut self, ctx: &Context, debug_data: &str, debug_block_id: &mut Option<u32>) -> &mut Self {
         if !self.is_ui {return self}
         egui::Window::new("Debug")
             .anchor(Align2([Align::RIGHT, Align::TOP]), vec2(0.0, 20.0))
@@ -193,7 +223,7 @@ impl GuiController {
     }
 
 
-    pub fn draw_active_recieps(&self, ctx: &Context, player: &mut Player) -> &Self {
+    pub fn draw_active_recieps(&mut self, ctx: &Context, player: &mut Player) -> &mut Self {
         let binding = player.borrow_mut().inventory();
         let mut inventory = binding.lock().unwrap();
         let active = inventory.active_recipe();

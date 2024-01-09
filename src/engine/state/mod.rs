@@ -1,10 +1,24 @@
 use std::{iter, collections::HashMap, sync::Arc};
+use itertools::Itertools;
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
 use crate::{meshes::Mesh, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, shaders::Shaders, bind_group_layout::{Layouts, self}, pipeline::Pipelines, egui::Egui}};
 use crate::engine::texture::TextureAtlas;
-use super::{texture::{self}, bind_group_buffer::BindGroupsBuffers};
+use super::{texture::{self}, bind_group_buffer::BindGroupsBuffers, setting::GraphicSetting};
 
+pub trait Priority {
+    fn to_priority(&self) -> u8;
+}
+
+impl Priority for wgpu::DeviceType {
+    fn to_priority(&self) -> u8 {
+        match self {
+            wgpu::DeviceType::DiscreteGpu => 3,
+            wgpu::DeviceType::IntegratedGpu => 2,
+            _ => 0
+        }
+    }
+}
 
 pub mod draw;
 
@@ -21,9 +35,26 @@ fn get_supported_multisample_count(surface_format: &TextureFormat, sample_flags:
 }
 
 
-async fn request_adapter(instance: &wgpu::Instance, surface: &wgpu::Surface, power: wgpu::PowerPreference)
-    -> Option<wgpu::Adapter>
-{
+async fn request_adapter(
+    instance: &wgpu::Instance,
+    surface: &wgpu::Surface,
+    power: wgpu::PowerPreference,
+    setting: &GraphicSetting,
+) -> Option<wgpu::Adapter> {
+    if setting.backends.is_some() || setting.device_type.is_some() {
+        let backends = setting.backends.unwrap_or(wgpu::Backends::all());
+        let device = setting.device_type;
+        rev_qumark!(instance.enumerate_adapters(backends)
+            .filter(|a| a.is_surface_supported(surface))
+            .max_by(|a1, a2| {
+                let d1 = a1.get_info().device_type;
+                let d2 = a2.get_info().device_type;
+                let n1 = if device.map_or(false, |d| d == d1) {u8::MAX} else {d1.to_priority()};
+                let n2 = if device.map_or(false, |d| d == d2) {u8::MAX} else {d2.to_priority()};
+                n1.cmp(&n2)
+            }));
+    }
+
     rev_qumark!(instance
         .request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: power,
@@ -92,7 +123,7 @@ pub struct State {
 }
 
 impl State {
-    pub async fn new(window: Arc<Window>, proj_view: &[[f32; 4]; 4]) -> Self {
+    pub async fn new(window: Arc<Window>, proj_view: &[[f32; 4]; 4], setting: &GraphicSetting) -> Self {
         let size = window.inner_size();
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
@@ -102,7 +133,7 @@ impl State {
         });
         
         for i in instance.enumerate_adapters(wgpu::Backends::all()) {
-            println!("{:?} {:?}", i.get_info().device_type, i.get_info().name);
+            println!("{:?} {:?} {:?}", i.get_info().device_type, i.get_info().name, i.get_info().backend);
         }
         
         // # Safety
@@ -112,7 +143,7 @@ impl State {
         let surface = unsafe { instance.create_surface(window.as_ref()) }.unwrap();
 
         let power_preference = wgpu::PowerPreference::HighPerformance;
-        let adapter = request_adapter(&instance, &surface, power_preference)
+        let adapter = request_adapter(&instance, &surface, power_preference, setting)
             .await.expect("Failed to request adapter!");
         println!("{:?}", adapter.get_info());
         let (device, queue) = request_device(&adapter)
@@ -128,7 +159,11 @@ impl State {
             .copied()
             .find(|f| f.is_srgb())
             .unwrap_or(surface_caps.formats[0]);
-        let surface_present_mode = surface_caps.present_modes[0];
+        let surface_present_mode = 
+            if setting.vsync {wgpu::PresentMode::AutoVsync} else {wgpu::PresentMode::AutoNoVsync};
+        
+        println!("format: {:?}, present_mode: {:?}, alpha_mode: {:?}", surface_caps.formats, surface_caps.present_modes, surface_caps.alpha_modes);
+        
         let surface_alpha_mode = surface_caps.alpha_modes[0];
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
@@ -139,16 +174,14 @@ impl State {
             alpha_mode: surface_alpha_mode,
             view_formats: vec![surface_format],
         };
-        println!("format: {:?}, present_mode: {:?}, alpha_mode: {:?}", surface_format, surface_present_mode, surface_alpha_mode);
         surface.configure(&device, &config);
-
 
         let sample_flags = adapter
             .get_texture_format_features(config.view_formats[0])
             .flags;
         let samples_count = get_supported_multisample_count(&surface_format, &sample_flags);
-        let sample_count = if samples_count.contains(&MAX_SAMPLE_COUNT) {
-            MAX_SAMPLE_COUNT.min(samples_count.into_iter().max().unwrap())
+        let sample_count = if samples_count.contains(&setting.sample_count) {
+            setting.sample_count
         } else {
             samples_count.into_iter().max().unwrap()
         };
@@ -274,10 +307,12 @@ impl State {
         }
     }
 
-
-    pub fn update(&mut self, proj_view: &[[f32; 4]; 4], time: &Time) {
-        self.queue.write_buffer(&self.bind_groups_buffers.camera.buffer, 0, bytemuck::cast_slice(proj_view));
+    pub fn update_time(&mut self, time: &Time) {
         self.queue.write_buffer(&self.bind_groups_buffers.time.buffer, 0, &time.current().to_le_bytes());
+    }
+
+    pub fn update_camera(&mut self, proj_view: &[[f32; 4]; 4]) {
+        self.queue.write_buffer(&self.bind_groups_buffers.camera.buffer, 0, bytemuck::cast_slice(proj_view));
     }
 
     pub fn render(&mut self, meshes: &[&Mesh], ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {
@@ -290,14 +325,11 @@ impl State {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
-
         self.draw_all(&mut encoder, output_texture, &view, meshes);
-
         self.egui.end(&mut encoder, &self.device, &self.queue, &view);
 
         self.queue.submit(iter::once(encoder.finish()));
         output.present();
-
         Ok(())
     }
 

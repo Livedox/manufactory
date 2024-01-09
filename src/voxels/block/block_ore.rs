@@ -14,7 +14,6 @@ pub struct BlockOre {
 impl BlockInteraction for BlockOre {
     fn id(&self) -> u32 {self.id}
     fn emission(&self) -> &[u8; 3] {&self.emission}
-    #[inline]
     fn light_permeability(&self) -> LightPermeability {self.light_permeability}
     fn block_type(&self) -> &BlockType {&self.block_type}
     fn is_additional_data(&self) -> bool {self.is_additional_data}

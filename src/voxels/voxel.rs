@@ -1,3 +1,5 @@
+use std::sync::{atomic::AtomicU32, Arc};
+
 use crate::bytes::AsFromBytes;
 
 #[repr(C)]

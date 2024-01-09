@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 use crate::bytes::AsFromBytes;
 
 #[repr(C)]
@@ -34,4 +36,11 @@ impl From<GlobalCoords> for [f32; 3] {
 impl From<GlobalCoords> for [i32; 3] {
     #[inline]
     fn from(xyz: GlobalCoords) -> Self {[xyz.0, xyz.1, xyz.2]}
+}
+
+impl Add for GlobalCoords {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0, self.1 + rhs.1, self.2 + rhs.2)
+    }
 }

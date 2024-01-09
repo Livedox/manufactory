@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::{Arc, Mutex}};
+use std::{collections::HashMap, sync::{Arc, Mutex}, marker::PhantomPinned};
 
 use itertools::iproduct;
 
@@ -48,7 +48,7 @@ impl Chunks {
             oz,
             translate_x: 0,
             translate_z: 0,
-            is_translate: false
+            is_translate: false,
         }
     }
 

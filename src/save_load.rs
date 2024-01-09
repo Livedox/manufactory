@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use crate::bytes::{BytesCoder, cast_vec_from_bytes};
 use crate::player::player::Player;
+use crate::setting::Setting;
 use crate::voxels::chunk::Chunk;
 use crate::voxels::chunks::WORLD_HEIGHT;
 use crate::world::chunk_coords::ChunkCoords;
@@ -170,7 +171,7 @@ impl WorldRegions {
             .filter_map(|chunk| if let EncodedChunk::Some(b) = chunk {Some(b)} else {None})
             .for_each(|b| bytes.extend(b.as_ref()));
 
-            
+        let _ = fs::create_dir_all(self.path.join("regions/"));
         if let Err(err) = fs::write(self.path.join("regions/").join(coords.filename()), bytes) {
             eprintln!("Region write error: {}", err);
         } else {
@@ -229,12 +230,12 @@ impl PlayerSave {
     }
 }
 
-pub struct WorldSave {
+pub struct WorldSaver {
     pub regions: Arc<UnsafeMutex<WorldRegions>>,
     pub player: Arc<UnsafeMutex<PlayerSave>>
 }
 
-impl WorldSave {
+impl WorldSaver {
     pub fn new(path: PathBuf) -> Self {
         Self {
             regions: Arc::new(UnsafeMutex::new(WorldRegions::new(path.clone()))),
@@ -243,15 +244,39 @@ impl WorldSave {
     }
 }
 
+pub struct SettingSave {
+    path: PathBuf,
+}
+
+impl SettingSave {
+    pub fn new(path: PathBuf) -> Self {
+        Self { path: path.join("setting.json") }
+    }
+
+    pub fn load(&self) -> Option<Setting> {
+        match fs::read(self.path.as_path()) {
+            Ok(bytes) => serde_json::from_slice(&bytes).ok(),
+            Err(_) => {None},
+        }
+    }
+
+    pub fn save(&self, setting: &Setting) {
+        if let Err(err) = fs::write(self.path.as_path(), serde_json::to_vec_pretty(setting).unwrap()) {
+            eprintln!("Player write error: {}", err);
+        }
+    }
+}
+
 pub struct Save {
-    pub world: WorldSave,
+    pub world: WorldSaver,
+    pub setting: SettingSave,
 }
 
 impl Save {
-    pub fn new(world_path: impl Into<PathBuf>) -> Self {
+    pub fn new(world_path: impl Into<PathBuf>, setting_path: impl Into<PathBuf>) -> Self {
         let path: PathBuf = world_path.into();
         std::fs::create_dir_all(path.join("regions/"))
             .expect("Error creating directory");
-        Self { world: WorldSave::new(path) }
+        Self { world: WorldSaver::new(path), setting: SettingSave::new(setting_path.into()) }
     }
 }

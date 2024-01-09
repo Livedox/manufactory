@@ -93,7 +93,11 @@ impl Player {
     }
 
     pub fn camera(&self) -> &CameraController {&self.camera}
+    pub fn position(&self) -> &glm::Vec3 {&self.position}
 }
+
+
+unsafe impl Send for Player {}
 
 
 const PLAYER_FROMAT_VERSION: u32 = 1;
