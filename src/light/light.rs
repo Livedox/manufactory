@@ -56,9 +56,7 @@ impl LightSolvers {
                 self.solver_sun.add(chunks, global.0, global.1, global.2);
             }
         }
-        println!("L5");
         self.solver_sun.solve(chunks);
-        println!("L6");
     }
 
 
@@ -95,20 +93,22 @@ impl LightSolvers {
 
 
     pub fn on_block_break(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
+        println!("4");
         self.remove_rgb(chunks, x, y, z);
+        println!("5");
         self.solve_rgb(chunks);
-
+        println!("6");
         if chunks.get_sun((x, y+1, z).into()) == MAX_LIGHT || (y+1) as usize == WORLD_HEIGHT*CHUNK_SIZE {
             for i in (0..=y).rev() {
                 if chunks.voxel_global((x, i, z).into()).map_or(true, |v| v.id != 0) {break};
                 self.solver_sun.add_with_emission(chunks, x, i, z, MAX_LIGHT as u8);
             }
         }
-
+        println!("7");
         for (ax, ay, az) in SIDE_COORDS_OFFSET {
             self.add_rgbs(chunks, x+ax, y+ay, z+az);
         }
-
+        println!("8");
         self.solve_rgbs(chunks);
     }
 

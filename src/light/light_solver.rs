@@ -1,7 +1,9 @@
-use std::{collections::VecDeque, sync::{Arc, Mutex}};
+use std::{collections::VecDeque, sync::{Arc, Mutex, mpsc::{Sender, Receiver}}, cell::UnsafeCell};
 
 use crate::{voxels::{chunks::Chunks, block::{light_permeability::LightPermeability, blocks::BLOCKS}}, world::{global_coords::GlobalCoords, local_coords::LocalCoords}};
-
+use crossbeam_deque::{Worker};
+use crossbeam_queue::SegQueue;
+use std::sync::mpsc::channel;
 
 const PERMEABILITYS: [LightPermeability; 6] = [
     LightPermeability::RIGHT,
@@ -40,8 +42,8 @@ impl LightEntry {
 
 #[derive(Debug)]
 pub struct LightSolver {
-    add_queue: Arc<Mutex<VecDeque<LightEntry>>>,
-    remove_queue: Arc<Mutex<VecDeque<LightEntry>>>,
+    add_queue: SegQueue<LightEntry>,
+    remove_queue: SegQueue<LightEntry>,
     channel: u8,
 }
 
@@ -49,8 +51,8 @@ pub struct LightSolver {
 impl LightSolver {
     pub fn new(channel: u8) -> LightSolver {
         LightSolver {
-            add_queue: Arc::new(Mutex::new(VecDeque::new())),
-            remove_queue: Arc::new(Mutex::new(VecDeque::new())),
+            add_queue: SegQueue::new(),
+            remove_queue: SegQueue::new(),
             channel
         }
     }
@@ -65,7 +67,7 @@ impl LightSolver {
             chunk.lightmap.set(LocalCoords::from(GlobalCoords(x, y, z)).into(), emission as u16, self.channel);
             chunk.modify(true);
             
-            self.add_queue.lock().unwrap().push_back(entry);
+            self.add_queue.push(entry);
         }
     }
 
@@ -82,7 +84,7 @@ impl LightSolver {
             let light = chunk.lightmap.get(local, self.channel) as u8;
             chunk.lightmap.set(local, 0, self.channel);
 
-            self.remove_queue.lock().unwrap().push_back(LightEntry::new(x, y, z, light));
+            self.remove_queue.push(LightEntry::new(x, y, z, light));
         }
     }
 
@@ -93,8 +95,10 @@ impl LightSolver {
     }
 
 
+    #[inline(never)]
     fn solve_remove_queue(&self, chunks: &Chunks) {
-        while let Some(entry) = self.remove_queue.lock().unwrap().pop_front() {
+        loop {
+            let Some(entry) = self.remove_queue.pop() else {break};
             for i in 0..6 {
                 let x: i32 = entry.x + COORDS[i*3];
                 let y: i32 = entry.y + COORDS[i*3+1];
@@ -105,19 +109,20 @@ impl LightSolver {
                 let Some(chunk) = chunk else {continue};
                 let nentry = LightEntry::new(x, y, z, light); 
                 if light != 0 && entry.light != 0 && light == entry.light-1 {
-                    self.remove_queue.lock().unwrap().push_back(nentry);
+                    self.remove_queue.push(nentry);
                     chunk.lightmap.set(LocalCoords::from(global).into(), 0, self.channel);
                     chunk.modify(true);
                 } else if light >= entry.light {
-                    self.add_queue.lock().unwrap().push_back(nentry);
+                    self.add_queue.push(nentry);
                 }
             }
         }
     }
 
-
+    #[inline(never)]
     fn solve_add_queue(&self, chunks: &Chunks) {
-        while let Some(entry) = self.add_queue.lock().unwrap().pop_front() {
+        loop {
+            let Some(entry) = self.add_queue.pop() else {break};
             if entry.light <= 1 { continue; }
             let entry_id = chunks
                 .voxel_global((entry.x, entry.y, entry.z).into())
@@ -127,14 +132,13 @@ impl LightSolver {
                 let y = entry.y + COORDS[i*3+1];
                 let z = entry.z + COORDS[i*3+2];
                 let global = GlobalCoords(x, y, z);
-                let light = chunks.light(global, self.channel);
-                let id = chunks.voxel_global(global).map_or(0, |v| v.id);
                 let Some(chunk) = chunks.chunk(global) else {continue};
-
-                
+                let local = LocalCoords::from(global).into();
+                let light = chunk.get_light(local).get(self.channel);
+                let id = chunk.voxel(local).id;
                 if Self::check_light_passing(entry_id, id, side) && (light+2) <= entry.light as u16 {
-                    self.add_queue.lock().unwrap().push_back(LightEntry::new(x, y, z, entry.light-1));
-                    chunk.lightmap.set(LocalCoords::from(global).into(), (entry.light-1).into(), self.channel);
+                    self.add_queue.push(LightEntry::new(x, y, z, entry.light-1));
+                    chunk.lightmap.set(local.into(), (entry.light-1).into(), self.channel);
                     chunk.modify(true);
                 }
             }

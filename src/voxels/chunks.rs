@@ -120,6 +120,7 @@ impl Chunks {
         }
     }
 
+    #[inline(never)]
     pub fn voxel(&self, chunk_coords: ChunkCoords, local_coords: LocalCoords) -> Option<Voxel> {
         self.chunk(chunk_coords).map(|c| c.voxel(local_coords))
     }
@@ -172,12 +173,15 @@ impl Chunks {
         unsafe {self.chunks.lock_unsafe()}.unwrap().get(index).and_then(|c| c.as_ref().map(|c| c.clone()))
     }
 
+    #[inline(never)]
     pub fn chunk<T: Into<ChunkCoords>>(&self, coords: T) -> Option<Arc<Chunk>> {
         let coords: ChunkCoords = coords.into();
         if !self.is_in_area(coords) { return None; }
         let index = coords.nindex(self.width, self.depth, self.ox(), self.oz());
         // It's safe because we checked the coordinates
-        unsafe {self.chunks.lock_unsafe().unwrap().get_unchecked(index).as_ref().map(|c| c.clone())}
+        let lock = unsafe {self.chunks.lock_unsafe().unwrap()};
+        let r = unsafe {lock.get_unchecked(index)}.as_ref();
+        r.map(|c| c.clone())
     }
 
     pub fn voxels_data<T: Into<ChunkCoords>>(&self, coords: T) -> Option<Arc<RwLock<HashMap<usize, Arc<VoxelData>>>>> {
@@ -279,6 +283,7 @@ impl Chunks {
             .map_or(0, |c| c.lightmap.get_sun(local.into()))
     }
 
+    #[inline(never)]
     pub fn light(&self, coords: GlobalCoords, channel: u8) -> u16 {
         self.chunk(coords).map_or(0, |c| c.lightmap.get(LocalCoords::from(coords).into(), channel))
     }

@@ -18,11 +18,9 @@ pub fn spawn(
         
         if let Some(chunk) = world.chunks.find_unrendered() {
             chunk.modify(false);
-            println!("Render1");
             if let Some(result) = render(chunk.xyz.nindex(width, depth, ox, oz), &world.chunks) {
                 let _ = sender.send(result);
             }
-            println!("Render2");
         } else {
             std::thread::sleep(Duration::from_millis(16));
         }
