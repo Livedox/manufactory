@@ -152,6 +152,11 @@ impl Chunk {
     pub fn get_light(&self, local_coords: LocalCoords) -> Light {
         self.lightmap.get_light(local_coords.into())
     }
+
+    #[inline]
+    pub fn get_light_channel(&self, local_coords: LocalCoords, channel: u8) -> u16 {
+        self.lightmap.get(local_coords.into(), channel)
+    }
 }
 
 pub trait Shit: Sized {

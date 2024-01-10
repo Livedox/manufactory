@@ -175,7 +175,7 @@ impl Meshes {
 
     pub fn update_transforms_buffer(&mut self, state: &State, world: &World, indices: &[usize]) {
         indices.iter().for_each(|index| {
-            let Some(Some(chunk)) = unsafe {world.chunks.chunks.lock_unsafe()}.unwrap().get(*index).map(|c| c.clone()) else { return };
+            let Some(Some(chunk)) = unsafe {&*world.chunks.chunks.get()}.get(*index).map(|c| c.clone()) else { return };
             if chunk.voxels_data.read().unwrap().is_empty() {return};
             let mut transforms_buffer: Vec<u8> = vec![];
             let mut animated_models: HashMap<String, Vec<f32>> = HashMap::new();

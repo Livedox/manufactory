@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, sync::{Arc, Mutex, mpsc::{Sender, Receiver}}, cell::UnsafeCell};
 
-use crate::{voxels::{chunks::Chunks, block::{light_permeability::LightPermeability, blocks::BLOCKS}}, world::{global_coords::GlobalCoords, local_coords::LocalCoords}};
+use crate::{voxels::{chunks::Chunks, block::{light_permeability::LightPermeability, blocks::BLOCKS}, chunk::Chunk}, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
 use crossbeam_deque::{Worker};
 use crossbeam_queue::SegQueue;
 use std::sync::mpsc::channel;
@@ -15,13 +15,13 @@ const PERMEABILITYS: [LightPermeability; 6] = [
 ];
 
 
-const COORDS: [i32; 18] = [
-    1,  0, 0,
-    -1, 0, 0,
-    0, 1, 0,
-    0, -1, 0,
-    0, 0, 1,
-    0, 0, -1,
+const COORDS: [(i32, i32, i32); 6] = [
+    (1,  0, 0),
+    (-1, 0, 0),
+    (0, 1, 0),
+    (0, -1, 0),
+    (0, 0, 1),
+    (0, 0, -1),
 ];
 
 
@@ -100,9 +100,9 @@ impl LightSolver {
         loop {
             let Some(entry) = self.remove_queue.pop() else {break};
             for i in 0..6 {
-                let x: i32 = entry.x + COORDS[i*3];
-                let y: i32 = entry.y + COORDS[i*3+1];
-                let z: i32 = entry.z + COORDS[i*3+2];
+                let x: i32 = entry.x + unsafe {COORDS.get_unchecked(i)}.0;
+                let y: i32 = entry.y + unsafe {COORDS.get_unchecked(i)}.1;
+                let z: i32 = entry.z + unsafe {COORDS.get_unchecked(i)}.2;
                 let global = GlobalCoords(x, y, z);
                 let light = chunks.light(global, self.channel) as u8;
                 let chunk = chunks.chunk(global);
@@ -121,20 +121,19 @@ impl LightSolver {
 
     #[inline(never)]
     fn solve_add_queue(&self, chunks: &Chunks) {
-        loop {
-            let Some(entry) = self.add_queue.pop() else {break};
+        while let Some(entry) = self.add_queue.pop() {
             if entry.light <= 1 { continue; }
             let entry_id = chunks
                 .voxel_global((entry.x, entry.y, entry.z).into())
                 .map_or(0, |v| v.id);
-            for (i, side) in PERMEABILITYS.iter().enumerate() {
-                let x = entry.x + COORDS[i*3];
-                let y = entry.y + COORDS[i*3+1];
-                let z = entry.z + COORDS[i*3+2];
+            for (i, side) in PERMEABILITYS.into_iter().enumerate() {
+                let x = entry.x + unsafe {COORDS.get_unchecked(i)}.0;
+                let y = entry.y + unsafe {COORDS.get_unchecked(i)}.1;
+                let z = entry.z + unsafe {COORDS.get_unchecked(i)}.2;
                 let global = GlobalCoords(x, y, z);
                 let Some(chunk) = chunks.chunk(global) else {continue};
                 let local = LocalCoords::from(global).into();
-                let light = chunk.get_light(local).get(self.channel);
+                let light = chunk.get_light_channel(local, self.channel);
                 let id = chunk.voxel(local).id;
                 if Self::check_light_passing(entry_id, id, side) && (light+2) <= entry.light as u16 {
                     self.add_queue.push(LightEntry::new(x, y, z, entry.light-1));
@@ -145,15 +144,15 @@ impl LightSolver {
         }
     }
 
-
-    fn check_light_passing(entry_id: u32, id: u32, side: &LightPermeability) -> bool {
+    #[inline(never)]
+    fn check_light_passing(entry_id: u32, id: u32, side: LightPermeability) -> bool {
         let entry_id = entry_id as usize;
-        let id = id as usize;
-        BLOCKS()[id].light_permeability().check_permeability(&BLOCKS()[entry_id].light_permeability(), side)
-        ||
-        (
-            BLOCKS()[entry_id].emission().iter().any(|e| *e > 0) &&
-            BLOCKS()[id].light_permeability().check_permeability(&LightPermeability::ALL, side)
+        let light_p = BLOCKS()[id as usize].light_permeability();
+        let entry_block = &BLOCKS()[entry_id];
+
+        light_p.check_permeability(entry_block.light_permeability(), side) || (
+            entry_block.emission().iter().any(|e| *e > 0) &&
+            light_p.check_permeability(LightPermeability::ALL, side)
         )
     }
 }

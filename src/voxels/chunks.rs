@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, Ordering, AtomicI32}}, marker::PhantomPinned};
+use std::{collections::HashMap, sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, Ordering, AtomicI32}}, marker::PhantomPinned, cell::UnsafeCell};
 
 use itertools::iproduct;
 
@@ -11,7 +11,8 @@ pub const WORLD_HEIGHT: usize = 256 / CHUNK_SIZE; // In chunks
 #[derive(Debug)]
 pub struct Chunks {
     is_translate: AtomicBool,
-    pub chunks: Arc<UnsafeMutex<Vec<Option<Arc<Chunk>>>>>,
+    // I tried to do this using safe code, but it kills performance by about 2 times
+    pub chunks: UnsafeCell<Vec<Option<Arc<Chunk>>>>,
     pub chunks_awaiting_deletion: Arc<Mutex<Vec<Arc<Chunk>>>>,
 
     pub volume: i32,
@@ -33,8 +34,8 @@ impl Chunks {
         for _ in 0..volume { chunks.push(None); }
 
         Chunks {
+            chunks: UnsafeCell::new(chunks),
             chunks_awaiting_deletion: Arc::new(Mutex::new(Vec::new())),
-            chunks: Arc::new(UnsafeMutex::new(chunks)),
             volume,
             width,
             height,
@@ -67,15 +68,15 @@ impl Chunks {
         self.width_with_offset.load(Ordering::Relaxed)}
     #[inline] pub fn depth_with_offset(&self) -> i32 {
         self.depth_with_offset.load(Ordering::Relaxed)}
+
     #[inline] pub fn set_width_with_offset(&self, value: i32) {
         self.width_with_offset.store(value, Ordering::Relaxed)}
     #[inline] pub fn set_depth_with_offset(&self, value: i32) {
         self.depth_with_offset.store(value, Ordering::Relaxed)}
-
-    /// ONLY SAFE ACCESS
+    
     pub fn translate(&self, ox: i32, oz: i32) -> Vec<(usize, usize)> {
         let mut indices = Vec::<(usize, usize)>::new();
-        let mut chunks = self.chunks.lock().unwrap();
+        let chunks = unsafe {&mut *self.chunks.get()};
         let mut new_chunks: Vec<Option<Arc<Chunk>>> = vec_none!(chunks.len());
 
         let dx = ox - self.ox();
@@ -110,7 +111,7 @@ impl Chunks {
     pub fn load_all(&self, world_regions: Arc<UnsafeMutex<WorldRegions>>) {
         for (cy, cz, cx) in iproduct!(0..self.height, 0..self.depth, 0..self.width) {
             let index = ChunkCoords(cx, cy, cz).index_without_offset(self.width, self.depth);
-            let mut chunks = unsafe {self.chunks.lock_unsafe()}.unwrap();
+            let chunks = unsafe {&mut *self.chunks.get()};
             let Some(chunk) = chunks.get_mut(index) else {continue};
             let mut world_regions = unsafe {world_regions.lock_unsafe()}.unwrap();
             *chunk = match world_regions.chunk(ChunkCoords(cx+self.ox(), cy, cz+self.oz())) {
@@ -170,18 +171,27 @@ impl Chunks {
 
     pub fn local_chunk(&self, coords: ChunkCoords) -> Option<Arc<Chunk>> {
         let index = coords.index_without_offset(self.width, self.depth);
-        unsafe {self.chunks.lock_unsafe()}.unwrap().get(index).and_then(|c| c.as_ref().map(|c| c.clone()))
+        unsafe {&mut *self.chunks.get()}.get(index).and_then(|c| c.as_ref().map(|c| c.clone()))
     }
 
-    #[inline(never)]
     pub fn chunk<T: Into<ChunkCoords>>(&self, coords: T) -> Option<Arc<Chunk>> {
         let coords: ChunkCoords = coords.into();
         if !self.is_in_area(coords) { return None; }
         let index = coords.nindex(self.width, self.depth, self.ox(), self.oz());
         // It's safe because we checked the coordinates
-        let lock = unsafe {self.chunks.lock_unsafe().unwrap()};
+        let lock = unsafe {&mut *self.chunks.get()};
         let r = unsafe {lock.get_unchecked(index)}.as_ref();
         r.map(|c| c.clone())
+    }
+
+    pub fn chunk_ptr<T: Into<ChunkCoords>>(&self, coords: T) -> Option<*const Chunk> {
+        let coords: ChunkCoords = coords.into();
+        if !self.is_in_area(coords) { return None; }
+        let index = coords.nindex(self.width, self.depth, self.ox(), self.oz());
+        // It's safe because we checked the coordinates
+        let lock = unsafe {&mut *self.chunks.get()};
+        let r = unsafe {lock.get_unchecked(index)}.as_ref();
+        r.map(|c| c.as_ref() as *const Chunk)
     }
 
     pub fn voxels_data<T: Into<ChunkCoords>>(&self, coords: T) -> Option<Arc<RwLock<HashMap<usize, Arc<VoxelData>>>>> {
@@ -294,3 +304,6 @@ impl Chunks {
             .map_or(Light::default(), |c| c.lightmap.get_light(local.into()))
     }
 }
+
+unsafe impl Sync for Chunks {}
+unsafe impl Send for Chunks {}

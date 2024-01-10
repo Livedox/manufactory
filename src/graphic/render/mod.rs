@@ -77,7 +77,7 @@ pub struct RenderResult {
 }
 
 pub fn render(chunk_index: usize, chunks: &Chunks) -> Option<RenderResult> {
-    let Some(Some(chunk)) = unsafe {chunks.chunks.lock_unsafe()}.unwrap().get(chunk_index).map(|c| c.clone()) else {return None};
+    let Some(Some(chunk)) = unsafe {&*chunks.chunks.get()}.get(chunk_index).map(|c| c.clone()) else {return None};
     
     let mut models = Models::new();
     let mut animated_models = AnimatedModels::new();

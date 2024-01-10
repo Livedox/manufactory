@@ -15,7 +15,7 @@ impl Chunks {
     pub fn find_unloaded(&self) -> Option<(i32, i32)> {
         let callback = |cx: i32, cz: i32| {
             let index = ChunkCoords(cx, 0, cz).index_without_offset(self.width, self.depth);
-            unsafe {self.chunks.lock_unsafe().unwrap().get_unchecked(index)}.is_none().then_some((cx + self.ox(), cz + self.oz()))
+            unsafe {(&mut *self.chunks.get()).get_unchecked(index)}.is_none().then_some((cx + self.ox(), cz + self.oz()))
         };
  
         Self::clockwise_square_spiral(self.width as usize, callback)
@@ -25,14 +25,14 @@ impl Chunks {
         let callback = |cx: i32, cz: i32| {
             for cy in 0..WORLD_HEIGHT as i32 {
                 let index = ChunkCoords(cx+1, cy, cz+1).index_without_offset(self.width, self.depth);
-                if unsafe {self.chunks.lock_unsafe().unwrap().get_unchecked(index)}.as_ref()
+                if unsafe {(&mut *self.chunks.get()).get_unchecked(index)}.as_ref()
                     .map_or(true, |c| !c.modified()) {continue};
     
                 let mut around_count = 0;
                 for (ox, oy, oz) in SIDE_COORDS_OFFSET.into_iter() {
                     let index = ChunkCoords(cx + ox + 1, cy + oy, cz + oz + 1)
                         .index_without_offset(self.width, self.depth);
-                    if unsafe {self.chunks.lock_unsafe()}.unwrap()[index].is_some() {around_count += 1}
+                    if (unsafe {&mut *self.chunks.get()})[index].is_some() {around_count += 1}
                 }
                 if around_count == 4 {return Some(index)}
             }
@@ -40,7 +40,7 @@ impl Chunks {
         };
 
         Self::clockwise_square_spiral(self.width as usize - 2, callback)
-            .and_then(|index| unsafe {self.chunks.lock_unsafe()}.unwrap()[index].as_ref().map(|c| c.clone()))
+            .and_then(|index| (unsafe {&mut *self.chunks.get()})[index].as_ref().map(|c| c.clone()))
     }
 
     pub fn clockwise_square_spiral<T>(n: usize, callback: impl Fn(i32, i32) -> Option<T>) -> Option<T> {

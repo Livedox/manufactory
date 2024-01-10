@@ -135,9 +135,7 @@ impl Level {
             }
 
             if input.is_mouse(&Mouse::Left, KeypressState::AnyJustPress) && !is_cursor {
-                println!("10!");
                 BLOCKS()[voxel_id as usize].on_block_break(&self.world, &mut player, &global);
-                println!("11!");
             } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !is_cursor {
                 let gxyz = global + norm.tuple().into();
                 let storage = self.world.chunks.voxel_data(global).and_then(|vd| vd.player_unlockable());
