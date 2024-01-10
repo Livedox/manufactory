@@ -1,12 +1,11 @@
-use std::{sync::{Arc, Mutex, Condvar, mpsc::{Sender, Receiver}}, path::PathBuf, marker::PhantomPinned};
+use std::{sync::{Arc, Mutex, Condvar, mpsc::{Sender, Receiver}, RwLock}, path::PathBuf, marker::PhantomPinned};
 use crate::{unsafe_mutex::UnsafeMutex, world::{World, sun::{Sun, Color}, global_coords::GlobalCoords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, threads::{Threads, save::SaveState}, player::player::Player, save_load::WorldSaver, camera, recipes::{storage::Storage, item::Item}, CAMERA_FOV, CAMERA_NEAR, CAMERA_FAR, setting::Setting, voxels::{chunks::WORLD_HEIGHT, ray_cast::ray_cast, block::blocks::BLOCKS}, graphic::{render::RenderResult, render_selection::render_selection}, nalgebra_converter::Conventer, input_event::{input_service::{InputService, Mouse}, KeypressState}, my_time::Time, direction::Direction, engine::state::State, gui::gui_controller::{self, GuiController}, meshes::{Meshes, MeshesRenderInput, Mesh}, frustum};
-
 use nalgebra_glm as glm;
 
 pub struct Level {
     pub sun: Sun<9>,
     world_saver: Arc<WorldSaver>,
-    pub world: Arc<UnsafeMutex<World>>,
+    pub world: Arc<World>,
     pub player: Arc<UnsafeMutex<Player>>,
     pub threads: Option<Threads>,
     pub meshes: Meshes,
@@ -43,8 +42,8 @@ impl Level {
         let chunk_position: ChunkCoords = GlobalCoords::from(player.position().tuple()).into();
         let ox = chunk_position.0 - setting.render_radius as i32;
         let oz = chunk_position.2 - setting.render_radius as i32;
-        let world = Arc::new(UnsafeMutex::new(
-            World::new(render_diameter, WORLD_HEIGHT as i32, render_diameter, ox, 0, oz)));
+        let world = Arc::new(
+            World::new(render_diameter, WORLD_HEIGHT as i32, render_diameter, ox, 0, oz));
         let save_condvar = Arc::new((Mutex::new(SaveState::Unsaved), Condvar::new()));
         
         let player = Arc::new(UnsafeMutex::new(player));
@@ -97,29 +96,26 @@ impl Level {
         player.handle_input(input, time.delta(), is_cursor);
         player.inventory().lock().unwrap().update_recipe();
 
-        let mut world = unsafe {self.world.lock_immediately()}.unwrap();
-
         let ChunkCoords(px, _, pz) = ChunkCoords::from(GlobalCoords::from(player.position().tuple()));
-        if ((px-render_radius as i32 - world.chunks.ox).abs() > 2 ||
-            (pz-render_radius as i32 - world.chunks.oz).abs() > 2) &&
-            !world.chunks.is_translate
+        if ((px-render_radius as i32 - self.world.chunks.ox()).abs() > 2 ||
+            (pz-render_radius as i32 - self.world.chunks.oz()).abs() > 2) &&
+            !self.world.chunks.is_translate()
         {
             let sender = self.indices_sender.clone();
             let need_translate = self.meshes.need_translate.clone();
-            world.chunks.is_translate = true;
-            let w = self.world.clone();
+            self.world.chunks.set_translate(true);
+            let world = self.world.clone();
             tokio::spawn(async move {
-                let mut world = w.lock().unwrap();
                 *need_translate.lock().unwrap() += 1;
                 let vec = world.chunks.translate(px as i32-render_radius as i32, pz as i32-render_radius as i32);
-                world.chunks.is_translate = false;
+                world.chunks.set_translate(false);
                 drop(world);
                 let _ = sender.send(vec);
             });
         }
 
         state.selection_vertex_buffer = None;
-        let result = ray_cast(&world.chunks, &player.position().array(),
+        let result = ray_cast(&self.world.chunks, &player.position().array(),
             &player.camera().front_array(), 10.0);
 
         if let Some(result) = result {
@@ -139,10 +135,11 @@ impl Level {
             }
 
             if input.is_mouse(&Mouse::Left, KeypressState::AnyJustPress) && !is_cursor {
-                BLOCKS()[voxel_id as usize].on_block_break(&mut world, &mut player, &global);
+                BLOCKS()[voxel_id as usize].on_block_break(&self.world, &mut player, &global);
             } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !is_cursor {
                 let gxyz = global + norm.tuple().into();
-                if let Some(storage) = world.chunks.voxel_data(global).and_then(|vd| vd.player_unlockable()) {
+                let storage = self.world.chunks.voxel_data(global).and_then(|vd| vd.player_unlockable());
+                if let Some(storage) = storage {
                     player.set_open_storage(storage);
                     gui_controller.set_cursor_lock(player.is_inventory);
                     state.set_ui_interaction(player.is_inventory);
@@ -151,19 +148,18 @@ impl Level {
                     let direction = &Direction::new(front.x, front.y, front.z);
                     if let Some(block_id) = debug_block_id {
                         BLOCKS()[*block_id as usize].on_block_set(
-                            &mut world, &mut player, &gxyz, direction);
+                            &self.world, &mut player, &gxyz, direction);
                     } else {
-                        player.on_right_click(&mut world, &gxyz, direction);
+                        player.on_right_click(&self.world, &gxyz, direction);
                     }
                 }                     
             }
         }
 
-
         let indices = frustum(
-            &mut world.chunks,
+            &self.world.chunks,
             &player.camera().new_frustum(state.size.width as f32/state.size.height as f32));
-        self.meshes.update_transforms_buffer(&state, &world, &indices);
+        self.meshes.update_transforms_buffer(&state, &self.world, &indices);
 
         if let Ok(indices) = self.indices_recv.try_recv() {
             self.meshes.translate(&indices);
@@ -172,8 +168,8 @@ impl Level {
 
         if !self.meshes.is_need_translate() {
             while let Ok(result) = self.render_recv.try_recv() {
-                if world.chunks.is_in_area(result.xyz) {
-                    let index = result.xyz.chunk_index(&world.chunks);
+                if self.world.chunks.is_in_area(result.xyz) {
+                    let index = result.xyz.chunk_index(&self.world.chunks);
                     self.meshes.render(MeshesRenderInput {
                         device: state.device(),
                         animated_model_layout: &state.layouts.transforms_storage,

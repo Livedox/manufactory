@@ -34,7 +34,7 @@ impl TransportBelt {
         2
     }
 
-    pub fn update(&mut self, coords: GlobalCoords, chunks: *mut Chunks) {
+    pub fn update(&mut self, coords: GlobalCoords, chunks: &Chunks) {
         if self.storage[0].0.is_some() {self.item_progress[0] += 0.1;}
         if self.storage[3].0.is_some() {self.item_progress[3] += 0.1;}
 
@@ -56,8 +56,8 @@ impl TransportBelt {
 
         let dst_coords = GlobalCoords(coords.0+self.direction[0] as i32, coords.1, coords.2+self.direction[2] as i32);
         let Some(dst) = (unsafe {
-            chunks.as_mut().expect("Chunks don't exist")
-                .mut_voxel_data(dst_coords)
+            chunks
+                .voxel_data(dst_coords)
                 .and_then(|voxel_data| voxel_data.additionally.transport_belt())
         }) else {return};
         

@@ -1,4 +1,4 @@
-use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex, Condvar}, time::Duration};
+use std::{thread::{self, JoinHandle}, sync::{Arc, Mutex, Condvar, RwLock}, time::Duration};
 
 use crate::{world::World, unsafe_mutex::UnsafeMutex, save_load::{WorldRegions, WorldSaver}, player::player::Player};
 
@@ -10,7 +10,7 @@ pub enum SaveState {
 }
 
 pub fn spawn(
-    world: Arc<UnsafeMutex<World>>,
+    world: Arc<World>,
     player: Arc<UnsafeMutex<Player>>,
     world_saver: Arc<WorldSaver>,
     save_condvar: Arc<(Mutex<SaveState>, Condvar)>
@@ -20,8 +20,6 @@ pub fn spawn(
             let (lock, cvar) = &*save_condvar;
             let (mut save_state, _) = cvar.wait_timeout(lock.lock().unwrap(), Duration::new(60, 0)).unwrap();
 
-            
-            let mut world = unsafe {world.lock_unsafe()}.unwrap();
             let mut world_regions = unsafe {world_saver.regions.lock_unsafe()}.unwrap();
 
             let mut chunks_awaiting_deletion = world.chunks.chunks_awaiting_deletion.lock().unwrap();
@@ -31,15 +29,13 @@ pub fn spawn(
             chunks_awaiting_deletion.clear();
             drop(chunks_awaiting_deletion);
 
-            world.chunks.chunks.iter_mut().for_each(|chunk| {
+            unsafe {world.chunks.chunks.lock_unsafe()}.unwrap().iter().for_each(|chunk| {
                 let Some(chunk) = chunk else {return};
-                if !chunk.unsaved {return};
+                if !chunk.unsaved() {return};
                 world_regions.save_chunk(chunk);
-                chunk.unsaved = false;
+                chunk.save(false);
             });
             world_regions.save_all_regions();
-            drop(world_regions);
-            drop(world);
 
             let player = unsafe {player.lock_unsafe()}.unwrap();
             let player_saver = unsafe {world_saver.player.lock_unsafe()}.unwrap();

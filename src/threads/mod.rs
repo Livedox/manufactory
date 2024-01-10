@@ -1,4 +1,4 @@
-use std::{thread::JoinHandle, sync::{Arc, mpsc::Sender, Mutex, Condvar, atomic::{Ordering, AtomicBool}}};
+use std::{thread::JoinHandle, sync::{Arc, mpsc::Sender, Mutex, Condvar, atomic::{Ordering, AtomicBool}, RwLock}};
 
 use crate::{unsafe_mutex::UnsafeMutex, world::World, save_load::{WorldRegions, WorldSaver}, graphic::render::RenderResult, WORLD_EXIT, player::player::Player};
 
@@ -21,7 +21,7 @@ pub struct Threads {
 
 impl Threads {
     pub fn new(
-        world: Arc<UnsafeMutex<World>>,
+        world: Arc<World>,
         player: Arc<UnsafeMutex<Player>>,
         world_saver: Arc<WorldSaver>,
         sender: Sender<RenderResult>,

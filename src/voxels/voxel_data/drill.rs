@@ -24,11 +24,10 @@ impl Drill {
         dir: dir.simplify_to_one_greatest(true, false, true)
     }}
 
-    pub fn update(&mut self, chunks: *mut Chunks) {
+    pub fn update(&mut self, chunks: &Chunks) {
         let xyz = self.structure_coordinates[0];
         let global = GlobalCoords(xyz.0 - self.dir[0] as i32, xyz.1, xyz.2-self.dir[2] as i32);
-        let chunks = unsafe {chunks.as_mut().expect("Chunks don't exist")};
-        if let Some(storage) = chunks.mut_voxel_data(global).and_then(|vd| vd.additionally.storage()) {
+        if let Some(storage) = chunks.voxel_data(global).and_then(|vd| vd.additionally.storage()) {
             if let Some(item) = self.storage[0].0.take() {
                 if let Some(r_item) = storage.lock().unwrap().add(&item, false) {
                     self.storage[0].try_add_item(&r_item);

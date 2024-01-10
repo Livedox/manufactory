@@ -1,4 +1,4 @@
-use std::time::{Instant, Duration};
+use std::{time::{Instant, Duration}, sync::Arc};
 use crate::{world::global_coords::GlobalCoords, direction::Direction, voxels::chunks::Chunks, recipes::item::Item, bytes::{BytesCoder, AsFromBytes}};
 
 #[derive(Debug)]
@@ -20,14 +20,11 @@ impl Manipulator {
         direction: direction.simplify_to_one_greatest(true, false, true),
     }}
 
-    pub fn update(&mut self, coords: GlobalCoords, chunks: *mut Chunks) {
+    pub fn update(&mut self, coords: GlobalCoords, chunks: &Chunks) {
         let return_time = self.return_time.map_or(true, |rt| rt.elapsed() >= (Self::SPEED/2));
         if self.item_id.is_none() && self.start_time.is_none() && return_time {
             let src_coords = GlobalCoords(coords.0 - self.direction[0] as i32, coords.1, coords.2 - self.direction[2] as i32);
-            let src = unsafe {
-                chunks.as_mut().expect("Chunks don't exist")
-            };
-            let Some(storage) = src.mut_voxel_data(src_coords).and_then(|vd| vd.additionally.storage()) else {return};
+            let Some(storage) = chunks.voxel_data(src_coords).and_then(|vd| vd.additionally.storage()) else {return};
             if let Some(item) = storage.lock().unwrap().take_first_existing(1) {
                 self.item_id = Some(item.0.id());
                 self.start_time = Some(Instant::now());
@@ -38,10 +35,7 @@ impl Manipulator {
         let start_time = self.start_time.map_or(true, |rt| rt.elapsed() >= (Self::SPEED/2));
         if self.item_id.is_some() && start_time {
             let dst_coords = GlobalCoords(coords.0 + self.direction[0] as i32, coords.1, coords.2 + self.direction[2] as i32);
-            let dst = unsafe {
-                chunks.as_mut().expect("Chunks don't exist")
-            };
-            let Some(storage) = dst.mut_voxel_data(dst_coords).and_then(|vd| vd.additionally.storage()) else {return};
+            let Some(storage) = chunks.voxel_data(dst_coords).and_then(|vd| vd.additionally.storage()) else {return};
             let result = storage.lock().unwrap().add(&Item::new(self.item_id.unwrap(), 1), false).is_none();
             if result {
                 self.item_id = None;

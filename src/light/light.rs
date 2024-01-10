@@ -30,9 +30,8 @@ impl LightSolvers {
     }}
 
 
-    pub fn build_sky_light_chunk(&mut self, chunks: &mut Chunks, cx: i32, cy: i32, cz: i32) {
-        let chunks_ptr = chunks as *mut Chunks;
-        let Some(chunk) = chunks.mut_chunk(ChunkCoords(cx, cy, cz)) else {return};
+    pub fn build_sky_light_chunk(&self, chunks: &Chunks, cx: i32, cy: i32, cz: i32) {
+        let Some(chunk) = chunks.chunk(ChunkCoords(cx, cy, cz)) else {return};
         let max_y = (CHUNK_SIZE-1) as u8;
 
         if cy == (WORLD_HEIGHT-1) as i32 {
@@ -41,7 +40,7 @@ impl LightSolvers {
             }
         }
 
-        if let Some(top_chunk) = unsafe {chunks_ptr.as_ref().expect("Chunks don't found").chunk(ChunkCoords(cx, cy+1, cz))} {
+        if let Some(top_chunk) = chunks.chunk(ChunkCoords(cx, cy+1, cz)) {
             for (lz, lx) in iproduct!(0..CHUNK_SIZE as u8, 0..CHUNK_SIZE as u8) {
                 if top_chunk.lightmap.get_sun((lx, 0, lz)) == 15 {
                     chunk.lightmap.set_sun((lx, max_y, lz), 15);
@@ -53,48 +52,17 @@ impl LightSolvers {
             let id = chunk.voxel((lx, ly, lz).into()).id as usize;
             if chunk.lightmap.get_sun((lx, (ly+1), lz)) == 15 && BLOCKS()[id].light_permeability().sky_passing() {
                 chunk.lightmap.set_sun((lx, ly, lz), 15);
-
                 let global = ChunkCoords(cx, cy, cz).to_global((lx, ly, lz).into());
-                self.solver_sun.add(unsafe {chunks_ptr.as_mut().unwrap()}, global.0, global.1, global.2);
+                self.solver_sun.add(chunks, global.0, global.1, global.2);
             }
         }
+        println!("L5");
         self.solver_sun.solve(chunks);
+        println!("L6");
     }
 
 
-    pub fn build_sky_light(&mut self, chunks: &mut Chunks) {
-        for (cy, cz, cx) in iproduct!((0..chunks.height).rev(), 0..chunks.depth, 0..chunks.width) {
-            let chunks_ptr = chunks as *mut Chunks;
-            let Some(chunk) = chunks.mut_local_chunk(ChunkCoords(cx, cy, cz)) else {continue};
-
-            if chunk.xyz.1 == (WORLD_HEIGHT-1) as i32 {
-                for (lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE) {
-                    chunk.lightmap.set_sun((lx as u8, (CHUNK_SIZE-1) as u8, lz as u8), 15);
-                }
-            }
-
-            if let Some(top_chunk) = unsafe {chunks_ptr.as_ref().expect("Chunks don't found").local_chunk(ChunkCoords(cx, cy+1, cz))} {
-                for (lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE) {
-                    if top_chunk.lightmap.get_sun((lx as u8, 0, lz as u8)) == 15 {
-                        chunk.lightmap.set_sun((lx as u8, (CHUNK_SIZE-1) as u8, lz as u8), 15);
-                    }
-                }
-            }
-
-            for (ly, lz, lx) in iproduct!((0..CHUNK_SIZE-1).rev(), 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
-                if chunk.lightmap.get_sun((lx as u8, (ly+1) as u8, lz as u8)) == 15
-                 && BLOCKS()[chunk.voxel((lx as u8, ly as u8, lz as u8).into()).id as usize].id() == 0 {
-                    chunk.lightmap.set_sun((lx as u8, ly as u8, lz as u8), 15);
-                    let global = ChunkCoords(cx, cy, cz).to_global((lx as u8, ly as u8, lz as u8).into());
-                    self.solver_sun.add(unsafe {chunks_ptr.as_mut().unwrap()}, global.0, global.1, global.2);
-                }
-            }
-        }
-        self.solver_sun.solve(chunks);
-    }
-
-
-    pub fn on_chunk_loaded(&mut self, chunks: &mut Chunks, cx: i32, cy: i32, cz: i32) {
+    pub fn on_chunk_loaded(&self, chunks: &Chunks, cx: i32, cy: i32, cz: i32) {
         for (ly, lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
             let xyz = ChunkCoords(cx, cy, cz).to_global((lx as u8, ly as u8, lz as u8).into());
             let id = chunks.voxel_global(xyz).map_or(0, |v| v.id as usize);
@@ -108,7 +76,7 @@ impl LightSolvers {
     }
 
 
-    fn build_nearby_light(&mut self, chunks: &mut Chunks, cx: i32, cy: i32, cz: i32) {
+    fn build_nearby_light(&self, chunks: &Chunks, cx: i32, cy: i32, cz: i32) {
         for (ly, lz, lx) in iproduct!(-1..=CHUNK_SIZE as i32, -1..=CHUNK_SIZE as i32, -1..=CHUNK_SIZE as i32) {
             if lx != -1 && lx != CHUNK_SIZE as i32
               && lz != -1 && lz != CHUNK_SIZE as i32
@@ -126,7 +94,7 @@ impl LightSolvers {
     }
 
 
-    pub fn on_block_break(&mut self, chunks: &mut Chunks, x: i32, y: i32, z: i32) {
+    pub fn on_block_break(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
         self.remove_rgb(chunks, x, y, z);
         self.solve_rgb(chunks);
 
@@ -145,7 +113,7 @@ impl LightSolvers {
     }
 
 
-    pub fn on_block_set(&mut self, chunks: &mut Chunks, x: i32, y: i32, z: i32, id: u32) {
+    pub fn on_block_set(&self, chunks: &Chunks, x: i32, y: i32, z: i32, id: u32) {
         let emission = &BLOCKS()[id as usize].emission();
         self.remove_rgbs(chunks, x, y, z);
         self.solver_sun.solve(chunks);
@@ -163,41 +131,41 @@ impl LightSolvers {
     }
 
 
-    pub fn add_rgb(&mut self, chunks: &mut Chunks, x: i32, y: i32, z: i32) {
+    pub fn add_rgb(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
         self.solver_red.add(chunks, x, y, z);
         self.solver_green.add(chunks, x, y, z);
         self.solver_blue.add(chunks, x, y, z);
     }
 
-    pub fn add_rgbs(&mut self, chunks: &mut Chunks, x: i32, y: i32, z: i32) {
+    pub fn add_rgbs(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
         self.add_rgb(chunks, x, y, z);
         self.solver_sun.add(chunks, x, y, z);
     }
 
-    pub fn add_with_emission_rgb(&mut self, chunks: &mut Chunks, x: i32, y: i32, z: i32, emission: &[u8; 3]) {
+    pub fn add_with_emission_rgb(&self, chunks: &Chunks, x: i32, y: i32, z: i32, emission: &[u8; 3]) {
         self.solver_red.add_with_emission(chunks, x, y, z, emission[0]);
         self.solver_green.add_with_emission(chunks, x, y, z, emission[1]);
         self.solver_blue.add_with_emission(chunks, x, y, z, emission[2]);
     }
 
-    pub fn solve_rgb(&mut self, chunks: &mut Chunks) {
+    pub fn solve_rgb(&self, chunks: &Chunks) {
         self.solver_red.solve(chunks);
         self.solver_green.solve(chunks);
         self.solver_blue.solve(chunks);
     }
 
-    pub fn solve_rgbs(&mut self, chunks: &mut Chunks) {
+    pub fn solve_rgbs(&self, chunks: &Chunks) {
         self.solve_rgb(chunks);
         self.solver_sun.solve(chunks);
     }
 
-    pub fn remove_rgb(&mut self, chunks: &mut Chunks, x: i32, y: i32, z: i32) {
+    pub fn remove_rgb(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
         self.solver_red.remove(chunks, x, y, z);
         self.solver_green.remove(chunks, x, y, z);
         self.solver_blue.remove(chunks, x, y, z);
     }
 
-    pub fn remove_rgbs(&mut self, chunks: &mut Chunks, x: i32, y: i32, z: i32) {
+    pub fn remove_rgbs(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
         self.remove_rgb(chunks, x, y, z);
         self.solver_sun.remove(chunks, x, y, z);
     }

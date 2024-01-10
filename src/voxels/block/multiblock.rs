@@ -27,15 +27,15 @@ impl BlockInteraction for MultiBlock {
     fn height(&self) -> usize {self.height}
     fn depth(&self) -> usize {self.depth}
 
-    fn on_block_break(&self, world: &mut World, _: &mut Player, xyz: &GlobalCoords) {
+    fn on_block_break(&self, world: &World, _: &mut Player, xyz: &GlobalCoords) {
         if let Some(xyz) = world.chunks.remove_multiblock_structure(*xyz) {
             xyz.iter().for_each(|c| {
-                world.light.on_block_break(&mut world.chunks, c.0, c.1, c.2);
+                world.light.on_block_break(&world.chunks, c.0, c.1, c.2);
             });
         };
     }
 
-    fn on_block_set(&self, world: &mut World, _: &mut Player, xyz: &GlobalCoords, dir: &Direction) -> bool {
+    fn on_block_set(&self, world: &World, _: &mut Player, xyz: &GlobalCoords, dir: &Direction) -> bool {
         // FIX THIS SHIT
         let mut width = self.width as i32;
         let mut depth = self.depth as i32;
@@ -51,7 +51,7 @@ impl BlockInteraction for MultiBlock {
             .add_multiblock_structure(xyz, width, self.height as i32, depth, self.id(), dir);
         if let Some(coords) = coords {
             coords.iter().for_each(|c| {
-                world.light.on_block_set(&mut world.chunks, c.0, c.1, c.2, self.id());
+                world.light.on_block_set(&world.chunks, c.0, c.1, c.2, self.id());
             });
             return true;
         }

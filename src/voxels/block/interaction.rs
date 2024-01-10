@@ -20,10 +20,10 @@ pub trait BlockInteraction {
     fn ore(&self) -> Option<Item> {None}
 
 
-    fn on_block_break(&self, world: &mut World, _: &mut Player, xyz: &GlobalCoords) {
+    fn on_block_break(&self, world: &World, _: &mut Player, xyz: &GlobalCoords) {
         world.break_voxel(xyz);
     }
-    fn on_block_set(&self, world: &mut World, _: &mut Player, xyz: &GlobalCoords, dir: &Direction) -> bool {
+    fn on_block_set(&self, world: &World, _: &mut Player, xyz: &GlobalCoords, dir: &Direction) -> bool {
         if world.voxel(xyz).map(|v| v.id == 0).unwrap_or(true) {
             world.set_voxel(xyz, self.id(), dir);
             return true;

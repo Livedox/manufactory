@@ -58,7 +58,7 @@ pub fn ray_cast(
 			if stepped_index == 0 { face.x = -stepx };
 			if stepped_index == 1 { face.y = -stepy };
 			if stepped_index == 2 { face.z = -stepz };
-            return Some(((ix, iy, iz), voxel.copied(), face));
+            return Some(((ix, iy, iz), voxel, face));
         }
 
         if tx_max < ty_max {

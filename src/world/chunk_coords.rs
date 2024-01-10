@@ -15,7 +15,7 @@ impl ChunkCoords {
 
     #[inline]
     pub fn chunk_index(&self, chunks: &Chunks) -> usize {
-        ((self.1*chunks.depth + self.2-chunks.oz)*chunks.width + self.0-chunks.ox) as usize
+        ((self.1*chunks.depth + self.2-chunks.oz())*chunks.width + self.0-chunks.ox()) as usize
     }
 
     #[inline]

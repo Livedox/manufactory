@@ -1,4 +1,6 @@
 use std::sync::{Arc, Mutex, Weak};
+use egui::{ahash::HashMap, mutex::RwLock};
+
 use crate::{direction::Direction, recipes::storage::Storage, world::global_coords::GlobalCoords, gui::draw::Draw, bytes::{BytesCoder, AsFromBytes}};
 use self::{voxel_box::VoxelBox, furnace::Furnace, drill::Drill, cowboy::Cowboy, assembling_machine::AssemblingMachine, transport_belt::TransportBelt, manipulator::Manipulator, multiblock::MultiBlock};
 
@@ -12,6 +14,7 @@ pub mod manipulator;
 pub mod assembling_machine;
 pub mod transport_belt;
 
+
 pub trait DrawStorage: Draw + Storage {}
 
 
@@ -24,7 +27,7 @@ pub struct VoxelData {
 }
 
 impl VoxelData {
-    pub fn update(&self, chunks: *mut Chunks) {
+    pub fn update(&self, chunks: &Chunks) {
         if self.id == 1 {return};
         self.additionally.update(self.global_coords, chunks);
     }
@@ -93,7 +96,7 @@ impl VoxelAdditionalData {
     }
 
 
-    pub fn update(&self, coords: GlobalCoords, chunks: *mut Chunks) {
+    pub fn update(&self, coords: GlobalCoords, chunks: &Chunks) {
         match self {
             Self::Manipulator(o) => o.lock().unwrap().update(coords, chunks),
             Self::Drill(d) => d.lock().unwrap().update(chunks),

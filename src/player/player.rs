@@ -35,7 +35,7 @@ impl Player {
     }
 
 
-    pub fn on_right_click(&mut self, world: &mut World, xyz: &GlobalCoords, dir: &Direction) {
+    pub fn on_right_click(&mut self, world: &World, xyz: &GlobalCoords, dir: &Direction) {
         let Some(item_id) = self.inventory
             .lock().unwrap()
             .storage()[self.active_slot].0

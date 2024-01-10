@@ -76,9 +76,8 @@ pub struct RenderResult {
     pub animated_models: AnimatedModels,
 }
 
-pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
-    let chunks = &world.chunks;
-    let Some(Some(chunk)) = chunks.chunks.get(chunk_index).map(|c| c.as_ref()) else {return None};
+pub fn render(chunk_index: usize, chunks: &Chunks) -> Option<RenderResult> {
+    let Some(Some(chunk)) = unsafe {chunks.chunks.lock_unsafe()}.unwrap().get(chunk_index).map(|c| c.clone()) else {return None};
     
     let mut models = Models::new();
     let mut animated_models = AnimatedModels::new();
@@ -94,17 +93,17 @@ pub fn render(chunk_index: usize, world: &World) -> Option<RenderResult> {
         let block = &BLOCKS()[id as usize];
         match block.block_type() {
             BlockType::Block {faces} => {
-                render_block(&mut block_manager, chunks, chunk, block.as_ref(), faces, (lx, ly, lz));
+                render_block(&mut block_manager, chunks, &chunk, block.as_ref(), faces, (lx, ly, lz));
             },
             BlockType::None => {},
             BlockType::Model {name} => {
-                render_model(&mut models, chunk, name, lx, ly, lz);
+                render_model(&mut models, &chunk, name, lx, ly, lz);
             },
             BlockType::AnimatedModel {name} => {
-                render_animated_model(&mut animated_models, chunk, name, lx, ly, lz);
+                render_animated_model(&mut animated_models, &chunk, name, lx, ly, lz);
             },
             BlockType::ComplexObject {cp} => {
-                render_complex_object(cp, &mut buffer, &mut belt_buffer, chunk, lx, ly, lz);
+                render_complex_object(cp, &mut buffer, &mut belt_buffer, &chunk, lx, ly, lz);
             },
         };
     }

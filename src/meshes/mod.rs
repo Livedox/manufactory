@@ -175,12 +175,12 @@ impl Meshes {
 
     pub fn update_transforms_buffer(&mut self, state: &State, world: &World, indices: &[usize]) {
         indices.iter().for_each(|index| {
-            let Some(Some(chunk)) = world.chunks.chunks.get(*index).map(|c| c.as_ref()) else { return };
-            if chunk.voxels_data.is_empty() {return};
+            let Some(Some(chunk)) = unsafe {world.chunks.chunks.lock_unsafe()}.unwrap().get(*index).map(|c| c.clone()) else { return };
+            if chunk.voxels_data.read().unwrap().is_empty() {return};
             let mut transforms_buffer: Vec<u8> = vec![];
             let mut animated_models: HashMap<String, Vec<f32>> = HashMap::new();
     
-            chunk.voxels_data.iter().sorted_by_key(|data| {data.0}).for_each(|data| {
+            chunk.voxels_data.read().unwrap().iter().sorted_by_key(|data| {data.0}).for_each(|data| {
                 let Some(progress) = data.1.additionally.as_ref().animation_progress() else {return};
                 let block_type = &BLOCKS()[data.1.id as usize].block_type();
                 if let BlockType::AnimatedModel {name} = block_type {

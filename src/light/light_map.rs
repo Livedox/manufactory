@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicU16, Ordering};
+
 use crate::voxels::chunk::{CHUNK_VOLUME, CHUNK_SIZE};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -36,13 +38,13 @@ impl Light {
 
 #[derive(Debug)]
 pub struct LightMap {
-    pub map: [Light; CHUNK_VOLUME],
+    pub map: [LightAtomic; CHUNK_VOLUME],
 }
 
 impl LightMap {
     #[inline]
     pub fn new() -> LightMap {
-        LightMap { map: [Light::default(); CHUNK_VOLUME]}
+        LightMap { map: unsafe {std::mem::zeroed()}}
     }
 
     #[inline]
@@ -53,7 +55,7 @@ impl LightMap {
 
     #[inline]
     pub fn get_light(&self, local: (u8, u8, u8)) -> Light {
-        self.map[LightMap::index(local)]
+        self.map[LightMap::index(local)].to_light()
     }
 
     #[inline]
@@ -82,27 +84,27 @@ impl LightMap {
     }
 
     #[inline]
-    pub fn set_red(&mut self, local: (u8, u8, u8), value: u16) {
+    pub fn set_red(&self, local: (u8, u8, u8), value: u16) {
         self.map[LightMap::index(local)].set_red(value);
     }
 
     #[inline]
-    pub fn set_green(&mut self, local: (u8, u8, u8), value: u16) {
+    pub fn set_green(&self, local: (u8, u8, u8), value: u16) {
         self.map[LightMap::index(local)].set_green(value);
     }
 
     #[inline]
-    pub fn set_blue(&mut self, local: (u8, u8, u8), value: u16) {
+    pub fn set_blue(&self, local: (u8, u8, u8), value: u16) {
         self.map[LightMap::index(local)].set_blue(value);
     }
 
     #[inline]
-    pub fn set_sun(&mut self, local: (u8, u8, u8), value: u16) {
+    pub fn set_sun(&self, local: (u8, u8, u8), value: u16) {
         self.map[LightMap::index(local)].set_sun(value);
     }
 
     #[inline]
-    pub fn set(&mut self, local: (u8, u8, u8), value: u16, channel: u8) {
+    pub fn set(&self, local: (u8, u8, u8), value: u16, channel: u8) {
         self.map[LightMap::index(local)].set(value, channel);
     }
 }
@@ -110,5 +112,62 @@ impl LightMap {
 impl Default for LightMap {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[derive(Debug)]
+pub struct LightAtomic(pub AtomicU16);
+
+impl LightAtomic {
+    const MAX_VALUE: u8 = 15;
+
+    #[inline]
+    pub fn to_light(&self) -> Light {
+        Light(self.0.load(Ordering::Relaxed))
+    }
+    
+    #[inline]
+    pub fn new(light: u16) -> Self {Self(AtomicU16::new(light))}
+    #[inline] pub fn get(&self, channel: u8) -> u16 {(self.0.load(Ordering::Relaxed) >> (channel << 2)) & 0xF}
+    #[inline] pub fn get_red(&self) -> u16 {self.0.load(Ordering::Relaxed) & 0xF}
+    #[inline] pub fn get_green(&self) -> u16 {(self.0.load(Ordering::Relaxed) >> 4) & 0xF}
+    #[inline] pub fn get_blue(&self) -> u16 {(self.0.load(Ordering::Relaxed) >> 8) & 0xF}
+    #[inline] pub fn get_sun(&self) -> u16 {(self.0.load(Ordering::Relaxed) >> 12) & 0xF}
+
+    #[inline]
+    pub fn set(&self, value: u16, channel: u8) {
+        let _ = self.0.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |l| {
+            Some((l & (!(0xF << (channel*4)))) | (value << (channel << 2)))
+        });
+    }
+
+    #[inline]
+    pub fn set_red(&self, value: u16) {
+        let _ = self.0.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |l| Some(l & 0xFFF0 | value));
+    }
+    #[inline]
+    pub fn set_green(&self, value: u16) {
+        let _ = self.0.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |l| Some(l & 0xFFF0 | (value << 4)));
+    }
+    #[inline]
+    pub fn set_blue(&self, value: u16) {
+        let _ = self.0.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |l| Some(l & 0xFFF0 | (value << 8)));
+    }
+    #[inline]
+    pub fn set_sun(&self, value: u16) {
+        let _ = self.0.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |l| Some(l & 0xFFF0 | (value << 12)));
+    }
+
+    pub fn get_normalized(&self) -> [f32; 4] {
+        [self.get_red() as f32 / Self::MAX_VALUE as f32,
+         self.get_green() as f32 / Self::MAX_VALUE as f32,
+         self.get_blue() as f32 / Self::MAX_VALUE as f32,
+         self.get_sun() as f32 / Self::MAX_VALUE as f32]
+    }
+}
+
+impl Default for LightAtomic {
+    fn default() -> Self {
+        Self(AtomicU16::new(0))
     }
 }
