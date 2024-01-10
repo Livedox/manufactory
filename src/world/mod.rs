@@ -50,10 +50,8 @@ impl World {
     pub fn build_chunk(&self, cx: i32, cy: i32, cz: i32) {
         let start = Instant::now();
         self.light.build_sky_light_chunk(&self.chunks, cx, cy, cz);
-        println!("Sun lights: {:?}", start.elapsed().as_secs_f32());
-        let start = Instant::now();
         self.light.on_chunk_loaded(&self.chunks, cx, cy, cz);
-        println!("Load lights: {:?}", start.elapsed().as_secs_f32());
+        println!("Load chunks: {:?}", start.elapsed().as_secs_f32());
     }
 
 

@@ -123,7 +123,8 @@ impl Chunks {
 
     #[inline(never)]
     pub fn voxel(&self, chunk_coords: ChunkCoords, local_coords: LocalCoords) -> Option<Voxel> {
-        self.chunk(chunk_coords).map(|c| c.voxel(local_coords))
+        let chunk = self.chunk_ptr(chunk_coords)?;
+        Some(unsafe {&*chunk}.voxel(local_coords))
     }
 
     pub fn voxel_global(&self, coords: GlobalCoords) -> Option<Voxel> {
@@ -287,21 +288,23 @@ impl Chunks {
         Some(coords)
     }
 
-    pub fn get_sun(&self, coords: GlobalCoords) -> u16 {
+    pub fn get_sun(&self, coords: GlobalCoords) -> u8 {
         let local: LocalCoords = coords.into();
         self.chunk(coords)
             .map_or(0, |c| c.lightmap.get_sun(local.into()))
     }
 
     #[inline(never)]
-    pub fn light(&self, coords: GlobalCoords, channel: u8) -> u16 {
-        self.chunk(coords).map_or(0, |c| c.lightmap.get(LocalCoords::from(coords).into(), channel))
+    pub fn light(&self, coords: GlobalCoords, channel: usize) -> u8 {
+        let Some(chunk) = self.chunk_ptr(coords) else {return 0};
+        unsafe {&*chunk}.lightmap.get(LocalCoords::from(coords).into(), channel)
     }
 
     pub fn get_light(&self, coords: GlobalCoords) -> Light {
+        let Some(chunk) = self.chunk_ptr(coords) else {return Light::default()};
+        
         let local: LocalCoords = coords.into();
-        self.chunk(coords)
-            .map_or(Light::default(), |c| c.lightmap.get_light(local.into()))
+        unsafe {&*chunk}.lightmap.get_light(local.into())
     }
 }
 

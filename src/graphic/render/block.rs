@@ -17,18 +17,18 @@ impl BlockFaceLight {
         [7,   8,   5],
         [7,   6,   3]
     ];
-    const CHANNELS: [u8; 4] = [0, 1, 2, 3];
+    const CHANNELS: [usize; 4] = [0, 1, 2, 3];
     const CENTER_INFLUENCE: f32 = 1.5;
     const MAX_LIGHT_COUNT: f32 = 15.0;
     const COEFFICIENT: f32 = Self::MAX_LIGHT_COUNT * (Self::CENTER_INFLUENCE + 3.0);
     pub fn get(&self) -> [[f32; 4]; 4] {
-        let center = self.0[4];
+        let center = &self.0[4];
         Self::ANGLE_INDICES.map(|inds| {
             Self::CHANNELS.map(|i| {unsafe {
-                (self.0.get_unchecked(inds[0]).get(i) as f32 +
-                 self.0.get_unchecked(inds[1]).get(i) as f32 +
-                 self.0.get_unchecked(inds[2]).get(i) as f32 +
-                 (center.get(i) as f32 * Self::CENTER_INFLUENCE)) / Self::COEFFICIENT
+                (self.0.get_unchecked(inds[0]).get_channel(i) as f32 +
+                 self.0.get_unchecked(inds[1]).get_channel(i) as f32 +
+                 self.0.get_unchecked(inds[2]).get_channel(i) as f32 +
+                 (center.get_channel(i) as f32 * Self::CENTER_INFLUENCE)) / Self::COEFFICIENT
             }})
         })
     }
@@ -53,7 +53,7 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
     let (lx, ly, lz) = local;
     let (x, y, z) = chunk.xyz.to_global((lx, ly, lz).into()).into();
     let (nx, px, ny, py, nz, pz) = (x-1, x+1, y-1, y+1, z-1, z+1);
-    if !is_blocked(x-1, y, z, chunks, LightPermeability::LEFT, block.light_permeability()) {
+    if !is_blocked(x-1, y, z, chunks) {
         let light = BlockFaceLight::new(chunks, [
             (nx, ny, nz), (nx, y, nz), (nx, py, nz),
             (nx, ny,  z), (nx, y, z),  (nx, py, z),
@@ -62,7 +62,7 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
         block_manager.set(0, lx, ly, lz, BlockFace::new(faces[0], light));
     }
 
-    if !is_blocked(x+1, y, z, chunks, LightPermeability::RIGHT, block.light_permeability()) {
+    if !is_blocked(x+1, y, z, chunks) {
         let light = BlockFaceLight::new(chunks, [
             (px, ny, nz), (px, y, nz), (px, py, nz),
             (px, ny,  z), (px, y, z),  (px, py, z),
@@ -71,7 +71,7 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
         block_manager.set(1, lx, ly, lz, BlockFace::new(faces[1], light));
     }
 
-    if !is_blocked(x, y-1, z, chunks, LightPermeability::DOWN, block.light_permeability()) {
+    if !is_blocked(x, y-1, z, chunks) {
         let light = BlockFaceLight::new(chunks, [
             (nx, ny, nz), (nx, ny, z), (nx, ny, pz),
             (x,  ny, nz), (x,  ny, z), (x,  ny, pz),
@@ -81,7 +81,7 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
     }
 
 
-    if !is_blocked(x, y+1, z, chunks, LightPermeability::UP, block.light_permeability()) {
+    if !is_blocked(x, y+1, z, chunks) {
         let light = BlockFaceLight::new(chunks, [
             (nx, py, nz), (nx, py, z), (nx, py, pz),
             (x,  py, nz), (x,  py, z), (x,  py, pz),
@@ -90,7 +90,7 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
         block_manager.set(3, ly, lx, lz, BlockFace::new(faces[3], light));
     }
 
-    if !is_blocked(x, y, z-1, chunks, LightPermeability::DOWN, block.light_permeability()) {
+    if !is_blocked(x, y, z-1, chunks) {
         let light = BlockFaceLight::new(chunks, [
             (nx, ny, nz), (x, ny, nz), (px, ny, nz),
             (nx,  y, nz), (x,  y, nz), (px,  y, nz),
@@ -99,7 +99,7 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
         block_manager.set(4, lz, lx, ly, BlockFace::new(faces[4], light));
     }
 
-    if !is_blocked(x, y, z+1, chunks, LightPermeability::UP, block.light_permeability()) {
+    if !is_blocked(x, y, z+1, chunks) {
         let light = BlockFaceLight::new(chunks, [
             (nx, ny, pz), (x, ny, pz), (px, ny, pz),
             (nx,  y, pz), (x,  y, pz), (px,  y, pz),
@@ -110,8 +110,7 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
 }
 
 #[inline]
-fn is_blocked(x: i32, y: i32, z: i32, chunks: &Chunks, side: LightPermeability, current: LightPermeability) -> bool {
+fn is_blocked(x: i32, y: i32, z: i32, chunks: &Chunks) -> bool {
     let Some(voxel) = chunks.voxel_global((x, y, z).into()) else {return false};
-    let block = &BLOCKS()[voxel.id as usize];
-    ((block.light_permeability() & side.get_opposite_side()).bits() == 0) && ((current & side).bits() == 0)
+    !BLOCKS()[voxel.id as usize].is_light_passing()
 }

@@ -5,7 +5,7 @@ use super::{block_type::BlockType, light_permeability::LightPermeability};
 pub trait BlockInteraction {
     fn id(&self) -> u32;
     fn emission(&self) -> &[u8; 3];
-    fn light_permeability(&self) -> LightPermeability;
+    fn is_light_passing(&self) -> bool;
     fn block_type(&self) -> &BlockType;
     fn is_additional_data(&self) -> bool;
 

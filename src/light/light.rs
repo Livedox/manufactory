@@ -5,7 +5,7 @@ use itertools::iproduct;
 use crate::{voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::blocks::BLOCKS}, world::chunk_coords::ChunkCoords};
 
 use super::light_solver::LightSolver;
-const MAX_LIGHT: u16 = 15;
+const MAX_LIGHT: u8 = 15;
 const SIDE_COORDS_OFFSET: [(i32, i32, i32); 6] = [
     (1,0,0), (-1,0,0),
     (0,1,0), (0,-1,0),
@@ -29,7 +29,7 @@ impl LightSolvers {
         solver_sun: LightSolver::new(3),
     }}
 
-
+    #[inline(never)]
     pub fn build_sky_light_chunk(&self, chunks: &Chunks, cx: i32, cy: i32, cz: i32) {
         let Some(chunk) = chunks.chunk(ChunkCoords(cx, cy, cz)) else {return};
         let max_y = (CHUNK_SIZE-1) as u8;
@@ -50,7 +50,7 @@ impl LightSolvers {
 
         for (ly, lz, lx) in iproduct!((0..(CHUNK_SIZE-1) as u8).rev(), 0..CHUNK_SIZE as u8, 0..CHUNK_SIZE as u8) {
             let id = chunk.voxel((lx, ly, lz).into()).id as usize;
-            if chunk.lightmap.get_sun((lx, (ly+1), lz)) == 15 && BLOCKS()[id].light_permeability().sky_passing() {
+            if chunk.lightmap.get_sun((lx, (ly+1), lz)) == 15 && BLOCKS()[id].is_light_passing() {
                 chunk.lightmap.set_sun((lx, ly, lz), 15);
                 let global = ChunkCoords(cx, cy, cz).to_global((lx, ly, lz).into());
                 self.solver_sun.add(chunks, global.0, global.1, global.2);
@@ -60,6 +60,7 @@ impl LightSolvers {
     }
 
 
+    #[inline(never)]
     pub fn on_chunk_loaded(&self, chunks: &Chunks, cx: i32, cy: i32, cz: i32) {
         for (ly, lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
             let xyz = ChunkCoords(cx, cy, cz).to_global((lx as u8, ly as u8, lz as u8).into());
@@ -84,7 +85,7 @@ impl LightSolvers {
             let x = cx*CHUNK_SIZE as i32 + lx;
             let y = cy*CHUNK_SIZE as i32 + ly;
             let z = cz*CHUNK_SIZE as i32 + lz;
-            if chunks.get_light((x, y, z).into()).0 > 0 {
+            if chunks.get_light((x, y, z).into()).to_number() > 0 {
                 self.add_rgbs(chunks, x, y, z);
             }
             self.solve_rgbs(chunks);

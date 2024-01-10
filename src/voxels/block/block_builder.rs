@@ -12,7 +12,7 @@ pub struct BlockBuilder {
     pub trait_type: BlockTraitType,
     pub id: u32,
     pub emission: Option<[u8; 3]>,
-    pub light_permeability: Option<LightPermeability>,
+    pub is_light_passing: Option<bool>,
     pub block_type: Option<BlockType>,
     pub item_id: Option<u32>,
     pub is_additional_data: Option<bool>,
@@ -25,15 +25,15 @@ impl BlockBuilder {
             trait_type: BlockTraitType::Default,
             id,
             emission: None,
-            light_permeability: None,
+            is_light_passing: None,
             block_type: None,
             item_id: None,
             is_additional_data: None,
         }
     }
     pub fn emission(mut self, emission: [u8; 3]) -> Self {self.emission = Some(emission); self}
-    pub fn light_permeability(mut self, light_permeability: LightPermeability) -> Self {
-        self.light_permeability = Some(light_permeability);
+    pub fn is_light_passing(mut self, is_light_passing: bool) -> Self {
+        self.is_light_passing = Some(is_light_passing);
         self
     }
 
@@ -66,11 +66,6 @@ impl BlockBuilder {
         self
     }
 
-    pub fn set_lp_none(mut self) -> Self {
-        self.light_permeability = Some(LightPermeability::NONE);
-        self
-    }
-
     pub fn set_additional_data_true(mut self) -> Self {
         self.is_additional_data = Some(true);
         self
@@ -79,14 +74,14 @@ impl BlockBuilder {
     pub fn build(self) -> Box<dyn BlockInteraction + Sync + Send> {
         let id = self.id;
         let emission = self.emission.unwrap_or([0, 0, 0]);
-        let light_permeability = self.light_permeability.unwrap_or(LightPermeability::default());
+        let is_light_passing = self.is_light_passing.unwrap_or(false);
         let block_type = self.block_type.unwrap_or(BlockType::None);
         let item_id = self.item_id.unwrap_or(0);
         let is_additional_data = self.is_additional_data.unwrap_or(false);
 
         match self.trait_type {
-            BlockTraitType::Default => Box::new(BlockDefault {id, emission, light_permeability, block_type, is_additional_data}),
-            BlockTraitType::Player => Box::new(BlockPlayer {id, item_id, emission, light_permeability, block_type, is_additional_data}),
+            BlockTraitType::Default => Box::new(BlockDefault {id, emission, is_light_passing, block_type, is_additional_data}),
+            BlockTraitType::Player => Box::new(BlockPlayer {id, item_id, emission, is_light_passing, block_type, is_additional_data}),
         }
     }
 }

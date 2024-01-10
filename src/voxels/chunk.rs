@@ -92,7 +92,12 @@ impl Chunk {
 
     pub unsafe fn get_unchecked_voxel(&self, local_coords: LocalCoords) -> Voxel {
         self.voxels.get_unchecked(local_coords.index()).to_voxel()
-    } 
+    }
+
+    #[inline]
+    pub fn voxel_id(&self, local_coords: LocalCoords) -> u32 {
+        self.voxels[local_coords.index()].id()
+    }
 
     pub fn voxel(&self, local_coords: LocalCoords) -> Voxel {
         self.voxels[local_coords.index()].to_voxel()
@@ -154,8 +159,13 @@ impl Chunk {
     }
 
     #[inline]
-    pub fn get_light_channel(&self, local_coords: LocalCoords, channel: u8) -> u16 {
+    pub fn get_light_channel(&self, local_coords: LocalCoords, channel: usize) -> u8 {
         self.lightmap.get(local_coords.into(), channel)
+    }
+
+    #[inline]
+    pub unsafe fn get_unchecked_light_channel(&self, local_coords: LocalCoords, channel: usize) -> u8 {
+        unsafe {self.lightmap.get_unchecked_channel(local_coords.into(), channel)}
     }
 }
 
