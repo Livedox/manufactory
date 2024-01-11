@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{meshes::Mesh, engine::{bind_group, texture::Texture}};
 
 use super::State;
@@ -9,7 +11,7 @@ impl State {
         encoder: &mut wgpu::CommandEncoder,
         output_texture: &wgpu::Texture,
         view: &wgpu::TextureView,
-        meshes: &[&Mesh],
+        meshes: &[Arc<Mesh>],
     ) {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass Start"),
@@ -69,7 +71,7 @@ impl State {
 
     /// set bind group = 1 (block_texutre_bg)
     #[inline]
-    fn draw_block<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &[&'a Mesh]) {
+    fn draw_block<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &'a [Arc<Mesh>]) {
         render_pass.set_pipeline(&self.pipelines.block);
         render_pass.set_bind_group(1, &self.block_texutre_bg, &[]);
         meshes.iter().filter(|m| m.block_index_count > 0).for_each(|mesh| {
@@ -81,7 +83,7 @@ impl State {
 
     /// set bind group = 3 (time)
     #[inline]
-    fn draw_transport_belt<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &[&'a Mesh]) {
+    fn draw_transport_belt<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &'a [Arc<Mesh>]) {
         render_pass.set_pipeline(&self.pipelines.transport_belt);
         render_pass.set_bind_group(3, &self.bind_groups_buffers.time.bind_group, &[]);
         meshes.iter().filter(|m| m.transport_belt_index_count > 0).for_each(|mesh| {
@@ -94,7 +96,7 @@ impl State {
     /// set bind group = 3 (transformation_matrices)
     /// set bind group = 1 (animated_model.texture)
     #[inline]
-    fn draw_animated_model<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &[&'a Mesh]) {
+    fn draw_animated_model<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &'a [Arc<Mesh>]) {
         render_pass.set_pipeline(&self.pipelines.animated_model);
         meshes.iter().for_each(|mesh| {
             let Some(bind_group) = &mesh.transformation_matrices_bind_group else {return};
@@ -115,7 +117,7 @@ impl State {
 
     /// set bind group = 1 (model.texture)
     #[inline]
-    fn draw_model<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &[&'a Mesh]) {
+    fn draw_model<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &'a [Arc<Mesh>]) {
         render_pass.set_pipeline(&self.pipelines.model);
         meshes.iter().for_each(|mesh| {
             mesh.models.iter().for_each(|(name, (instance, len))| {

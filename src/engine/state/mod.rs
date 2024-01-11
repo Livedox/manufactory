@@ -315,7 +315,7 @@ impl State {
         self.queue.write_buffer(&self.bind_groups_buffers.camera.buffer, 0, bytemuck::cast_slice(proj_view));
     }
 
-    pub fn render(&mut self, meshes: &[&Mesh], ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, meshes: &[Arc<Mesh>], ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let output_texture = &output.texture;
         let view = output_texture.create_view(&wgpu::TextureViewDescriptor::default());

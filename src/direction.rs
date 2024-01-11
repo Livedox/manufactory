@@ -1,3 +1,4 @@
+#[derive(Debug, Clone, Copy)]
 pub struct Direction(f32, f32, f32);
 
 impl Direction {

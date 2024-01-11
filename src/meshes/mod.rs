@@ -35,7 +35,7 @@ pub struct MeshesRenderInput<'a> {
 
 #[derive(Debug)]
 pub struct Meshes {
-    meshes: Vec<Option<Mesh>>,
+    meshes: Vec<Option<Arc<Mesh>>>,
     // Indicates how many translate need to be performed.
     // Use atomicity if I add this to another thread
     pub need_translate: Arc<Mutex<usize>>, 
@@ -139,7 +139,7 @@ impl Meshes {
 
 
         if index+1 > self.meshes.len() { self.meshes.resize_with(index+1, || {None}) };
-        self.meshes[index] = Some(Mesh {
+        self.meshes[index] = Some(Arc::new(Mesh {
             block_vertex_buffer: vertex_buffer,
             block_index_buffer: index_buffer,
             block_vertex_count: render_result.block_vertices.len() as u32,
@@ -155,14 +155,14 @@ impl Meshes {
             transport_belt_index_buffer,
             transport_belt_vertex_count: render_result.belt_vertices.len() as u32,
             transport_belt_index_count: render_result.belt_indices.len() as u32,
-        });
+        }));
     }
 
 
     pub fn translate(&mut self, indices: &[(usize, usize)]) {
         let max = *indices.iter().map(|(a, b)| a.max(b)).max().unwrap_or(&0);
         if self.meshes.len() <= max {self.meshes.resize_with(max+1, || None)}
-        let mut new_meshes = Vec::<Option<Mesh>>::with_capacity(self.meshes.len());
+        let mut new_meshes = Vec::<Option<Arc<Mesh>>>::with_capacity(self.meshes.len());
         new_meshes.resize_with(self.meshes.len(), || None);
 
         for (old, new) in indices.iter() {
@@ -199,7 +199,7 @@ impl Meshes {
                 });
             });
     
-            if let Some(Some(mesh)) = &mut self.mut_meshes().get(*index) {
+            if let Some(Some(mesh)) = &mut self.meshes().get(*index) {
                 let Some(buffer) = &mesh.transformation_matrices_buffer else {return};
                 if buffer.size() >= transforms_buffer.len() as u64 {
                     state.queue().write_buffer(buffer, 0, transforms_buffer.as_slice());
@@ -208,12 +208,8 @@ impl Meshes {
         });
     }
 
-    pub fn meshes(&self) -> &Vec<Option<Mesh>> {
+    pub fn meshes(&self) -> &[Option<Arc<Mesh>>] {
         &self.meshes
-    }
-
-    pub fn mut_meshes(&mut self) -> &mut Vec<Option<Mesh>> {
-        &mut self.meshes
     }
 
     pub fn is_need_translate(&self) -> bool {

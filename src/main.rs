@@ -26,6 +26,7 @@ use itertools::iproduct;
 
 use crate::{input_event::input_service::{Key, Mouse}, voxels::ray_cast, my_time::Timer};
 use nalgebra_glm as glm;
+use crate::light::light_solver::MAX;
 
 mod input_event;
 mod my_time;
@@ -174,6 +175,10 @@ pub async fn main() {
                 if input.is_key(&Key::F1, KeypressState::AnyJustPress) {
                     gui_controller.toggle_ui();
                     state.set_crosshair(gui_controller.is_ui());
+                }
+
+                if input.is_key(&Key::F2, KeypressState::AnyJustPress) {
+                    println!("{:?}", MAX);
                 }
 
                 

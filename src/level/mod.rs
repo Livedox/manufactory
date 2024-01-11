@@ -90,7 +90,7 @@ impl Level {
       gui_controller: &mut GuiController,
       debug_block_id: &mut Option<u32>,
       render_radius: u32,
-    ) -> Vec<&Mesh> {
+    ) -> Vec<Arc<Mesh>> {
         let mut player = unsafe {self.player.lock_unsafe()}.unwrap();
         let is_cursor = gui_controller.is_cursor();
         player.handle_input(input, time.delta(), is_cursor);
@@ -134,9 +134,9 @@ impl Level {
                     ));
             }
 
-            if input.is_mouse(&Mouse::Left, KeypressState::AnyJustPress) && !is_cursor {
+            if input.is_mouse(&Mouse::Left, KeypressState::AnyPress) && !is_cursor {
                 BLOCKS()[voxel_id as usize].on_block_break(&self.world, &mut player, &global);
-            } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !is_cursor {
+            } else if input.is_mouse(&Mouse::Right, KeypressState::AnyPress) && !is_cursor {
                 let gxyz = global + norm.tuple().into();
                 let storage = self.world.chunks.voxel_data(global).and_then(|vd| vd.player_unlockable());
                 if let Some(storage) = storage {
@@ -145,12 +145,12 @@ impl Level {
                     state.set_ui_interaction(player.is_inventory);
                 } else {
                     let front = player.camera().front();
-                    let direction = &Direction::new(front.x, front.y, front.z);
+                    let direction = Direction::new(front.x, front.y, front.z);
                     if let Some(block_id) = debug_block_id {
                         BLOCKS()[*block_id as usize].on_block_set(
-                            &self.world, &mut player, &gxyz, direction);
+                            &self.world, &mut player, &gxyz, &direction);
                     } else {
-                        player.on_right_click(&self.world, &gxyz, direction);
+                        player.on_right_click(&self.world, &gxyz, &direction);
                     }
                 }                     
             }
@@ -180,8 +180,8 @@ impl Level {
             }
         }
 
-        indices.iter().filter_map(|i| self.meshes.meshes().get(*i).and_then(|c| c.as_ref()))
-            .collect::<Vec<&Mesh>>()
+        indices.iter().filter_map(|i| self.meshes.meshes().get(*i).and_then(|c| c.as_ref().map(|m| m.clone())))
+            .collect::<Vec<Arc<Mesh>>>()
     }
 }
 

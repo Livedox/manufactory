@@ -1,7 +1,7 @@
 use std::{marker::PhantomPinned, pin::Pin, sync::{Arc, RwLock}, time::Instant};
 use itertools::iproduct;
 
-use crate::{light::light::LightSolvers, voxels::{chunks::{Chunks, WORLD_HEIGHT}, voxel::Voxel, chunk::Chunk}, direction::Direction, save_load::{WorldRegions, EncodedChunk}, bytes::BytesCoder};
+use crate::{light::light::LightSolvers, voxels::{chunks::{Chunks, WORLD_HEIGHT}, voxel::Voxel, chunk::{Chunk, CHUNK_VOLUME}}, direction::Direction, save_load::{WorldRegions, EncodedChunk}, bytes::BytesCoder};
 
 use self::global_coords::GlobalCoords;
 
@@ -17,13 +17,15 @@ pub mod loader;
 pub struct World {
     pub chunks: Arc<Chunks>,
     pub light: LightSolvers,
+    pub player_light_solver: LightSolvers
 }
 
 impl World {
     pub fn new(width: i32, height: i32, depth: i32, ox: i32, oy: i32, oz: i32) -> Self {
         Self {
             chunks: Arc::new(Chunks::new(width, height, depth, ox, oy, oz)),
-            light: LightSolvers::new(),
+            light: LightSolvers::default(),
+            player_light_solver: LightSolvers::new(CHUNK_VOLUME, CHUNK_VOLUME),
         }
     }
 
@@ -38,33 +40,32 @@ impl World {
                 EncodedChunk::None => Chunk::new(cx, cy, cz),
                 EncodedChunk::Some(b) => Chunk::decode_bytes(b),
             };
+            
             let index = chunk.xyz.chunk_index(&self.chunks);
             let chunks = unsafe {&mut *self.chunks.chunks.get()};
             chunks[index] = Some(Arc::new(chunk));
             self.build_chunk(cx, cy, cz);
         }
         self.solve_rgbs();
-        println!("Load column: {:?}", start.elapsed().as_secs_f32());
+        println!("Load of column: {:?}", start.elapsed().as_secs_f32());
     }
 
     pub fn build_chunk(&self, cx: i32, cy: i32, cz: i32) {
-        let start = Instant::now();
         self.light.build_sky_light_chunk(&self.chunks, cx, cy, cz);
         self.light.on_chunk_loaded(&self.chunks, cx, cy, cz);
-        println!("Load chunks: {:?}", start.elapsed().as_secs_f32());
     }
 
 
     pub fn break_voxel(&self, xyz: &GlobalCoords) {
         Chunks::set(&self.chunks, *xyz, 0, None);
         // self.chunks.set(*xyz, 0, None);
-        self.light.on_block_break(&self.chunks, xyz.0, xyz.1, xyz.2);
+        self.player_light_solver.on_block_break(&self.chunks, xyz.0, xyz.1, xyz.2);
     }
 
     pub fn set_voxel(&self, xyz: &GlobalCoords, id: u32, dir: &Direction) {
         Chunks::set(&self.chunks, *xyz, id, Some(dir));
         // self.chunks.set(*xyz, id, Some(dir));
-        self.light.on_block_set(&self.chunks, xyz.0, xyz.1, xyz.2, id);
+        self.player_light_solver.on_block_set(&self.chunks, xyz.0, xyz.1, xyz.2, id);
     }
 
     pub fn voxel(&self, xyz: &GlobalCoords) -> Option<Voxel> {

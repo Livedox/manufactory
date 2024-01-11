@@ -12,6 +12,9 @@ const SIDE_COORDS_OFFSET: [(i32, i32, i32); 6] = [
     (0,0,1), (0,0,-1),
 ];
 
+const ADD_QUEUE_CAP: usize = 262_144;
+const REMOVE_QUEUE_CAP: usize = 131_072;
+
 #[derive(Debug)]
 pub struct LightSolvers {
     solver_red: LightSolver,
@@ -22,11 +25,11 @@ pub struct LightSolvers {
 
 
 impl LightSolvers {
-    pub fn new() -> Self {Self {
-        solver_red: LightSolver::new(0),
-        solver_green: LightSolver::new(1),
-        solver_blue: LightSolver::new(2),
-        solver_sun: LightSolver::new(3),
+    pub fn new(add_queue_cap: usize, remove_queue_cap: usize) -> Self {Self {
+        solver_red: LightSolver::new(0, add_queue_cap, remove_queue_cap),
+        solver_green: LightSolver::new(1, add_queue_cap, remove_queue_cap),
+        solver_blue: LightSolver::new(2, add_queue_cap, remove_queue_cap),
+        solver_sun: LightSolver::new(3, add_queue_cap, remove_queue_cap),
     }}
 
     #[inline(never)]
@@ -94,22 +97,17 @@ impl LightSolvers {
 
 
     pub fn on_block_break(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
-        println!("4");
         self.remove_rgb(chunks, x, y, z);
-        println!("5");
         self.solve_rgb(chunks);
-        println!("6");
         if chunks.get_sun((x, y+1, z).into()) == MAX_LIGHT || (y+1) as usize == WORLD_HEIGHT*CHUNK_SIZE {
             for i in (0..=y).rev() {
                 if chunks.voxel_global((x, i, z).into()).map_or(true, |v| v.id != 0) {break};
                 self.solver_sun.add_with_emission(chunks, x, i, z, MAX_LIGHT as u8);
             }
         }
-        println!("7");
         for (ax, ay, az) in SIDE_COORDS_OFFSET {
             self.add_rgbs(chunks, x+ax, y+ay, z+az);
         }
-        println!("8");
         self.solve_rgbs(chunks);
     }
 
@@ -169,5 +167,16 @@ impl LightSolvers {
     pub fn remove_rgbs(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
         self.remove_rgb(chunks, x, y, z);
         self.solver_sun.remove(chunks, x, y, z);
+    }
+}
+
+impl Default for LightSolvers {
+    fn default() -> Self {
+        Self {
+            solver_red: LightSolver::new(0, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP),
+            solver_green: LightSolver::new(1, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP),
+            solver_blue: LightSolver::new(2, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP),
+            solver_sun: LightSolver::new(3, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP),
+        }
     }
 }
