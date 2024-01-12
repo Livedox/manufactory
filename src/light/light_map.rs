@@ -1,6 +1,6 @@
 use std::{sync::atomic::{AtomicU16, Ordering, AtomicU8}, cell::UnsafeCell};
 
-use crate::voxels::chunk::{CHUNK_VOLUME, CHUNK_SIZE};
+use crate::{voxels::chunk::{CHUNK_VOLUME, CHUNK_SIZE}, world::local_coords::LocalCoords};
 
 #[derive(Debug)]
 pub struct Light(pub [AtomicU8; 4]);
@@ -95,120 +95,21 @@ impl LightMap {
     }
 
     #[inline]
-    pub fn get(&self, local: (u8, u8, u8), channel: usize) -> u8 { 
-        self.map[LightMap::index(local)].get_channel(channel)
+    pub fn get(&self, local: (u8, u8, u8)) -> &Light { 
+        &self.map[LightMap::index(local)]
+    }
+
+    #[inline]
+    pub fn get_unchecked(&self, local: LocalCoords) -> &Light { 
+        unsafe {self.map.get_unchecked(local.index())}
     }
 
     #[inline]
     pub unsafe fn get_unchecked_channel(&self, local: (u8, u8, u8), channel: usize) -> u8 { 
         unsafe {self.map[LightMap::index(local)].get_unchecked_channel(channel)}
     }
-
-    #[inline]
-    pub fn get_red(&self, local: (u8, u8, u8)) -> u8 {
-        self.map[LightMap::index(local)].get_red()
-    }
-
-    #[inline]
-    pub fn get_green(&self, local: (u8, u8, u8)) -> u8 {
-        self.map[LightMap::index(local)].get_green()
-    }
-
-    #[inline]
-    pub fn get_blue(&self, local: (u8, u8, u8)) -> u8 {
-        self.map[LightMap::index(local)].get_blue()
-    }
-
-    #[inline]
-    pub fn get_sun(&self, local: (u8, u8, u8)) -> u8 {
-        self.map[LightMap::index(local)].get_sun()
-    }
-
-    #[inline]
-    pub fn set_red(&self, local: (u8, u8, u8), value: u8) {
-        self.map[LightMap::index(local)].set_red(value);
-    }
-
-    #[inline]
-    pub fn set_green(&self, local: (u8, u8, u8), value: u8) {
-        self.map[LightMap::index(local)].set_green(value);
-    }
-
-    #[inline]
-    pub fn set_blue(&self, local: (u8, u8, u8), value: u8) {
-        self.map[LightMap::index(local)].set_blue(value);
-    }
-
-    #[inline]
-    pub fn set_sun(&self, local: (u8, u8, u8), value: u8) {
-        self.map[LightMap::index(local)].set_sun(value);
-    }
-
-    #[inline]
-    pub fn set(&self, local: (u8, u8, u8), value: u8, channel: usize) {
-        self.map[LightMap::index(local)].set(value, channel);
-    }
 }
 
 impl Default for LightMap {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Debug)]
-pub struct LightAtomic(pub AtomicU16);
-
-impl LightAtomic {
-    const MAX_VALUE: u8 = 15;
-
-    // #[inline]
-    // pub fn to_light(&self) -> Light {
-    //     Light(self.0.load(Ordering::Relaxed))
-    // }
-    
-    #[inline]
-    pub fn new(light: u16) -> Self {Self(AtomicU16::new(light))}
-    #[inline] pub fn get(&self, channel: u8) -> u16 {(self.0.load(Ordering::Relaxed) >> (channel << 2)) & 0xF}
-    #[inline] pub fn get_red(&self) -> u16 {self.0.load(Ordering::Relaxed) & 0xF}
-    #[inline] pub fn get_green(&self) -> u16 {(self.0.load(Ordering::Relaxed) >> 4) & 0xF}
-    #[inline] pub fn get_blue(&self) -> u16 {(self.0.load(Ordering::Relaxed) >> 8) & 0xF}
-    #[inline] pub fn get_sun(&self) -> u16 {(self.0.load(Ordering::Relaxed) >> 12) & 0xF}
-
-    #[inline]
-    pub fn set(&self, value: u16, channel: u8) {
-        let _ = self.0.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |l| {
-            Some((l & (!(0xF << (channel*4)))) | (value << (channel << 2)))
-        });
-    }
-
-    #[inline]
-    pub fn set_red(&self, value: u16) {
-        let _ = self.0.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |l| Some(l & 0xFFF0 | value));
-    }
-    #[inline]
-    pub fn set_green(&self, value: u16) {
-        let _ = self.0.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |l| Some(l & 0xFFF0 | (value << 4)));
-    }
-    #[inline]
-    pub fn set_blue(&self, value: u16) {
-        let _ = self.0.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |l| Some(l & 0xFFF0 | (value << 8)));
-    }
-    #[inline]
-    pub fn set_sun(&self, value: u16) {
-        let _ = self.0.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |l| Some(l & 0xFFF0 | (value << 12)));
-    }
-
-    pub fn get_normalized(&self) -> [f32; 4] {
-        [self.get_red() as f32 / Self::MAX_VALUE as f32,
-         self.get_green() as f32 / Self::MAX_VALUE as f32,
-         self.get_blue() as f32 / Self::MAX_VALUE as f32,
-         self.get_sun() as f32 / Self::MAX_VALUE as f32]
-    }
-}
-
-impl Default for LightAtomic {
-    fn default() -> Self {
-        Self(AtomicU16::new(0))
-    }
+    fn default() -> Self {Self::new()}
 }

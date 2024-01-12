@@ -195,6 +195,12 @@ impl Chunks {
         r.map(|c| c.as_ref() as *const Chunk)
     }
 
+    #[inline]
+    pub unsafe fn get_unchecked_chunk(&self, index: usize) -> Option<*const Chunk> {
+        unsafe {(&*self.chunks.get()).get_unchecked(index)}
+            .as_ref().map(|c| c.as_ref() as *const Chunk)
+    }
+
     pub fn voxels_data<T: Into<ChunkCoords>>(&self, coords: T) -> Option<Arc<RwLock<HashMap<usize, Arc<VoxelData>>>>> {
         self.chunk(coords).map(|c| c.voxels_data())
     }
@@ -291,13 +297,13 @@ impl Chunks {
     pub fn get_sun(&self, coords: GlobalCoords) -> u8 {
         let local: LocalCoords = coords.into();
         self.chunk(coords)
-            .map_or(0, |c| c.lightmap.get_sun(local.into()))
+            .map_or(0, |c| c.lightmap.get(local.into()).get_sun())
     }
 
     #[inline(never)]
     pub fn light(&self, coords: GlobalCoords, channel: usize) -> u8 {
         let Some(chunk) = self.chunk_ptr(coords) else {return 0};
-        unsafe {&*chunk}.lightmap.get(LocalCoords::from(coords).into(), channel)
+        unsafe {&*chunk}.lightmap.get(LocalCoords::from(coords).into()).get_channel(channel)
     }
 
     pub fn get_light(&self, coords: GlobalCoords) -> Light {

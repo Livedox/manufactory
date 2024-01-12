@@ -39,22 +39,22 @@ impl LightSolvers {
 
         if cy == (WORLD_HEIGHT-1) as i32 {
             for (lz, lx) in iproduct!(0..CHUNK_SIZE as u8, 0..CHUNK_SIZE as u8) {
-                chunk.lightmap.set_sun((lx, max_y, lz), 15);
+                chunk.lightmap.get((lx, max_y, lz)).set_sun(15);
             }
         }
 
         if let Some(top_chunk) = chunks.chunk(ChunkCoords(cx, cy+1, cz)) {
             for (lz, lx) in iproduct!(0..CHUNK_SIZE as u8, 0..CHUNK_SIZE as u8) {
-                if top_chunk.lightmap.get_sun((lx, 0, lz)) == 15 {
-                    chunk.lightmap.set_sun((lx, max_y, lz), 15);
+                if top_chunk.lightmap.get((lx, 0, lz)).get_sun() == 15 {
+                    chunk.lightmap.get((lx, max_y, lz)).set_sun(15);
                 }
             }
         }
 
         for (ly, lz, lx) in iproduct!((0..(CHUNK_SIZE-1) as u8).rev(), 0..CHUNK_SIZE as u8, 0..CHUNK_SIZE as u8) {
             let id = chunk.voxel((lx, ly, lz).into()).id as usize;
-            if chunk.lightmap.get_sun((lx, (ly+1), lz)) == 15 && BLOCKS()[id].is_light_passing() {
-                chunk.lightmap.set_sun((lx, ly, lz), 15);
+            if chunk.lightmap.get((lx, (ly+1), lz)).get_sun() == 15 && BLOCKS()[id].is_light_passing() {
+                chunk.lightmap.get((lx, ly, lz)).set_sun(15);
                 let global = ChunkCoords(cx, cy, cz).to_global((lx, ly, lz).into());
                 self.solver_sun.add(chunks, global.0, global.1, global.2);
             }

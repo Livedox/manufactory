@@ -160,7 +160,7 @@ impl Chunk {
 
     #[inline]
     pub fn get_light_channel(&self, local_coords: LocalCoords, channel: usize) -> u8 {
-        self.lightmap.get(local_coords.into(), channel)
+        self.lightmap.get(local_coords.into()).get_channel(channel)
     }
 
     #[inline]
