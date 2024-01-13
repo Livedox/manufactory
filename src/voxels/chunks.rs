@@ -308,9 +308,7 @@ impl Chunks {
 
     pub fn get_light(&self, coords: GlobalCoords) -> Light {
         let Some(chunk) = self.chunk_ptr(coords) else {return Light::default()};
-        
-        let local: LocalCoords = coords.into();
-        unsafe {&*chunk}.lightmap.get_light(local.into())
+        unsafe {&*chunk}.lightmap.get(coords.into()).clone()
     }
 }
 

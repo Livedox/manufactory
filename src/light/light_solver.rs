@@ -231,7 +231,6 @@ impl LightSolver {
     }
 
 
-    #[inline(never)]
     pub fn add_with_emission(&self, chunks: &Chunks, x: i32, y: i32, z: i32, emission: u8) {
         if emission <= 1 {return};
         
@@ -246,7 +245,6 @@ impl LightSolver {
         self.add_queue.push(entry);
     }
 
-    #[inline(never)]
     pub fn add(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
         let emission = chunks.light((x,y,z).into(), self.channel) as u8;
         self.add_with_emission(chunks, x, y, z, emission);
@@ -259,8 +257,8 @@ impl LightSolver {
 
         let index = LocalCoords::from(global).index();
 
-        let light = unsafe {chunk.lightmap.map.get_unchecked(index).get_unchecked_channel(self.channel)};
-        unsafe {chunk.lightmap.map.get_unchecked(index).set_unchecked_channel(0, self.channel)};
+        let light = unsafe {chunk.lightmap.0.get_unchecked(index).get_unchecked_channel(self.channel)};
+        unsafe {chunk.lightmap.0.get_unchecked(index).set_unchecked_channel(0, self.channel)};
 
         self.remove_queue.push(LightEntry::new(global, light));
     }
@@ -271,26 +269,22 @@ impl LightSolver {
         self.solve_add_queue(chunks);
     }
 
-
-    #[inline(never)]
     fn solve_remove_queue(&self, chunks: &Chunks) {
         let mut chunk_buffer = ChunkBuffer::new();
         while let Some(mut entry) = self.remove_queue.pop() {
             let entry_prev_light = entry.light;
             for offsets in NEIGHBOURS.iter() {
-                entry.coords.0 += offsets.0;
-                entry.coords.1 += offsets.1;
-                entry.coords.2 += offsets.2;
+                entry.coords += offsets;
 
                 let Some(chunk) = (unsafe {chunk_buffer.get_or_init(chunks, entry.coords)}) else {continue};
                 let index = LocalCoords::from(entry.coords).index();
 
-                entry.light = unsafe {chunk.lightmap.map.get_unchecked(index)
+                entry.light = unsafe {chunk.lightmap.0.get_unchecked(index)
                     .get_unchecked_channel(self.channel)};
 
                 if entry.light != 0 && entry_prev_light != 0 && entry.light == entry_prev_light - 1 {
                     self.remove_queue.push(entry);
-                    unsafe {chunk.lightmap.map.get_unchecked(index)
+                    unsafe {chunk.lightmap.0.get_unchecked(index)
                         .set_unchecked_channel(0, self.channel)};
                     chunk.modify(true);
                 } else if entry.light >= entry_prev_light {
@@ -300,7 +294,6 @@ impl LightSolver {
         }
     }
 
-    #[inline(never)]
     fn solve_add_queue(&self, chunks: &Chunks) {
         let mut chunk_buffer = ChunkBuffer::new();
         while let Some(mut entry) = self.add_queue.pop() {
@@ -308,20 +301,18 @@ impl LightSolver {
             let prev_light = entry.light;
             entry.light -= 1;
             for offsets in NEIGHBOURS.iter() {
-                entry.coords.0 += offsets.0;
-                entry.coords.1 += offsets.1;
-                entry.coords.2 += offsets.2;
+                entry.coords += offsets;
 
                 let Some(chunk) = (unsafe {chunk_buffer.get_or_init(chunks, entry.coords)}) else {continue};
                 let index = LocalCoords::from(entry.coords).index();
 
-                let light = unsafe {chunk.lightmap.map.get_unchecked(index)
+                let light = unsafe {chunk.lightmap.0.get_unchecked(index)
                     .get_unchecked_channel(self.channel)};
                 let id = unsafe {chunk.voxels.get_unchecked(index).id()};
 
                 if BLOCKS()[id as usize].is_light_passing() && (light+2) <= prev_light {
                     self.add_queue.push(entry);
-                    unsafe {chunk.lightmap.map.get_unchecked(index)
+                    unsafe {chunk.lightmap.0.get_unchecked(index)
                         .set_unchecked_channel(entry.light, self.channel)};
                     chunk.modify(true);
                 }

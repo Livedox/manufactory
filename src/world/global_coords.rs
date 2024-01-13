@@ -55,6 +55,15 @@ impl AddAssign for GlobalCoords {
     }
 }
 
+impl AddAssign<&GlobalCoords> for GlobalCoords {
+    #[inline(always)]
+    fn add_assign(&mut self, rhs: &GlobalCoords) {
+        self.0 += rhs.0;
+        self.1 += rhs.1;
+        self.2 += rhs.2;
+    }
+}
+
 impl Sub for GlobalCoords {
     type Output = Self;
     #[inline(always)]

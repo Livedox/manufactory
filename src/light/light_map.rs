@@ -73,43 +73,24 @@ impl Light {
 
 
 #[derive(Debug)]
-pub struct LightMap {
-    pub map: [Light; CHUNK_VOLUME],
-}
+pub struct LightMap(pub [Light; CHUNK_VOLUME]);
 
 impl LightMap {
     #[inline]
-    pub fn new() -> LightMap {
-        LightMap { map: unsafe {std::mem::zeroed()}}
+    pub fn new() -> Self {Self::default()}
+
+    #[inline]
+    pub fn get(&self, local: LocalCoords) -> &Light { 
+        &self.0[local.index()]
     }
 
     #[inline]
-    fn index(local: (u8, u8, u8)) -> usize {
-        let (x, y, z) = (local.0 as u16, local.1 as u16, local.2 as u16);
-        ((y * CHUNK_SIZE as u16 + z) * CHUNK_SIZE as u16 + x) as usize
-    }
-
-    #[inline]
-    pub fn get_light(&self, local: (u8, u8, u8)) -> Light {
-        self.map[LightMap::index(local)].clone()
-    }
-
-    #[inline]
-    pub fn get(&self, local: (u8, u8, u8)) -> &Light { 
-        &self.map[LightMap::index(local)]
-    }
-
-    #[inline]
-    pub fn get_unchecked(&self, local: LocalCoords) -> &Light { 
-        unsafe {self.map.get_unchecked(local.index())}
-    }
-
-    #[inline]
-    pub unsafe fn get_unchecked_channel(&self, local: (u8, u8, u8), channel: usize) -> u8 { 
-        unsafe {self.map[LightMap::index(local)].get_unchecked_channel(channel)}
+    pub unsafe fn get_unchecked(&self, local: LocalCoords) -> &Light { 
+        unsafe {self.0.get_unchecked(local.index())}
     }
 }
 
 impl Default for LightMap {
-    fn default() -> Self {Self::new()}
+    #[inline]
+    fn default() -> Self {Self(unsafe {std::mem::zeroed()})}
 }

@@ -155,7 +155,7 @@ impl Chunk {
 
     #[inline]
     pub fn get_light(&self, local_coords: LocalCoords) -> Light {
-        self.lightmap.get_light(local_coords.into())
+        self.lightmap.get(local_coords).clone()
     }
 
     #[inline]
@@ -165,7 +165,8 @@ impl Chunk {
 
     #[inline]
     pub unsafe fn get_unchecked_light_channel(&self, local_coords: LocalCoords, channel: usize) -> u8 {
-        unsafe {self.lightmap.get_unchecked_channel(local_coords.into(), channel)}
+        unsafe {self.lightmap.get_unchecked(local_coords)
+            .get_unchecked_channel(channel)}
     }
 }
 
