@@ -69,6 +69,8 @@ pub struct RenderResult {
     pub xyz: ChunkCoords,
     pub block_vertices: Vec<BlockVertex>,
     pub block_indices: Vec<u32>,
+    pub glass_vertices: Vec<BlockVertex>,
+    pub glass_indices: Vec<u32>,
     pub belt_vertices: Vec<BlockVertex>,
     pub belt_indices: Vec<u32>,
 
@@ -83,8 +85,10 @@ pub fn render(chunk_index: usize, chunks: &Chunks) -> Option<RenderResult> {
     let mut animated_models = AnimatedModels::new();
     
     let mut block_manager = BlockManagers::new(IS_GREEDY_MESHING);
+    let mut glass_manager = BlockManagers::new(IS_GREEDY_MESHING);
     
     let mut buffer = Buffer::new();
+    let mut glass_buffer = Buffer::new();
     let mut belt_buffer = Buffer::new();
 
     for (ly, lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
@@ -93,7 +97,11 @@ pub fn render(chunk_index: usize, chunks: &Chunks) -> Option<RenderResult> {
         let block = &BLOCKS()[id as usize];
         match block.block_type() {
             BlockType::Block {faces} => {
-                render_block(&mut block_manager, chunks, &chunk, block.as_ref(), faces, (lx, ly, lz));
+                if id == 18 || id == 19 {
+                    render_block(&mut glass_manager, chunks, &chunk, block.as_ref(), faces, (lx, ly, lz));
+                } else {
+                    render_block(&mut block_manager, chunks, &chunk, block.as_ref(), faces, (lx, ly, lz));
+                }
             },
             BlockType::None => {},
             BlockType::Model {name} => {
@@ -109,11 +117,14 @@ pub fn render(chunk_index: usize, chunks: &Chunks) -> Option<RenderResult> {
     }
     let global = chunk.xyz.to_global((0u8, 0, 0).into()).into();
     block_manager.manage_vertices(&mut buffer, global);
+    glass_manager.manage_vertices(&mut glass_buffer, global);
     Some(RenderResult {
         chunk_index,
         xyz: chunk.xyz,
         block_vertices: buffer.buffer,
         block_indices: buffer.index_buffer,
+        glass_vertices: glass_buffer.buffer,
+        glass_indices: glass_buffer.index_buffer,
         models,
         animated_models,
         belt_vertices: belt_buffer.buffer,

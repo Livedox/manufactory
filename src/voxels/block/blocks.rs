@@ -77,6 +77,8 @@ pub fn BLOCKS() -> &'static Vec<Box<(dyn BlockInteraction + Send + Sync)>> {
                 block_type: BlockType::ComplexObject { cp: new_transport_belt() },
                 is_additional_data: true,
             }),
+            BlockBuilder::new(18).faces(&[10]).is_light_passing(true).build(),
+            BlockBuilder::new(19).faces(&[11]).is_light_passing(true).build(),
         ];
 
         blocks

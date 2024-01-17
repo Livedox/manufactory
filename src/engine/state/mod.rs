@@ -75,7 +75,7 @@ async fn request_device(adapter: &Adapter) -> Result<(wgpu::Device, wgpu::Queue)
     adapter.request_device(
         &wgpu::DeviceDescriptor {
             label: None,
-            features: wgpu::Features::empty(),
+            features: wgpu::Features::empty().union(wgpu::Features::DUAL_SOURCE_BLENDING),
             // WebGL doesn't support all of wgpu's features, so if
             // we're building for the web we'll have to disable some.
             limits: if cfg!(target_arch = "wasm32") {
@@ -208,6 +208,8 @@ impl State {
             "./assets/blocks/conveyor.png",
             "./assets/blocks/box.png",
             "./assets/blocks/rock.png",
+            "./assets/blocks/glass_red.png",
+            "./assets/blocks/glass_blue.png",
             "./assets/debug/0.png",
             "./assets/debug/1.png",
             "./assets/debug/2.png",

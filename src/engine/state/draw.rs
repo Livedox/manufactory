@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use wgpu_types::Color;
+
 use crate::{meshes::Mesh, engine::{bind_group, texture::Texture}};
 
 use super::State;
@@ -39,8 +41,19 @@ impl State {
         self.draw_animated_model(&mut render_pass, meshes);
         self.draw_model(&mut render_pass, meshes);
         self.draw_selection(&mut render_pass);
-        self.draw_crosshair(&mut render_pass);
+        drop(render_pass);
 
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render Pass Glass"),
+            color_attachments: &[Some(self.get_rpass_color_attachment(view))],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+        render_pass.set_bind_group(0, &self.bind_groups_buffers.sun.bind_group, &[]);
+        render_pass.set_bind_group(2, &self.bind_groups_buffers.camera.bind_group, &[]);
+        self.draw_glass(&mut render_pass, meshes);
+        self.draw_crosshair(&mut render_pass);
         drop(render_pass);
 
 
@@ -78,6 +91,19 @@ impl State {
             render_pass.set_vertex_buffer(0, mesh.block_vertex_buffer.slice(..));
             render_pass.set_index_buffer(mesh.block_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..mesh.block_index_count, 0, 0..1);
+        });
+    }
+
+    /// set bind group = 1 (block_texutre_bg)
+    #[inline]
+    fn draw_glass<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &'a [Arc<Mesh>]) {
+        render_pass.set_pipeline(&self.pipelines.glass);
+        render_pass.set_bind_group(1, &self.block_texutre_bg, &[]);
+        // render_pass.set_blend_constant(wgpu::Color::TRANSPARENT);
+        meshes.iter().filter(|m| m.glass_index_count > 0).for_each(|mesh| {
+            render_pass.set_vertex_buffer(0, mesh.glass_vertex_buffer.slice(..));
+            render_pass.set_index_buffer(mesh.glass_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..mesh.glass_index_count, 0, 0..1);
         });
     }
 

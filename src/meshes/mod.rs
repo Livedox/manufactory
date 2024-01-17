@@ -17,6 +17,11 @@ pub struct Mesh {
     pub transport_belt_vertex_count: u32,
     pub transport_belt_index_count: u32,
 
+    pub glass_vertex_buffer: wgpu::Buffer,
+    pub glass_index_buffer: wgpu::Buffer,
+    pub glass_vertex_count: u32,
+    pub glass_index_count: u32,
+
     pub models: HashMap<String, (wgpu::Buffer, usize)>,
 
     pub animated_models: HashMap<String, (wgpu::Buffer, usize)>,
@@ -59,24 +64,33 @@ impl Meshes {
             contents: bytemuck::cast_slice(&render_result.block_vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
-
-
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some(&format!("Block index Buffer (Chunk: {})", index)),
             contents: bytemuck::cast_slice(&render_result.block_indices),
             usage: wgpu::BufferUsages::INDEX,
         });
 
+
         let transport_belt_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some(&format!("Transport belt vertex Buffer (Chunk: {})", index)),
             contents: bytemuck::cast_slice(&render_result.belt_vertices),
             usage: wgpu::BufferUsages::VERTEX,
         });
-
-
         let transport_belt_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some(&format!("Transport belt index buffer (Chunk: {})", index)),
             contents: bytemuck::cast_slice(&render_result.belt_indices),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+
+        let glass_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some(&format!("Glass vertex Buffer (Chunk: {})", index)),
+            contents: bytemuck::cast_slice(&render_result.glass_vertices),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let glass_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some(&format!("Glass index buffer (Chunk: {})", index)),
+            contents: bytemuck::cast_slice(&render_result.glass_indices),
             usage: wgpu::BufferUsages::INDEX,
         });
 
@@ -155,6 +169,11 @@ impl Meshes {
             transport_belt_index_buffer,
             transport_belt_vertex_count: render_result.belt_vertices.len() as u32,
             transport_belt_index_count: render_result.belt_indices.len() as u32,
+
+            glass_vertex_buffer,
+            glass_index_buffer,
+            glass_vertex_count: render_result.glass_vertices.len() as u32,
+            glass_index_count: render_result.glass_indices.len() as u32,
         }));
     }
 

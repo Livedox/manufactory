@@ -25,8 +25,6 @@ pub(crate) fn manage_x(
     let pz = global.2 as f32 + lrw.2 + 1.0 + STITCHING;
     let nz = pz - face.size[0] as f32 - STITCHING;
 
-    let light = face.light.get();
-
     insert_vertices_into_buffer(buffer, face.size[0] as f32, face.size[1] as f32, face.layer,
         face.light.get(), indices, [[x, ny, nz], [x, py, nz], [x, py, pz], [x, ny, pz]]);
 }
