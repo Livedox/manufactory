@@ -8,7 +8,7 @@ use crate::graphic::render::block::BlockFace;
 //     Less number => more pixel gaps, fewer artifacts associated with block enlargement
 // https://stackoverflow.com/questions/39958039/where-do-pixel-gaps-come-from-in-opengl
 // https://blackflux.wordpress.com/2014/03/02/meshing-in-voxel-engines-part-3/
-const STITCHING: f32 = if IS_GREEDY_MESHING {0.0005} else {0.0}; //0.0025 0.0014
+const STITCHING: f32 = if IS_GREEDY_MESHING {0.0} else {0.0}; //0.0025 0.0014
 
 #[inline]
 pub(crate) fn manage_x(

@@ -211,7 +211,7 @@ impl GuiController {
                 if ui.add(button).clicked() {
                     if let Some(block_id) = debug_block_id {
                         *block_id += 1;
-                        if *block_id > 19 {
+                        if *block_id > 22 {
                             *debug_block_id = None;
                         }
                     } else {

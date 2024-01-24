@@ -15,6 +15,7 @@ impl BlockInteraction for BlockBelt {
     fn emission(&self) -> &[u8; 3] {&self.emission}
     #[inline]
     fn is_light_passing(&self) -> bool {self.is_light_passing}
+    fn is_glass(&self) -> bool {false}
     fn block_type(&self) -> &BlockType {&self.block_type}
     fn is_additional_data(&self) -> bool {self.is_additional_data}
 

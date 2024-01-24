@@ -41,15 +41,15 @@ impl State {
         self.draw_animated_model(&mut render_pass, meshes);
         self.draw_model(&mut render_pass, meshes);
         self.draw_selection(&mut render_pass);
-        drop(render_pass);
+        // drop(render_pass);
 
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Render Pass Glass"),
-            color_attachments: &[Some(self.get_rpass_color_attachment(view))],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-        });
+        // let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        //     label: Some("Render Pass Glass"),
+        //     color_attachments: &[Some(self.get_rpass_color_attachment(view))],
+        //     depth_stencil_attachment: None,
+        //     timestamp_writes: None,
+        //     occlusion_query_set: None,
+        // });
         render_pass.set_bind_group(0, &self.bind_groups_buffers.sun.bind_group, &[]);
         render_pass.set_bind_group(2, &self.bind_groups_buffers.camera.bind_group, &[]);
         self.draw_glass(&mut render_pass, meshes);
@@ -99,7 +99,9 @@ impl State {
     fn draw_glass<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>, meshes: &'a [Arc<Mesh>]) {
         render_pass.set_pipeline(&self.pipelines.glass);
         render_pass.set_bind_group(1, &self.block_texutre_bg, &[]);
-        // render_pass.set_blend_constant(wgpu::Color::TRANSPARENT);
+        // render_pass.set_blend_constant(wgpu::Color {r: -0.9, g: -0.9, b: -0.9, a: 0.0});
+        // render_pass.set_blend_constant(wgpu::Color {r: 0.0, g: 0.0, b: 0.0, a: 0.0});
+        // render_pass.set_blend_constant(wgpu::Color {r: 0.5, g: 0.5, b: 0.5, a: 0.0});
         meshes.iter().filter(|m| m.glass_index_count > 0).for_each(|mesh| {
             render_pass.set_vertex_buffer(0, mesh.glass_vertex_buffer.slice(..));
             render_pass.set_index_buffer(mesh.glass_index_buffer.slice(..), wgpu::IndexFormat::Uint32);

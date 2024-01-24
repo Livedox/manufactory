@@ -16,6 +16,7 @@ pub struct BlockBuilder {
     pub block_type: Option<BlockType>,
     pub item_id: Option<u32>,
     pub is_additional_data: Option<bool>,
+    pub is_glass: Option<bool>,
 }
 
 
@@ -29,6 +30,7 @@ impl BlockBuilder {
             block_type: None,
             item_id: None,
             is_additional_data: None,
+            is_glass: None
         }
     }
     pub fn emission(mut self, emission: [u8; 3]) -> Self {self.emission = Some(emission); self}
@@ -66,6 +68,11 @@ impl BlockBuilder {
         self
     }
 
+    pub fn set_glass(mut self, is_glass: bool) -> Self {
+        self.is_glass = Some(is_glass);
+        self
+    }
+
     pub fn set_additional_data_true(mut self) -> Self {
         self.is_additional_data = Some(true);
         self
@@ -78,10 +85,11 @@ impl BlockBuilder {
         let block_type = self.block_type.unwrap_or(BlockType::None);
         let item_id = self.item_id.unwrap_or(0);
         let is_additional_data = self.is_additional_data.unwrap_or(false);
+        let is_glass = self.is_glass.unwrap_or(false);
 
         match self.trait_type {
-            BlockTraitType::Default => Box::new(BlockDefault {id, emission, is_light_passing, block_type, is_additional_data}),
-            BlockTraitType::Player => Box::new(BlockPlayer {id, item_id, emission, is_light_passing, block_type, is_additional_data}),
+            BlockTraitType::Default => Box::new(BlockDefault {id, emission, is_light_passing, block_type, is_additional_data, is_glass}),
+            BlockTraitType::Player => Box::new(BlockPlayer {id, item_id, emission, is_light_passing, block_type, is_additional_data, is_glass}),
         }
     }
 }

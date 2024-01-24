@@ -7,6 +7,7 @@ pub struct BlockPlayer {
     pub is_light_passing: bool,
     pub block_type: BlockType,
     pub is_additional_data: bool,
+    pub is_glass: bool,
 }
 
 impl BlockInteraction for BlockPlayer {
@@ -16,6 +17,10 @@ impl BlockInteraction for BlockPlayer {
     fn is_light_passing(&self) -> bool {self.is_light_passing}
     fn block_type(&self) -> &BlockType {&self.block_type}
     fn is_additional_data(&self) -> bool {self.is_additional_data}
+
+    fn is_glass(&self) -> bool {
+        self.is_glass
+    }
 }
 
 impl BlockItem for BlockPlayer {

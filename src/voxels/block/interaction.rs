@@ -8,7 +8,8 @@ pub trait BlockInteraction {
     fn is_light_passing(&self) -> bool;
     fn block_type(&self) -> &BlockType;
     fn is_additional_data(&self) -> bool;
-
+    
+    fn is_glass(&self) -> bool {false}
     fn width(&self) -> usize {1}
     fn height(&self) -> usize {1}
     fn depth(&self) -> usize {1}

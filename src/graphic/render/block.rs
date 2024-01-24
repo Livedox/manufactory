@@ -53,7 +53,7 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
     let (lx, ly, lz) = local;
     let (x, y, z) = chunk.xyz.to_global((lx, ly, lz).into()).into();
     let (nx, px, ny, py, nz, pz) = (x-1, x+1, y-1, y+1, z-1, z+1);
-    if !is_blocked(x-1, y, z, chunks) {
+    if !is_blocked(x-1, y, z, chunks, block) {
         let light = BlockFaceLight::new(chunks, [
             (nx, ny, nz), (nx, y, nz), (nx, py, nz),
             (nx, ny,  z), (nx, y, z),  (nx, py, z),
@@ -62,7 +62,7 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
         block_manager.set(0, lx, ly, lz, BlockFace::new(faces[0], light));
     }
 
-    if !is_blocked(x+1, y, z, chunks) {
+    if !is_blocked(x+1, y, z, chunks, block) {
         let light = BlockFaceLight::new(chunks, [
             (px, ny, nz), (px, y, nz), (px, py, nz),
             (px, ny,  z), (px, y, z),  (px, py, z),
@@ -71,7 +71,7 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
         block_manager.set(1, lx, ly, lz, BlockFace::new(faces[1], light));
     }
 
-    if !is_blocked(x, y-1, z, chunks) {
+    if !is_blocked(x, y-1, z, chunks, block) {
         let light = BlockFaceLight::new(chunks, [
             (nx, ny, nz), (nx, ny, z), (nx, ny, pz),
             (x,  ny, nz), (x,  ny, z), (x,  ny, pz),
@@ -81,7 +81,7 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
     }
 
 
-    if !is_blocked(x, y+1, z, chunks) {
+    if !is_blocked(x, y+1, z, chunks, block) {
         let light = BlockFaceLight::new(chunks, [
             (nx, py, nz), (nx, py, z), (nx, py, pz),
             (x,  py, nz), (x,  py, z), (x,  py, pz),
@@ -90,7 +90,7 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
         block_manager.set(3, ly, lx, lz, BlockFace::new(faces[3], light));
     }
 
-    if !is_blocked(x, y, z-1, chunks) {
+    if !is_blocked(x, y, z-1, chunks, block) {
         let light = BlockFaceLight::new(chunks, [
             (nx, ny, nz), (x, ny, nz), (px, ny, nz),
             (nx,  y, nz), (x,  y, nz), (px,  y, nz),
@@ -99,7 +99,7 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
         block_manager.set(4, lz, lx, ly, BlockFace::new(faces[4], light));
     }
 
-    if !is_blocked(x, y, z+1, chunks) {
+    if !is_blocked(x, y, z+1, chunks, block) {
         let light = BlockFaceLight::new(chunks, [
             (nx, ny, pz), (x, ny, pz), (px, ny, pz),
             (nx,  y, pz), (x,  y, pz), (px,  y, pz),
@@ -110,7 +110,11 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
 }
 
 #[inline]
-fn is_blocked(x: i32, y: i32, z: i32, chunks: &Chunks) -> bool {
+fn is_blocked(x: i32, y: i32, z: i32, chunks: &Chunks, block: &dyn BlockInteraction) -> bool {
     let Some(voxel) = chunks.voxel_global((x, y, z).into()) else {return false};
-    !BLOCKS()[voxel.id as usize].is_light_passing()
+    let nblock = &BLOCKS()[voxel.id as usize];
+    if block.is_glass() && nblock.is_glass() {
+        return block.id() == nblock.id();
+    }
+    !nblock.is_light_passing()
 }

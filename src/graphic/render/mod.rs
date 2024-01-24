@@ -97,7 +97,7 @@ pub fn render(chunk_index: usize, chunks: &Chunks) -> Option<RenderResult> {
         let block = &BLOCKS()[id as usize];
         match block.block_type() {
             BlockType::Block {faces} => {
-                if id == 18 || id == 19 {
+                if block.is_glass() {
                     render_block(&mut glass_manager, chunks, &chunk, block.as_ref(), faces, (lx, ly, lz));
                 } else {
                     render_block(&mut block_manager, chunks, &chunk, block.as_ref(), faces, (lx, ly, lz));

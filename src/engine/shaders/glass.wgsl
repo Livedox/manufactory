@@ -40,23 +40,11 @@ var t_diffuse: texture_2d_array<f32>;
 @group(1)@binding(1)
 var s_diffuse: sampler;
 
-struct FragmentOutput {
-    @location(0) color: vec4<f32>,
-    @location(0) @second_blend_source blend: vec4<f32>,
-}
-
 @fragment
-fn fs_main(in: VertexOutput) -> FragmentOutput {
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let ambient = vec4(0.0075, 0.0075, 0.0075, 0.0);
-    let texture = (ambient + in.light) * textureSample(t_diffuse, s_diffuse, in.uv, in.layer);
-    var blend = vec4f(1.0-texture.a, 1.0-texture.a, 1.0-texture.a, 1.0);
-    var color = vec4f(texture.rgb*texture.a, 1.0);
-    // blendColor.rgb = vec3(1 - textureColor.a);
-    // fragColor.rgb *= blendColor.rgb;
-    // fragColor.rgb += textureColor.rgb*textureColor.a;
-    // blendColor.rgb *= fragColor.a;
-	// fragColor.a = 1;
-    // let color = (ambient + in.light) * texture;
+    let color = (ambient + in.light) * textureSample(t_diffuse, s_diffuse, in.uv, in.layer);
+    let exit = vec4f(color.rgb * color.a, 1.0);
 
-    return FragmentOutput(color, blend);
+    return exit;
 }

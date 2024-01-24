@@ -64,7 +64,7 @@ impl Pipelines {
             device, &[&layouts.crosshair_aspect_scale],
             &[], &shaders.crosshair,
             format, wgpu::PrimitiveTopology::TriangleList,
-            sample_count, false, "crosshair"),
+            sample_count, true, "crosshair"),
         
         post_process: new(
             device, &[&layouts.post_process],
@@ -82,7 +82,7 @@ impl Pipelines {
             device, &[&layouts.sun, &layouts.block_texture, &layouts.camera],
             &[BlockVertex::desc()], &shaders.glass,
             format, wgpu::PrimitiveTopology::TriangleList,
-            sample_count, false, "glass"),
+            sample_count, true, "glass"),
     }}
 }
 
@@ -190,15 +190,11 @@ pub fn new_glass(
                 format,
                 blend: Some(wgpu::BlendState {
                     color: wgpu::BlendComponent {
-                        src_factor: wgpu::BlendFactor::Src,
-                        dst_factor: wgpu::BlendFactor::OneMinusSrc1,
+                        src_factor: wgpu::BlendFactor::OneMinusDst,
+                        dst_factor: wgpu::BlendFactor::One,//OneMinusSrc
                         operation: wgpu::BlendOperation::Add,
                     },
-                    alpha: wgpu::BlendComponent {
-                        src_factor: wgpu::BlendFactor::Src,
-                        dst_factor: wgpu::BlendFactor::OneMinusSrc1Alpha,
-                        operation: wgpu::BlendOperation::Add,
-                    },
+                    alpha: wgpu::BlendComponent::OVER,
                 }),
                 write_mask: wgpu::ColorWrites::ALL,
             })],
@@ -219,7 +215,7 @@ pub fn new_glass(
         },
         depth_stencil: depth.then(|| wgpu::DepthStencilState {
             format: texture::Texture::DEPTH_FORMAT,
-            depth_write_enabled: true,
+            depth_write_enabled: false,
             depth_compare: wgpu::CompareFunction::Less,
             stencil: wgpu::StencilState::default(),
             bias: wgpu::DepthBiasState::default(),
