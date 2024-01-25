@@ -256,7 +256,7 @@ pub struct TextureAtlas {
 
 impl TextureAtlas {
     pub fn new(
-        render_pass: &mut egui_wgpu_backend::RenderPass,
+        render_pass: &mut egui_wgpu::Renderer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         src: &str,
@@ -303,8 +303,7 @@ impl TextureAtlas {
         );
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-        let texture_id = render_pass.egui_texture_from_wgpu_texture(device, &view, wgpu::FilterMode::Nearest);
+        let texture_id = render_pass.register_native_texture(device, &view, wgpu::FilterMode::Nearest);
         Self {
             texture_id,
             uv_size: 1.0 / row_count as f32,

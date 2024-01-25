@@ -6,9 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wgpu-core = "=0.18.0"
-wgpu-types = { version = "0.18.0", features = ["serde", "trace", "replay"]}
-wgpu = "0.18.0"
+wgpu-types = { version = "0.18", features = ["serde", "trace", "replay"]}
+wgpu = "0.18"
 
 
 winit = "0.28"
@@ -19,11 +18,6 @@ bitflags = "2.3.3"
 rand = "0.8.5"
 itertools = "0.11.0"
 atomic-wait = "1.1.0"
-
-circular-buffer = "0.1.6"
-
-crossbeam-deque = "0.8.5"
-crossbeam-queue = "0.3.11"
 
 tokio = { version = "1.34.0", features = ["full"] }
 
@@ -36,9 +30,8 @@ rodio = "0.17.3"
 
 flate2 = "1.0.28"
 
-egui_wgpu_backend = "0.27"
-egui = { version = "0.23", features = ["color-hex"]}
-egui_winit_platform = "0.20"
+egui-wgpu = "0.25"
+egui = { version = "0.25", features = ["color-hex"]}
 
 russimp = { version = "=2.0.5", features = ["prebuilt"] }
 

@@ -26,7 +26,6 @@ use itertools::iproduct;
 
 use crate::{input_event::input_service::{Key, Mouse}, voxels::ray_cast, my_time::Timer};
 use nalgebra_glm as glm;
-use crate::light::light_solver::MAX;
 
 mod input_event;
 mod my_time;
@@ -99,13 +98,12 @@ pub async fn main() {
         .with_inner_size(PhysicalSize::new(1150u32, 700u32))
         .build(&event_loop)
         .unwrap());
-    
+        
     let mut input = input_event::input_service::InputService::new();
     let mut time = my_time::Time::new();
 
-    let mut level: Option<Level> = None;
+    let mut level: Option<Level> = Some(Level::new("2", &setting));
     let mut exit_level = false;
-
     let mut state = state::State::new(
         window.clone(),
         &[[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]],
@@ -176,11 +174,6 @@ pub async fn main() {
                     gui_controller.toggle_ui();
                     state.set_crosshair(gui_controller.is_ui());
                 }
-
-                if input.is_key(&Key::F2, KeypressState::AnyJustPress) {
-                    println!("{:?}", MAX);
-                }
-
                 
                 if input.is_key(&Key::F11, KeypressState::AnyJustPress) {
                     let window = state.window();

@@ -1,8 +1,9 @@
 use std::{iter, collections::HashMap, sync::Arc};
+use egui::{Color32, Rect};
 use itertools::Itertools;
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
-use crate::{meshes::Mesh, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, shaders::Shaders, bind_group_layout::{Layouts, self}, pipeline::Pipelines, egui::Egui}};
+use crate::{meshes::Mesh, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, bind_group_layout::{Layouts, self}, pipeline::Pipelines, shaders::Shaders, texture::Texture}};
 use crate::engine::texture::TextureAtlas;
 use super::{texture::{self}, bind_group_buffer::BindGroupsBuffers, setting::GraphicSetting};
 
@@ -103,7 +104,7 @@ pub struct State {
     multisampled_framebuffer: wgpu::TextureView,
     sample_count: u32,
 
-    pub egui: Egui,
+    pub egui: egui_wgpu::Renderer,
 
     models: HashMap<String, Model>,
     pub animated_models: HashMap<String, AnimatedModel>,
@@ -187,10 +188,11 @@ impl State {
         };
         println!("Sample count X{}", sample_count);
 
-        let mut egui = Egui::new(&device, surface_format, size.width, size.height, window.scale_factor());
-        
+        // let mut egui = Egui::new(&device, surface_format, size.width, size.height, window.scale_factor());
+        let mut egui = egui_wgpu::Renderer::new(&device, surface_format, None, sample_count);
+
         // TODO: Make texture atlas from files not one file.
-        let texture_atlas = TextureAtlas::new(&mut egui.rpass, &device, &queue, "./assets/items/items.png", 4);
+        let texture_atlas = TextureAtlas::new(&mut egui, &device, &queue, "./assets/items/items.png", 4);
        
         let shaders = Shaders::new(&device);
         let layouts = Layouts::new(&device);
@@ -255,6 +257,7 @@ impl State {
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
         });
 
+
         Self {
             surface,
             device,
@@ -308,7 +311,7 @@ impl State {
             self.queue.write_buffer(&self.bind_groups_buffers.crosshair_aspect_scale.buffer, 0, 
                 bytemuck::cast_slice(&[new_size.height as f32/new_size.width as f32, 600.0/new_size.height as f32]));
 
-            self.egui.resize(new_size.width, new_size.height, self.window.scale_factor() as f32);
+            // self.egui.resize(new_size.width, new_size.height, self.window.scale_factor() as f32);
         }
     }
 
@@ -325,16 +328,61 @@ impl State {
         let output_texture = &output.texture;
         let view = output_texture.create_view(&wgpu::TextureViewDescriptor::default());
         
-        self.egui.start(&self.window, self.is_ui_interaction, ui);
+        // self.egui.start(&self.window, self.is_ui_interaction, ui);
+        // egui_wgpu::Callback::new_paint_callback(Rect {min: egui::Pos2 { x: 0.0, y: 0.0 }, max: egui::Pos2 { x: 1000.0, y: 400.0 }}, ui);
+        // self.egui.render(render_pass, paint_jobs, screen_descriptor)
+        let ctx = egui::Context::default();
+        let egui_output = ctx.run(egui::RawInput::default(), |ctx| {
+            egui::Window::new("Debug")
+                .auto_sized()
+                .show(ctx, |ui| {
+                    ui.label("12");
+                    ui.colored_label(Color32::WHITE, "1234567890-98765432");
+                });
+            egui::SidePanel::new(egui::panel::Side::Left, "dfvsdfv")
+                .show(ctx, |ui| {
+                    ui.label("121342");
+                });
+        });
+        let primitives = ctx.tessellate(egui_output.shapes, 1.0);
+        let screen_descriptor = egui_wgpu::renderer::ScreenDescriptor {
+            pixels_per_point: 1.0,
+            size_in_pixels: [self.config.width, self.config.height],
+        };
+        for (id, image_delta) in egui_output.textures_delta.set {
+            self.egui.update_texture(&self.device, &self.queue, id, &image_delta);
+        }
         let mut encoder = self.device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
+        self.egui.update_buffers(&self.device, &self.queue, &mut encoder, &primitives, &screen_descriptor);
         self.draw_all(&mut encoder, output_texture, &view, meshes);
-        self.egui.end(&mut encoder, &self.device, &self.queue, &view);
-
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render Pass Egui"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &self.multisampled_framebuffer,
+                resolve_target: Some(&view),
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    // Storing pre-resolve MSAA data is unnecessary if it isn't used later.
+                    // On tile-based GPU, avoid store can reduce your app's memory footprint.
+                    store: wgpu::StoreOp::Discard,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+        self.egui.render(&mut render_pass, &primitives, &screen_descriptor);
+        drop(render_pass);
+        // self.egui.end(&mut encoder, &self.device, &self.queue, &view);
+        
         self.queue.submit(iter::once(encoder.finish()));
         output.present();
+        for id in egui_output.textures_delta.free {
+            self.egui.free_texture(&id);
+        }
         Ok(())
     }
 
@@ -381,14 +429,14 @@ impl State {
                     load: wgpu::LoadOp::Clear(self.clear_color),
                     // Storing pre-resolve MSAA data is unnecessary if it isn't used later.
                     // On tile-based GPU, avoid store can reduce your app's memory footprint.
-                    store: wgpu::StoreOp::Discard,
+                    store: wgpu::StoreOp::Store,
                 },
             }
         }
     }
 
     pub fn handle_event(&mut self, event: &winit::event::Event<'_, ()>) {
-        self.egui.handle_event(event);
+        // self.egui.handle_event(event);
         match event {
             winit::event::Event::WindowEvent {
                 ref event, window_id
