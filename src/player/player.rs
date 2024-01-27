@@ -51,21 +51,21 @@ impl Player {
     pub fn handle_input(&mut self, input: &InputService, delta_time: f32, is_cursor: bool) {
         if !self.is_inventory && !is_cursor {self.camera.update_rotation(input.delta().0, input.delta().1, delta_time)}
 
-        if input.is_key(&Key::E, KeypressState::AnyJustPress) {
+        if input.is_key(&Key::KeyE, KeypressState::AnyJustPress) {
             self.is_inventory = !self.is_inventory;
             if !self.is_inventory {self.open_storage = None};
         }
 
-        if input.is_key(&Key::W, KeypressState::AnyStayPress) {
+        if input.is_key(&Key::KeyW, KeypressState::AnyStayPress) {
             self.position +=  self.camera.front() * Self::SPEED * delta_time;
         }
-        if input.is_key(&Key::S, KeypressState::AnyStayPress) {
+        if input.is_key(&Key::KeyS, KeypressState::AnyStayPress) {
             self.position -=  self.camera.front() * Self::SPEED * delta_time;
         }
-        if input.is_key(&Key::A, KeypressState::AnyStayPress) {
+        if input.is_key(&Key::KeyA, KeypressState::AnyStayPress) {
             self.position -=  self.camera.right() * Self::SPEED * delta_time;
         }
-        if input.is_key(&Key::D, KeypressState::AnyStayPress) {
+        if input.is_key(&Key::KeyD, KeypressState::AnyStayPress) {
             self.position +=  self.camera.right() * Self::SPEED * delta_time;
         }
         self.camera.set_position(self.position);
@@ -83,8 +83,8 @@ impl Player {
         }
         
         
-        [Key::Key1, Key::Key2, Key::Key3, Key::Key4, Key::Key5,
-            Key::Key6, Key::Key7, Key::Key8, Key::Key9, Key::Key0]
+        [Key::Digit1, Key::Digit2, Key::Digit3, Key::Digit4, Key::Digit5,
+            Key::Digit6, Key::Digit7, Key::Digit8, Key::Digit9, Key::Digit0]
             .iter().enumerate().for_each(|(i, key)| {
                 if input.is_key(key, KeypressState::AnyPress) {
                     self.active_slot = i;

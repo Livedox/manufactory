@@ -1,7 +1,7 @@
 use std::{borrow::BorrowMut, sync::Arc, time::SystemTime};
 
 use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText, Style, Visuals, style::WidgetVisuals, Widget, Stroke};
-use winit::{window::Window, dpi::PhysicalPosition, event_loop::ControlFlow};
+use winit::{window::Window, dpi::PhysicalPosition, event_loop::{ControlFlow, EventLoopWindowTarget}};
 
 use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, setting::Setting, save_load::SettingSave, world::loader::{WorldData, WorldLoader}, level::Level};
 use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME, main_screen::{self, MainScreen, in_game_menu::draw_in_game_menu}, setting::draw_setting};
@@ -71,12 +71,12 @@ impl GuiController {
     pub fn draw_main_screen(
         &mut self,
         ctx: &Context,
-        control_flow: &mut ControlFlow,
+        window_target: &EventLoopWindowTarget<()>,
         world_loader: &mut WorldLoader,
         setting: &mut Setting,
         level: &mut Option<Level>
     ) -> &mut Self {
-        self.main_screen.draw(ctx, control_flow, world_loader, setting, level, &mut self.is_setting);
+        self.main_screen.draw(ctx, window_target, world_loader, setting, level, &mut self.is_setting);
         self
     }
 
@@ -91,7 +91,7 @@ impl GuiController {
     }
 
     pub fn draw_inventory(&mut self, ctx: &Context, player: &mut Player) -> &mut Self {
-        if !self.is_ui {return self}
+        if !self.is_ui || self.is_menu {return self}
         let mut task: Option<Task> = None;
         let inventory = player.inventory();
         let storage = player.open_storage.as_mut().and_then(|op| op.upgrade());

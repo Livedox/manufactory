@@ -46,16 +46,16 @@ impl CameraController {
             self.camera.rotate(self.pitch, self.yaw, 0.0); 
         }
 
-        if input.is_key(&Key::W, KeypressState::AnyStayPress) {
+        if input.is_key(&Key::KeyW, KeypressState::AnyStayPress) {
             self.camera.position +=  self.camera.front * Self::SPEED * delta_time;
         }
-        if input.is_key(&Key::S, KeypressState::AnyStayPress) {
+        if input.is_key(&Key::KeyS, KeypressState::AnyStayPress) {
             self.camera.position -=  self.camera.front * Self::SPEED * delta_time;
         }
-        if input.is_key(&Key::A, KeypressState::AnyStayPress) {
+        if input.is_key(&Key::KeyA, KeypressState::AnyStayPress) {
             self.camera.position -=  self.camera.right * Self::SPEED * delta_time;
         }
-        if input.is_key(&Key::D, KeypressState::AnyStayPress) {
+        if input.is_key(&Key::KeyD, KeypressState::AnyStayPress) {
             self.camera.position +=  self.camera.right * Self::SPEED * delta_time;
         }
     }

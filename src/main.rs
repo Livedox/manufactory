@@ -92,7 +92,7 @@ pub async fn main() {
 
     let mut debug_block_id = None;
 
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().expect("Failed to create event loop");
     let window = Arc::new(WindowBuilder::new()
         .with_title("Manufactory")
         .with_inner_size(PhysicalSize::new(1150u32, 700u32))
@@ -102,7 +102,7 @@ pub async fn main() {
     let mut input = input_event::input_service::InputService::new();
     let mut time = my_time::Time::new();
 
-    let mut level: Option<Level> = Some(Level::new("2", &setting));
+    let mut level: Option<Level> = None;
     let mut exit_level = false;
     let mut state = state::State::new(
         window.clone(),
@@ -113,7 +113,7 @@ pub async fn main() {
     let mut timer_16ms = Timer::new(Duration::from_millis(16));
     let mut fps = Instant::now();
     let mut fps_queue = VecDeque::from([0.0; 10]);
-    event_loop.run(move |event, _, control_flow| {
+    event_loop.run(move |event, target| {
         state.handle_event(&event);
         input.handle_event(&event);
         if timer_16ms.check() {
@@ -125,101 +125,99 @@ pub async fn main() {
                 window_id,
             } if window_id == state.window().id() => {
                 match event {
-                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                    WindowEvent::CloseRequested => target.exit(),
+                    WindowEvent::RedrawRequested => {
+                        if exit_level {
+                            level = None;
+                            exit_level = false;
+                        };
+        
+                        let mut debug_data = String::new();
+                        let mesh_vec = if let Some(level) = &mut level {
+                            let result = unsafe {&mut *(level as *mut Level)}.update(
+                                &input,
+                                &time,
+                                &mut state,
+                                &mut gui_controller,
+                                &mut debug_block_id,
+                                setting.render_radius,
+                            );
+                            let player = unsafe {level.player.lock_unsafe()}.unwrap();
+                            debug_data += &format!("{:?}", player.camera().position_tuple());
+                            state.update_camera(&player.camera().proj_view(state.size.width as f32, state.size.height as f32).into());
+                            let (sun, sky) = level.sun.sun_sky();
+                            state.set_sun_color(sun.into());
+                            state.set_clear_color(sky.into());
+        
+                            if input.is_key(&Key::KeyE, KeypressState::AnyJustPress) {
+                                gui_controller.set_cursor_lock(player.is_inventory);
+                                state.set_ui_interaction(player.is_inventory);
+                            }
+                            result
+                        } else {vec![]};
+                        
+                        
+                        time.update();
+                        state.update_time(&time);
+        
+                        gui_controller.update_cursor_lock();
+        
+                        fps_queue.push_back(1.0/fps.elapsed().as_secs_f32());
+                        debug_data += &(fps_queue.iter().sum::<f32>() / fps_queue.len() as f32).floor().to_string();
+                        fps_queue.pop_front();
+                        fps = Instant::now();
+        
+                        if input.is_key(&Key::F1, KeypressState::AnyJustPress) {
+                            gui_controller.toggle_ui();
+                            state.set_crosshair(gui_controller.is_ui());
+                        }
+                        
+                        if input.is_key(&Key::F11, KeypressState::AnyJustPress) {
+                            let window = state.window();
+                            if window.fullscreen().is_some() {
+                                window.set_fullscreen(None);
+                            } else {
+                                window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+                            }
+                        }
+        
+                        if input.is_key(&Key::Escape, KeypressState::AnyJustPress) {
+                            gui_controller.toggle_menu();
+                            gui_controller.set_cursor_lock(gui_controller.is_menu);
+                            state.set_ui_interaction(gui_controller.is_menu);
+                        }
+                        
+                        match state.render(&mesh_vec, |ctx| {
+                            if let Some(l) = &level {
+                                let mut player = unsafe {l.player.lock_unsafe()}.unwrap();
+                                gui_controller
+                                    .draw_inventory(ctx, &mut player)
+                                    .draw_debug(ctx, &debug_data, &mut debug_block_id)
+                                    .draw_active_recieps(ctx, &mut player);
+        
+                                drop(player);
+                                gui_controller.draw_in_game_menu(ctx, &mut exit_level);
+                            } else {
+                                gui_controller
+                                    .draw_main_screen(ctx, target, &mut world_loader, &mut setting, &mut level);
+                            }
+        
+                            gui_controller.draw_setting(ctx, &mut setting, &save.setting);
+                        }) {
+                            Ok(_) => {}
+                            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                                state.resize(state.size)
+                            }
+                            Err(wgpu::SurfaceError::OutOfMemory) => target.exit(),
+                            Err(wgpu::SurfaceError::Timeout) => eprintln!("Surface timeout"),
+                        }
+                        input.update();
+                        state.window().request_redraw();
+                    }
                     _ => {}
                 }
             }
-            Event::RedrawRequested(window_id) if window_id == state.window().id() => {
-                if exit_level {
-                    level = None;
-                    exit_level = false;
-                };
-
-                let mut debug_data = String::new();
-                let mesh_vec = if let Some(level) = &mut level {
-                    let result = unsafe {&mut *(level as *mut Level)}.update(
-                        &input,
-                        &time,
-                        &mut state,
-                        &mut gui_controller,
-                        &mut debug_block_id,
-                        setting.render_radius,
-                    );
-                    let player = unsafe {level.player.lock_unsafe()}.unwrap();
-                    debug_data += &format!("{:?}", player.camera().position_tuple());
-                    state.update_camera(&player.camera().proj_view(state.size.width as f32, state.size.height as f32).into());
-                    let (sun, sky) = level.sun.sun_sky();
-                    state.set_sun_color(sun.into());
-                    state.set_clear_color(sky.into());
-
-                    if input.is_key(&Key::E, KeypressState::AnyJustPress) {
-                        gui_controller.set_cursor_lock(player.is_inventory);
-                        state.set_ui_interaction(player.is_inventory);
-                    }
-                    result
-                } else {vec![]};
-                
-                
-                time.update();
-                state.update_time(&time);
-
-                gui_controller.update_cursor_lock();
-
-                fps_queue.push_back(1.0/fps.elapsed().as_secs_f32());
-                debug_data += &(fps_queue.iter().sum::<f32>() / fps_queue.len() as f32).floor().to_string();
-                fps_queue.pop_front();
-                fps = Instant::now();
-
-                if input.is_key(&Key::F1, KeypressState::AnyJustPress) {
-                    gui_controller.toggle_ui();
-                    state.set_crosshair(gui_controller.is_ui());
-                }
-                
-                if input.is_key(&Key::F11, KeypressState::AnyJustPress) {
-                    let window = state.window();
-                    if window.fullscreen().is_some() {
-                        window.set_fullscreen(None);
-                    } else {
-                        window.set_fullscreen(Some(Fullscreen::Borderless(None)));
-                    }
-                }
-
-                if input.is_key(&Key::Escape, KeypressState::AnyJustPress) {
-                    gui_controller.toggle_menu();
-                    gui_controller.set_cursor_lock(gui_controller.is_menu);
-                    state.set_ui_interaction(gui_controller.is_menu);
-                }
-                
-                match state.render(&mesh_vec, |ctx| {
-                    if let Some(l) = &level {
-                        let mut player = unsafe {l.player.lock_unsafe()}.unwrap();
-                        gui_controller
-                            .draw_inventory(ctx, &mut player)
-                            .draw_debug(ctx, &debug_data, &mut debug_block_id)
-                            .draw_active_recieps(ctx, &mut player);
-
-                        drop(player);
-                        gui_controller.draw_in_game_menu(ctx, &mut exit_level);
-                    } else {
-                        gui_controller
-                            .draw_main_screen(ctx, control_flow, &mut world_loader, &mut setting, &mut level);
-                    }
-
-                    gui_controller.draw_setting(ctx, &mut setting, &save.setting);
-                }) {
-                    Ok(_) => {}
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                        state.resize(state.size)
-                    }
-                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                    Err(wgpu::SurfaceError::Timeout) => eprintln!("Surface timeout"),
-                }
-                input.update();
-            }
-            Event::MainEventsCleared => {
-                state.window().request_redraw();
-            }
             _ => {}
         }
-    });
+    }).expect("Failed to run event loop!");
 }

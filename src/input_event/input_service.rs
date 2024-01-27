@@ -2,7 +2,7 @@ use winit::event::{Event, WindowEvent, ElementState, DeviceEvent, MouseScrollDel
 
 use super::{input_broker::InputBroker, KeypressState, InputOffset};
 
-pub type Key = winit::event::VirtualKeyCode;
+pub type Key = winit::keyboard::KeyCode;
 pub type Mouse = winit::event::MouseButton;
 
 
@@ -22,7 +22,9 @@ impl InputService {
             winit::event::MouseButton::Left => 0,
             winit::event::MouseButton::Right => 1,
             winit::event::MouseButton::Middle => 2,
-            winit::event::MouseButton::Other(a) => 3 + *a as usize,
+            winit::event::MouseButton::Back => 3,
+            winit::event::MouseButton::Forward => 4,
+            winit::event::MouseButton::Other(a) => 5 + *a as usize,
         })
     }
 
@@ -46,7 +48,7 @@ impl InputService {
         self.input_broker.wheel()
     }
 
-    pub fn handle_event(&mut self, event: &Event<'_, ()>) {
+    pub fn handle_event(&mut self, event: &Event<()>) {
         match event {
             Event::WindowEvent { event, .. } => {
                 match event {
@@ -54,9 +56,9 @@ impl InputService {
                         let is_press = *state == ElementState::Pressed;
                         self.input_broker.press(Self::to_mouse_id(button), is_press);
                     }
-                    WindowEvent::KeyboardInput { input, .. } => {
-                        if let Some(code) = input.virtual_keycode {
-                            let is_press = input.state == ElementState::Pressed;
+                    WindowEvent::KeyboardInput { event, .. } => {
+                        if let winit::keyboard::PhysicalKey::Code(code) = event.physical_key {
+                            let is_press = event.state == ElementState::Pressed;
                             let id = code as usize + InputOffset::Key as usize;
                             self.input_broker.press(id, is_press);
                         }

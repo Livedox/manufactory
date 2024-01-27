@@ -1,5 +1,5 @@
-use egui::{vec2, Align2};
-use winit::event_loop::ControlFlow;
+use egui::{vec2, Align2, Frame};
+use winit::event_loop::{ControlFlow, EventLoopWindowTarget};
 
 use crate::{world::loader::{WorldData, WorldLoader}, save_load::SettingSave, setting::Setting, level::Level, engine::state};
 
@@ -23,17 +23,17 @@ impl MainScreen {
     pub fn draw(
       &mut self, 
       ctx: &egui::Context,
-      control_flow: &mut ControlFlow,
+      window_target: &EventLoopWindowTarget<()>,
       worlds: &mut WorldLoader,
       setting: &mut Setting,
       level: &mut Option<Level>,
       is_setting: &mut bool,
     ) {
-        self.draw_main_screen(ctx, control_flow, is_setting);
+        self.draw_main_screen(ctx, window_target, is_setting);
         self.draw_worlds(ctx, worlds, level, setting);
     }
 
-    fn draw_main_screen(&mut self, ctx: &egui::Context, control_flow: &mut ControlFlow, is_setting: &mut bool) {
+    fn draw_main_screen(&mut self, ctx: &egui::Context, window_target: &EventLoopWindowTarget<()>, is_setting: &mut bool) {
         if self.is_worlds || *is_setting {return};
         egui::Area::new("MainScreen")
             .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
@@ -51,7 +51,7 @@ impl MainScreen {
                     *is_setting = !*is_setting;
                 };
                 if ui.add(self::button::exit()).clicked() {
-                    *control_flow = ControlFlow::Exit;
+                    window_target.exit();
                 };
             });
     }

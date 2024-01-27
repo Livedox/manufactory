@@ -1,5 +1,6 @@
-use std::{iter, collections::HashMap, sync::Arc};
-use egui::{Color32, Rect};
+use std::{collections::HashMap, iter, sync::Arc};
+use egui::{style::{Spacing, Widgets}, vec2, Color32, Rect, Style, Visuals};
+use egui_winit::winit::raw_window_handle;
 use itertools::Itertools;
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
@@ -105,6 +106,8 @@ pub struct State {
     sample_count: u32,
 
     pub egui: egui_wgpu::Renderer,
+    pub egui_state: egui_winit::State,
+    pub egui_input: egui::RawInput,
 
     models: HashMap<String, Model>,
     pub animated_models: HashMap<String, AnimatedModel>,
@@ -190,7 +193,20 @@ impl State {
 
         // let mut egui = Egui::new(&device, surface_format, size.width, size.height, window.scale_factor());
         let mut egui = egui_wgpu::Renderer::new(&device, surface_format, None, sample_count);
-
+        let egui_ctx = egui::Context::default();
+        egui_ctx.set_style(Style {
+            visuals: Visuals {
+                window_highlight_topmost: false,
+                ..Default::default()
+            },
+            spacing: Spacing {
+                item_spacing: vec2(0.0, 0.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        let viewport_id = egui_ctx.viewport_id();
+        let egui_state = egui_winit::State::new(egui_ctx, viewport_id, &window, None, None);
         // TODO: Make texture atlas from files not one file.
         let texture_atlas = TextureAtlas::new(&mut egui, &device, &queue, "./assets/items/items.png", 4);
        
@@ -272,6 +288,8 @@ impl State {
             sample_count,
 
             egui,
+            egui_state,
+            egui_input: egui::RawInput::default(),
 
             pipelines,
 
@@ -311,6 +329,7 @@ impl State {
             self.queue.write_buffer(&self.bind_groups_buffers.crosshair_aspect_scale.buffer, 0, 
                 bytemuck::cast_slice(&[new_size.height as f32/new_size.width as f32, 600.0/new_size.height as f32]));
 
+            self.window.request_redraw();
             // self.egui.resize(new_size.width, new_size.height, self.window.scale_factor() as f32);
         }
     }
@@ -323,7 +342,7 @@ impl State {
         self.queue.write_buffer(&self.bind_groups_buffers.camera.buffer, 0, bytemuck::cast_slice(proj_view));
     }
 
-    pub fn render(&mut self, meshes: &[Arc<Mesh>], ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, meshes: &[Arc<Mesh>], mut ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let output_texture = &output.texture;
         let view = output_texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -331,22 +350,27 @@ impl State {
         // self.egui.start(&self.window, self.is_ui_interaction, ui);
         // egui_wgpu::Callback::new_paint_callback(Rect {min: egui::Pos2 { x: 0.0, y: 0.0 }, max: egui::Pos2 { x: 1000.0, y: 400.0 }}, ui);
         // self.egui.render(render_pass, paint_jobs, screen_descriptor)
-        let ctx = egui::Context::default();
-        let egui_output = ctx.run(egui::RawInput::default(), |ctx| {
-            egui::Window::new("Debug")
-                .auto_sized()
-                .show(ctx, |ui| {
-                    ui.label("12");
-                    ui.colored_label(Color32::WHITE, "1234567890-98765432");
-                });
-            egui::SidePanel::new(egui::panel::Side::Left, "dfvsdfv")
-                .show(ctx, |ui| {
-                    ui.label("121342");
-                });
-        });
-        let primitives = ctx.tessellate(egui_output.shapes, 1.0);
+        // |ctx| {
+        //     egui::Window::new("Debug")
+        //         .auto_sized()
+        //         .show(ctx, |ui| {
+        //             ui.label("12");
+        //             ui.colored_label(Color32::WHITE, "1234567890-98765432");
+        //         });
+        //     egui::SidePanel::new(egui::panel::Side::Left, "dfvsdfv")
+        //         .show(ctx, |ui| {
+        //             ui.label("121342");
+        //         });
+        // }
+        // let raw_input = self.egui_state.take_egui_input(&self.window);
+        let egui_input = self.egui_state.take_egui_input(&self.window);
+        let egui_output = self.egui_state.egui_ctx().run(egui_input, ui);
+
+        self.egui_state.handle_platform_output(&self.window, egui_output.platform_output);
+
+        let primitives = self.egui_state.egui_ctx().tessellate(egui_output.shapes, egui_output.pixels_per_point);
         let screen_descriptor = egui_wgpu::renderer::ScreenDescriptor {
-            pixels_per_point: 1.0,
+            pixels_per_point: egui_output.pixels_per_point,
             size_in_pixels: [self.config.width, self.config.height],
         };
         for (id, image_delta) in egui_output.textures_delta.set {
@@ -435,18 +459,15 @@ impl State {
         }
     }
 
-    pub fn handle_event(&mut self, event: &winit::event::Event<'_, ()>) {
-        // self.egui.handle_event(event);
+    pub fn handle_event(&mut self, event: &winit::event::Event<()>) {
         match event {
             winit::event::Event::WindowEvent {
                 ref event, window_id
             } if *window_id == self.window.id() => {
+                let _ = self.egui_state.on_window_event(self.window.as_ref(), event);
                 match event {
                     winit::event::WindowEvent::Resized(physical_size) => {
                         self.resize(*physical_size);
-                    }
-                    winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                        self.resize(**new_inner_size);
                     }
                     _ => {}
                 }

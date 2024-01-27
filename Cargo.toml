@@ -10,7 +10,7 @@ wgpu-types = { version = "0.18", features = ["serde", "trace", "replay"]}
 wgpu = "0.18"
 
 
-winit = "0.28"
+winit = "0.29"
 bytemuck = { version = "1.14", features = ["derive"] }
 image = "0.24.6"
 nalgebra-glm = "0.18.0"
@@ -30,6 +30,7 @@ rodio = "0.17.3"
 
 flate2 = "1.0.28"
 
+egui-winit = "0.25.0"
 egui-wgpu = "0.25"
 egui = { version = "0.25", features = ["color-hex"]}
 
