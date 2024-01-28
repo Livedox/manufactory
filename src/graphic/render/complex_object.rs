@@ -1,5 +1,7 @@
-use crate::{engine::vertices::block_vertex::BlockVertex, graphic::complex_object::{ComplexObjectSide, ComplexObject, ComplexObjectParts}, voxels::chunk::Chunk};
-use super::Buffer;
+use std::collections::HashMap;
+
+use crate::{engine::vertices::block_vertex::BlockVertex, graphic::complex_object::{ComplexObjectSide, ComplexObject}, voxels::chunk::Chunk};
+use super::{animated_model::{render_animated_model, AnimatedModels}, model::{render_model, ModelRenderResult}, Buffer};
 
 const INDICES: [[usize; 6]; 2] = [[0,1,2,0,2,3], [3,2,0,2,1,0]];
 
@@ -25,6 +27,8 @@ fn render_side(
 #[inline]
 pub fn render_complex_object(
   complex_object: &ComplexObject,
+  models: &mut HashMap<String, Vec<ModelRenderResult>>,
+  animated_models: &mut AnimatedModels,
   buffer: &mut Buffer,
   belt_buffer: &mut Buffer,
   chunk: &Chunk,
@@ -37,11 +41,16 @@ pub fn render_complex_object(
     let light = chunk.get_light((lx, ly, lz).into()).get_normalized();
     let global = chunk.xyz.to_global((lx, ly, lz).into()).into();
 
-    complex_object.parts.iter().for_each(|parts| {
-        if let ComplexObjectParts::Block(part) = parts {
-            render_side(buffer, part, light, global, rotation_index);
-        } else if let ComplexObjectParts::TransportBelt(part) = parts {
-            render_side(belt_buffer, part, light, global, rotation_index);
-        }
+    complex_object.block.iter().for_each(|part| {
+        render_side(buffer, part, light, global, rotation_index);
+    });
+    complex_object.transport_belt.iter().for_each(|part| {
+        render_side(belt_buffer, part, light, global, rotation_index);
+    });
+    complex_object.model_names.iter().for_each(|name| {
+        render_model(models, chunk, name, lx, ly, lz);
+    });
+    complex_object.animated_models_names.iter().for_each(|name| {
+        render_animated_model(animated_models, chunk, name, lx, ly, lz);
     });
 }

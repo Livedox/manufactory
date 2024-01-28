@@ -1,33 +1,31 @@
-pub struct ComplexObjectVertex {
-    pub xyz: [f32; 3],
-    pub uv: [f32; 2],
-}
+use serde::{Deserialize, Serialize};
+#[derive(Deserialize, Serialize, Debug)]
+/// 0: position, 1: uv
+pub struct ComplexObjectVertex(pub [f32; 3], pub [f32; 2]);
 
 impl ComplexObjectVertex {
-    #[inline] pub fn new(xyz: [f32; 3], uv: [f32; 2]) -> Self { Self {xyz, uv} }
-
     #[inline]
     pub fn x(&self, rotation_index: usize) -> f32 {
-        if rotation_index > 1 {self.xyz[2]} else {self.xyz[0]}
+        if rotation_index > 1 {self.0[2]} else {self.0[0]}
     }
 
-    #[inline] pub fn y(&self) -> f32 {self.xyz[1]}
+    #[inline] pub fn y(&self) -> f32 {self.0[1]}
 
     #[inline]
     pub fn z(&self, rotation_index: usize) -> f32 {
-        if rotation_index > 1 {self.xyz[0]} else {self.xyz[2]}
+        if rotation_index > 1 {self.0[0]} else {self.0[2]}
     }
 
-    #[inline] pub fn u(&self) -> f32 {self.uv[0]}
-    #[inline] pub fn v(&self) -> f32 {self.uv[1]}
+    #[inline] pub fn u(&self) -> f32 {self.1[0]}
+    #[inline] pub fn v(&self) -> f32 {self.1[1]}
 }
 
 impl From<([f32; 3], [f32; 2])> for ComplexObjectVertex {
     fn from(value: ([f32; 3], [f32; 2])) -> Self {
-        Self { xyz: value.0, uv: value.1 }
+        Self (value.0, value.1)
     }
 }
-
+#[derive(Deserialize, Serialize, Debug)]
 pub struct ComplexObjectGroup(pub [ComplexObjectVertex; 4]);
 
 impl ComplexObjectGroup {
@@ -75,7 +73,7 @@ impl From<[ComplexObjectVertex; 4]> for ComplexObjectGroup {
         Self(value)
     }
 }
-
+#[derive(Deserialize, Serialize, Debug)]
 pub struct ComplexObjectSide {
     pub texture_layer: u32,
     pub vertex_groups: Vec<ComplexObjectGroup>,
@@ -88,116 +86,28 @@ impl ComplexObjectSide {
     }
 }
 
-pub enum ComplexObjectParts {
-    // nx = 0, px = 1, ny = 2, py = 3, nz = 4, pz = 5
-    Block([Option<ComplexObjectSide>; 6]),
-    TransportBelt([Option<ComplexObjectSide>; 6]),
-}
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(default)]
 
 pub struct ComplexObject {
-    pub parts: Vec<ComplexObjectParts>
+    pub block: Box<[[Option<ComplexObjectSide>; 6]]>,
+    pub transport_belt: Box<[[Option<ComplexObjectSide>; 6]]>,
+    pub model_names: Box<[String]>,
+    pub animated_models_names: Box<[String]>,
 }
 
-impl ComplexObject {
-    #[inline]
-    pub fn new(parts: Vec<ComplexObjectParts>) -> Self {
-        Self { parts }
+impl Default for ComplexObject {
+    fn default() -> Self {
+        Self {
+            block: Box::new([]),
+            transport_belt: Box::new([]),
+            model_names: Box::new([]),
+            animated_models_names: Box::new([]),
+        }
     }
 }
 
-// I'll rewrite this using files someday
 pub fn new_transport_belt() -> ComplexObject {
-    ComplexObject::new(vec![
-        ComplexObjectParts::Block([
-            // Negative x
-            Some(ComplexObjectSide::new(9, vec![
-                [([0.0, 0.0,   0.0], [0.0, 0.0]).into(), 
-                 ([0.0, 0.25,  0.0], [0.0, 0.25]).into(),
-                 ([0.0, 0.25,  1.0], [1.0, 0.25]).into(),
-                 ([0.0, 0.0,   1.0], [1.0, 0.0]).into()].into(),
-                [([0.875, 0.125, 0.0], [0.0, 0.125]).into(),
-                 ([0.875, 0.25,  0.0], [0.0, 0.25]).into(),
-                 ([0.875, 0.25,  1.0], [1.0, 0.25]).into(),
-                 ([0.875, 0.125, 1.0], [1.0, 0.125]).into()].into()
-            ])),
-            // Positive x
-            Some(ComplexObjectSide::new(9, vec![
-                [([1.0, 0.0,   0.0], [0.0, 0.0]).into(), 
-                 ([1.0, 0.25,  0.0], [0.0, 0.25]).into(),
-                 ([1.0, 0.25,  1.0], [1.0, 0.25]).into(),
-                 ([1.0, 0.0,   1.0], [1.0, 0.0]).into()].into(),
-                [([0.125, 0.125, 0.0], [0.0, 0.125]).into(),
-                 ([0.125, 0.25,  0.0], [0.0, 0.25]).into(),
-                 ([0.125, 0.25,  1.0], [1.0, 0.25]).into(),
-                 ([0.125, 0.125, 1.0], [1.0, 0.125]).into()].into()
-            ])),
-            // Negative y
-            Some(ComplexObjectSide::new(9, vec![
-                [([0.0, 0.0, 0.0], [0.0, 0.0]).into(), 
-                 ([0.0, 0.0, 1.0], [0.0, 1.0]).into(),
-                 ([1.0, 0.0, 1.0], [1.0, 1.0]).into(),
-                 ([1.0, 0.0, 0.0], [1.0, 0.0]).into()].into()
-            ])),
-            // Positive y
-            Some(ComplexObjectSide::new(9, vec![
-                [([0.0,   0.25,   0.0], [0.0, 0.0]).into(), 
-                 ([0.0,   0.25,   1.0], [0.0, 1.0]).into(),
-                 ([0.125, 0.25,   1.0], [0.125, 1.0]).into(),
-                 ([0.125, 0.25,   0.0], [0.125, 0.0]).into()].into(),
-                [([0.875, 0.25,  0.0], [0.875, 0.0]).into(),
-                 ([0.875, 0.25,  1.0], [0.875, 1.0]).into(),
-                 ([1.0,   0.25,  1.0], [1.0, 1.0]).into(),
-                 ([1.0,   0.25,  0.0], [1.0, 0.0]).into()].into()
-            ])),
-            // Negative z
-            Some(ComplexObjectSide::new(9, vec![
-                [([0.0, 0.0,   0.0], [0.0, 0.0]).into(), 
-                 ([1.0, 0.0,   0.0], [0.0, 1.0]).into(),
-                 ([1.0, 0.125, 0.0], [0.125, 1.0]).into(),
-                 ([0.0, 0.125, 0.0], [0.125, 0.0]).into()].into(),
-                [([0.0,   0.125, 0.0], [0.125, 0.0]).into(),
-                 ([0.125, 0.125, 0.0], [0.125, 0.125]).into(),
-                 ([0.125, 0.25,  0.0], [0.25, 0.125]).into(),
-                 ([0.0,   0.25,  0.0], [0.125, 0.0]).into()].into(),
-                [([0.875, 0.125, 0.0], [0.125, 0.875]).into(),
-                 ([1.0,   0.125, 0.0], [0.125, 1.0]).into(),
-                 ([1.0,   0.25,  0.0], [0.25, 1.0]).into(),
-                 ([0.875, 0.25,  0.0], [0.25, 0.875]).into()].into(),
-            ])),
-            // Positive z
-            Some(ComplexObjectSide::new(9, vec![
-                [([0.0, 0.0,   1.0], [0.0, 0.0]).into(), 
-                 ([1.0, 0.0,   1.0], [0.0, 1.0]).into(),
-                 ([1.0, 0.125, 1.0], [0.125, 1.0]).into(),
-                 ([0.0, 0.125, 1.0], [0.125, 0.0]).into()].into(),
-                [([0.0,   0.125, 1.0], [0.125, 0.0]).into(),
-                 ([0.125, 0.125, 1.0], [0.125, 0.125]).into(),
-                 ([0.125, 0.25,  1.0], [0.25, 0.125]).into(),
-                 ([0.0,   0.25,  1.0], [0.25, 0.0]).into()].into(),
-                [([0.875, 0.125, 1.0], [0.125, 0.875]).into(),
-                 ([1.0,   0.125, 1.0], [0.125, 1.0]).into(),
-                 ([1.0,   0.25,  1.0], [0.25, 1.0]).into(),
-                 ([0.875, 0.25,  1.0], [0.25, 0.875]).into()].into(),
-            ])),
-        ]),
-        ComplexObjectParts::TransportBelt([
-            // Negative x
-            None,
-            // Positive x
-            None,
-            // Negative y
-            None,
-            // Positive y
-            Some(ComplexObjectSide::new(7, vec![
-                [([0.125, 0.125, 0.0], [0.125, 0.0]).into(), 
-                 ([0.125, 0.125, 1.0], [0.125, 1.0]).into(),
-                 ([0.875, 0.125, 1.0], [0.875, 1.0]).into(),
-                 ([0.875, 0.125, 0.0], [0.875, 0.0]).into()].into()
-            ])),
-            // Negative z
-            None,
-            // Positive z
-            None
-        ])
-    ])
+    let data = std::fs::read("./complex_objects/transport_belt.json").unwrap();
+    serde_json::from_slice(&data).unwrap()
 }

@@ -41,15 +41,6 @@ impl State {
         self.draw_animated_model(&mut render_pass, meshes);
         self.draw_model(&mut render_pass, meshes);
         self.draw_selection(&mut render_pass);
-        // drop(render_pass);
-
-        // let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-        //     label: Some("Render Pass Glass"),
-        //     color_attachments: &[Some(self.get_rpass_color_attachment(view))],
-        //     depth_stencil_attachment: None,
-        //     timestamp_writes: None,
-        //     occlusion_query_set: None,
-        // });
         render_pass.set_bind_group(0, &self.bind_groups_buffers.sun.bind_group, &[]);
         render_pass.set_bind_group(2, &self.bind_groups_buffers.camera.bind_group, &[]);
         self.draw_glass(&mut render_pass, meshes);

@@ -200,7 +200,7 @@ impl Meshes {
             let mut animated_models: HashMap<String, Vec<f32>> = HashMap::new();
     
             chunk.voxels_data.read().unwrap().iter().sorted_by_key(|data| {data.0}).for_each(|data| {
-                let Some(progress) = data.1.additionally.as_ref().animation_progress() else {return};
+                let progress = data.1.additionally.as_ref().animation_progress().unwrap_or(0.0);
                 let block_type = &BLOCKS()[data.1.id as usize].block_type();
                 if let BlockType::AnimatedModel {name} = block_type {
                     if let Some(animated_model) = animated_models.get_mut(name) {
@@ -208,6 +208,14 @@ impl Meshes {
                     } else {
                         animated_models.insert(name.to_string(), vec![progress]);
                     }
+                } else if let BlockType::ComplexObject { cp } = block_type {
+                    cp.animated_models_names.iter().for_each(|name| {
+                        if let Some(animated_model) = animated_models.get_mut(name) {
+                            animated_model.push(progress);
+                        } else {
+                            animated_models.insert(name.to_string(), vec![progress]);
+                        }
+                    });
                 }
             });
     

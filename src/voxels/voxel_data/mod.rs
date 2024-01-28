@@ -100,7 +100,7 @@ impl VoxelAdditionalData {
         match self {
             Self::Manipulator(o) => o.lock().unwrap().update(coords, chunks),
             Self::Drill(d) => d.lock().unwrap().update(chunks),
-            Self::Furnace(f) => f.lock().unwrap().update(),
+            Self::Furnace(f) => {f.lock().unwrap().update()},
             Self::AssemblingMachine(a) => a.lock().unwrap().update(),
             Self::TransportBelt(c) => c.lock().unwrap().update(coords, chunks),
             Self::Empty | Self::VoxelBox(_) | Self::Cowboy(_) | Self::MultiBlockPart(_) => (),

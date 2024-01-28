@@ -329,22 +329,6 @@ impl State {
         let output_texture = &output.texture;
         let view = output_texture.create_view(&wgpu::TextureViewDescriptor::default());
         
-        // self.egui.start(&self.window, self.is_ui_interaction, ui);
-        // egui_wgpu::Callback::new_paint_callback(Rect {min: egui::Pos2 { x: 0.0, y: 0.0 }, max: egui::Pos2 { x: 1000.0, y: 400.0 }}, ui);
-        // self.egui.render(render_pass, paint_jobs, screen_descriptor)
-        // |ctx| {
-        //     egui::Window::new("Debug")
-        //         .auto_sized()
-        //         .show(ctx, |ui| {
-        //             ui.label("12");
-        //             ui.colored_label(Color32::WHITE, "1234567890-98765432");
-        //         });
-        //     egui::SidePanel::new(egui::panel::Side::Left, "dfvsdfv")
-        //         .show(ctx, |ui| {
-        //             ui.label("121342");
-        //         });
-        // }
-        // let raw_input = self.egui_state.take_egui_input(&self.window);
         let mut encoder = self.device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
