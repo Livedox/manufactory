@@ -6,7 +6,7 @@ use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
 use crate::{meshes::Mesh, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, bind_group_layout::{Layouts, self}, pipeline::Pipelines, shaders::Shaders, texture::Texture}};
 use crate::engine::texture::TextureAtlas;
-use super::{texture::{self}, bind_group_buffer::BindGroupsBuffers, setting::GraphicSetting};
+use super::{bind_group_buffer::BindGroupsBuffers, egui::Egui, setting::GraphicSetting, texture::{self}};
 
 pub trait Priority {
     fn to_priority(&self) -> u8;
@@ -105,9 +105,7 @@ pub struct State {
     multisampled_framebuffer: wgpu::TextureView,
     sample_count: u32,
 
-    pub egui: egui_wgpu::Renderer,
-    pub egui_state: egui_winit::State,
-    pub egui_input: egui::RawInput,
+    pub egui: Egui,
 
     models: HashMap<String, Model>,
     pub animated_models: HashMap<String, AnimatedModel>,
@@ -192,23 +190,9 @@ impl State {
         println!("Sample count X{}", sample_count);
 
         // let mut egui = Egui::new(&device, surface_format, size.width, size.height, window.scale_factor());
-        let mut egui = egui_wgpu::Renderer::new(&device, surface_format, None, sample_count);
-        let egui_ctx = egui::Context::default();
-        egui_ctx.set_style(Style {
-            visuals: Visuals {
-                window_highlight_topmost: false,
-                ..Default::default()
-            },
-            spacing: Spacing {
-                item_spacing: vec2(0.0, 0.0),
-                ..Default::default()
-            },
-            ..Default::default()
-        });
-        let viewport_id = egui_ctx.viewport_id();
-        let egui_state = egui_winit::State::new(egui_ctx, viewport_id, &window, None, None);
+        let mut egui = Egui::new(&device, &window, surface_format, sample_count);
         // TODO: Make texture atlas from files not one file.
-        let texture_atlas = TextureAtlas::new(&mut egui, &device, &queue, "./assets/items/items.png", 4);
+        let texture_atlas = TextureAtlas::new(egui.renderer(), &device, &queue, "./assets/items/items.png", 4);
        
         let shaders = Shaders::new(&device);
         let layouts = Layouts::new(&device);
@@ -288,8 +272,6 @@ impl State {
             sample_count,
 
             egui,
-            egui_state,
-            egui_input: egui::RawInput::default(),
 
             pipelines,
 
@@ -342,7 +324,7 @@ impl State {
         self.queue.write_buffer(&self.bind_groups_buffers.camera.buffer, 0, bytemuck::cast_slice(proj_view));
     }
 
-    pub fn render(&mut self, meshes: &[Arc<Mesh>], mut ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, meshes: &[Arc<Mesh>], ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let output_texture = &output.texture;
         let view = output_texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -363,50 +345,50 @@ impl State {
         //         });
         // }
         // let raw_input = self.egui_state.take_egui_input(&self.window);
-        let egui_input = self.egui_state.take_egui_input(&self.window);
-        let egui_output = self.egui_state.egui_ctx().run(egui_input, ui);
-
-        self.egui_state.handle_platform_output(&self.window, egui_output.platform_output);
-
-        let primitives = self.egui_state.egui_ctx().tessellate(egui_output.shapes, egui_output.pixels_per_point);
-        let screen_descriptor = egui_wgpu::renderer::ScreenDescriptor {
-            pixels_per_point: egui_output.pixels_per_point,
-            size_in_pixels: [self.config.width, self.config.height],
-        };
-        for (id, image_delta) in egui_output.textures_delta.set {
-            self.egui.update_texture(&self.device, &self.queue, id, &image_delta);
-        }
         let mut encoder = self.device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
-        self.egui.update_buffers(&self.device, &self.queue, &mut encoder, &primitives, &screen_descriptor);
         self.draw_all(&mut encoder, output_texture, &view, meshes);
+        
+        let egui_renderer = self.egui.prepare(&mut encoder, &self.window, &self.device,
+            &self.queue, [self.config.width, self.config.height], ui);
+
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass Egui"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &self.multisampled_framebuffer,
-                resolve_target: Some(&view),
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Load,
-                    // Storing pre-resolve MSAA data is unnecessary if it isn't used later.
-                    // On tile-based GPU, avoid store can reduce your app's memory footprint.
-                    store: wgpu::StoreOp::Discard,
-                },
-            })],
+            color_attachments: &[Some(
+                if self.sample_count == 1 {
+                    wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                    }
+                } else {
+                    wgpu::RenderPassColorAttachment {
+                        view: &self.multisampled_framebuffer,
+                        resolve_target: Some(&view),
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            // Storing pre-resolve MSAA data is unnecessary if it isn't used later.
+                            // On tile-based GPU, avoid store can reduce your app's memory footprint.
+                            store: wgpu::StoreOp::Discard,
+                        },
+                    }
+                }
+            )],
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-        self.egui.render(&mut render_pass, &primitives, &screen_descriptor);
+        egui_renderer.render(&mut render_pass);
         drop(render_pass);
         // self.egui.end(&mut encoder, &self.device, &self.queue, &view);
         
         self.queue.submit(iter::once(encoder.finish()));
         output.present();
-        for id in egui_output.textures_delta.free {
-            self.egui.free_texture(&id);
-        }
         Ok(())
     }
 
@@ -435,7 +417,7 @@ impl State {
         self.queue.write_buffer(&self.bind_groups_buffers.sun.buffer, 0, bytemuck::cast_slice(&color));
     }
 
-    fn get_rpass_color_attachment<'a>(&'a self, view: &'a wgpu::TextureView) -> wgpu::RenderPassColorAttachment {
+    fn get_rpass_color_attachment<'a>(&'a self, view: &'a wgpu::TextureView, store: wgpu::StoreOp) -> wgpu::RenderPassColorAttachment {
         if self.sample_count == 1 {
             wgpu::RenderPassColorAttachment {
                 view,
@@ -453,7 +435,7 @@ impl State {
                     load: wgpu::LoadOp::Clear(self.clear_color),
                     // Storing pre-resolve MSAA data is unnecessary if it isn't used later.
                     // On tile-based GPU, avoid store can reduce your app's memory footprint.
-                    store: wgpu::StoreOp::Store,
+                    store,
                 },
             }
         }
@@ -464,7 +446,7 @@ impl State {
             winit::event::Event::WindowEvent {
                 ref event, window_id
             } if *window_id == self.window.id() => {
-                let _ = self.egui_state.on_window_event(self.window.as_ref(), event);
+                let _ = self.egui.state().on_window_event(self.window.as_ref(), event);
                 match event {
                     winit::event::WindowEvent::Resized(physical_size) => {
                         self.resize(*physical_size);

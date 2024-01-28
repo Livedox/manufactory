@@ -58,6 +58,7 @@ impl MainScreen {
 
 
     fn draw_worlds(&mut self, ctx: &egui::Context, world_loader: &mut WorldLoader, level: &mut Option<Level>, setting: &Setting) {
+        let mut remove_world = None;
         egui::Window::new("Worlds")
             .open(&mut self.is_worlds)
             .movable(false)
@@ -71,11 +72,14 @@ impl MainScreen {
                     .show(ui, |ui| {
                         world_loader.worlds.iter().for_each(|world| {
                             ui.horizontal_top(|ui| {
-                                draw_world_display(ui, world, level, setting);
+                                draw_world_display(ui, world, level, setting, &mut remove_world);
                             });
                         });
                     });
             });
+        if let Some(name) = remove_world {
+            world_loader.remove_world(&name).unwrap();
+        }
     }
 }
 

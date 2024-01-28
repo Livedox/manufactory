@@ -17,7 +17,7 @@ impl State {
     ) {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass Start"),
-            color_attachments: &[Some(self.get_rpass_color_attachment(view))],
+            color_attachments: &[Some(self.get_rpass_color_attachment(view, wgpu::StoreOp::Discard))],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &self.depth_texture.view,
                 depth_ops: Some(wgpu::Operations {
@@ -73,7 +73,7 @@ impl State {
 
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass Post Proccess"),
-            color_attachments: &[Some(self.get_rpass_color_attachment(view))],
+            color_attachments: &[Some(self.get_rpass_color_attachment(view, wgpu::StoreOp::Store))],
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,

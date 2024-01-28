@@ -1,95 +1,94 @@
-// use egui::{FontDefinitions, vec2};
-// use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
-// use egui_winit_platform::{Platform, PlatformDescriptor};
-// use winit::window::Window;
+use egui::{style::Spacing, vec2, ClippedPrimitive, Style, Visuals};
+use winit::window::Window;
 
-// pub struct Egui {
-//     pub rpass: RenderPass,
-//     platform: Platform,
-//     screen_descriptor: ScreenDescriptor,
-//     textures_delta: Option<egui::TexturesDelta>,
-//     paint_jobs: Option<Vec<egui::ClippedPrimitive>>
-// }
+pub struct EguiRenderer<'a> {
+    primitives: Vec<ClippedPrimitive>,
+    screen_descriptor: egui_wgpu::renderer::ScreenDescriptor,
+    renderer: &'a mut egui_wgpu::Renderer,
+    free: Vec<egui::TextureId>
+}
 
-// impl Egui {
-//     #[inline]
-//     pub fn new(
-//       device: &wgpu::Device,
-//       format: wgpu::TextureFormat,
-//       width: u32,
-//       height: u32,
-//       scale_factor: f64
-//     ) -> Self {Self {
-//         platform: Platform::new(PlatformDescriptor {
-//             physical_width: width,
-//             physical_height: height,
-//             scale_factor,
-//             font_definitions: FontDefinitions::default(),
-//             style: egui::Style {
-//                 spacing: egui::style::Spacing { item_spacing: vec2(0.0, 0.0), ..Default::default() },
-//                 ..Default::default()
-//             },
-//         }),
-//         rpass: RenderPass::new(device, format, 1),
-//         screen_descriptor: ScreenDescriptor {
-//             physical_width: width, physical_height: height, scale_factor: scale_factor as f32 },
-//         textures_delta: None,
-//         paint_jobs: None
-//     }}
 
-//     #[inline]
-//     pub fn handle_event(&mut self, event: &winit::event::Event<'_, ()>) {
-//         self.platform.handle_event(event);
-//     }
+impl<'a> EguiRenderer<'a> {
+    pub fn render<'b>(&'b self, render_pass: &mut wgpu::RenderPass<'b>) {
+        self.renderer.render(
+            render_pass,
+            &self.primitives,
+            &self.screen_descriptor
+        );
+    }
+}
 
-//     #[inline]
-//     pub fn resize(&mut self, width: u32, height: u32, scale_factor: f32) {
-//         self.screen_descriptor = ScreenDescriptor {
-//             physical_width: width,
-//             physical_height: height,
-//             scale_factor,
-//         };
-//     }
+impl Drop for EguiRenderer<'_> {
+    fn drop(&mut self) {
+        for id in &self.free {
+            self.renderer.free_texture(id);
+        }
+    }
+}
+pub struct Egui {
+    renderer: egui_wgpu::Renderer,
+    state: egui_winit::State,
+}
 
-//     #[inline]
-//     pub fn start(&mut self, window: &Window, is_ui_interaction: bool, mut ui: impl FnMut(&egui::Context)) {
-//         self.platform.begin_frame();
-//         let ctx = &self.platform.context();
-//         ui(ctx);
-//         let window = if is_ui_interaction {Some(window)} else {None};
-//         let full_output = self.platform.end_frame(window);
-//         let paint_jobs = self.platform.context().tessellate(full_output.shapes);
-//         self.textures_delta = Some(full_output.textures_delta);
-//         self.paint_jobs = Some(paint_jobs);
-//     }
+impl Egui {
+    pub fn new(device: &wgpu::Device, window: &Window, format: wgpu::TextureFormat, sample: u32) -> Self {
+        let renderer = egui_wgpu::Renderer::new(&device, format, None, sample);
+        let egui_ctx = egui::Context::default();
+        egui_ctx.set_style(Style {
+            visuals: Visuals {
+                window_highlight_topmost: false,
+                ..Default::default()
+            },
+            spacing: Spacing {
+                item_spacing: vec2(0.0, 0.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        let viewport_id = egui_ctx.viewport_id();
+        let state = egui_winit::State::new(egui_ctx, viewport_id, &window, None, None);
 
-//     #[inline]
-//     pub fn end(
-//       &mut self,
-//       encoder: &mut wgpu::CommandEncoder,
-//       device: &wgpu::Device,
-//       queue: &wgpu::Queue,
-//       view: &wgpu::TextureView
-//     ) {
-//         let tdelta = self.textures_delta.take().expect("Need to start");
-//         let paint_jobs = self.paint_jobs.take().expect("Need to start");
-//         self.rpass
-//             .add_textures(device, queue, &tdelta)
-//             .expect("add texture ok");
-//         self.rpass.update_buffers(device, queue, &paint_jobs, &self.screen_descriptor);
+        Self { renderer, state }
+    }
 
-//         self.rpass
-//             .execute(
-//                 encoder,
-//                 view,
-//                 &paint_jobs,
-//                 &self.screen_descriptor,
-//                 None,
-//             )
-//             .unwrap();
 
-//         self.rpass
-//             .remove_textures(tdelta)
-//             .expect("remove texture ok");
-//     }
-// }
+    pub fn prepare<'a>(
+        &'a mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        window: &Window,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        size_in_pixels: [u32; 2],
+        ui: impl FnMut(&egui::Context)
+    ) -> EguiRenderer<'a> {
+        let input = self.state.take_egui_input(window);
+        let output = self.state.egui_ctx().run(input, ui);
+        self.state.handle_platform_output(window, output.platform_output);
+
+        let primitives = self.state.egui_ctx().tessellate(output.shapes, output.pixels_per_point);
+        let screen_descriptor = egui_wgpu::renderer::ScreenDescriptor {
+            pixels_per_point: output.pixels_per_point,
+            size_in_pixels,
+        };
+        for (id, image_delta) in output.textures_delta.set {
+            self.renderer.update_texture(device, queue, id, &image_delta);
+        }
+        self.renderer.update_buffers(device, queue, encoder, &primitives, &screen_descriptor);
+
+        EguiRenderer {
+            free: output.textures_delta.free,
+            primitives,
+            renderer: &mut self.renderer,
+            screen_descriptor: screen_descriptor,
+        }
+    }
+
+    pub fn renderer(&mut self) -> &mut egui_wgpu::Renderer {
+        &mut self.renderer
+    }
+
+    pub fn state(&mut self) -> &mut egui_winit::State {
+        &mut self.state
+    }
+}

@@ -64,7 +64,7 @@ impl Default for WorldCreator {
 }
 
 
-pub(crate) fn draw_world_display(ui: &mut Ui, world: &WorldData, level: &mut Option<Level>, setting: &Setting) {
+pub(crate) fn draw_world_display(ui: &mut Ui, world: &WorldData, level: &mut Option<Level>, setting: &Setting, remove_world: &mut Option<String>) {
     egui::Frame::none()
         .fill(Color32::WHITE)
         .outer_margin(vec2(0.0, 0.0))
@@ -117,7 +117,7 @@ pub(crate) fn draw_world_display(ui: &mut Ui, world: &WorldData, level: &mut Opt
             .fill(DEFAULT_THEME.red)
             .stroke(Stroke::NONE);
         if ui.add_sized(vec2(54.0, 54.0), button).clicked() {
-            println!("Delete");
+            *remove_world = Some(world.name.clone());
         }
     });
 }

@@ -54,7 +54,6 @@ impl WorldLoader {
 
     pub fn create_world(&mut self, name: &str, seed: u64) -> Result<(), ()> {
         let path = self.path_buf.join(name);
-        println!("{:?}", path);
         if fs::read_dir(&path).is_ok() {
             return Err(());
         }
@@ -67,6 +66,15 @@ impl WorldLoader {
         fs::write(&path.join("./world.json"), serde_json::to_vec_pretty(&data).unwrap()).unwrap();
         
         self.worlds.push(data);
+        Ok(())
+    }
+
+
+    pub fn remove_world(&mut self, name: &str) -> Result<(), ()> {
+        let path = self.path_buf.join(name);
+        if fs::remove_dir_all(path).is_err() {return Err(())}
+        let index = self.worlds.iter().position(|w| w.name == name).ok_or(())?;
+        self.worlds.remove(index);
         Ok(())
     }
 }
