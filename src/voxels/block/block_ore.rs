@@ -1,6 +1,6 @@
 use crate::{recipes::{item::Item, storage::Storage}, world::{World, global_coords::GlobalCoords}, player::player::Player};
 
-use super::{interaction::{BlockInteraction, BlockItem}, block_type::BlockType, light_permeability::LightPermeability};
+use super::{interaction::{BlockInteraction, BlockItem}, block_type::BlockType};
 
 pub struct BlockOre {
     pub item_id: u32,

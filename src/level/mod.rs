@@ -134,7 +134,7 @@ impl Level {
                     ));
             }
 
-            if input.is_mouse(&Mouse::Left, KeypressState::AnyJustPress) && !is_cursor {
+            if input.is_mouse(&Mouse::Left, KeypressState::AnyPress) && !is_cursor {
                 BLOCKS()[voxel_id as usize].on_block_break(&self.world, &mut player, &global);
             } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !is_cursor {
                 let gxyz = global + norm.tuple().into();

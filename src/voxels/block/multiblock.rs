@@ -1,6 +1,6 @@
 use crate::{world::{World, global_coords::GlobalCoords}, player::player::Player, direction::Direction};
 
-use super::{interaction::BlockInteraction, block_type::BlockType, light_permeability::LightPermeability};
+use super::{interaction::BlockInteraction, block_type::BlockType};
 
 
 pub struct MultiBlock {

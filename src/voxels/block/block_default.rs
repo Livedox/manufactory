@@ -1,4 +1,4 @@
-use super::{interaction::BlockInteraction, block_type::BlockType, light_permeability::LightPermeability};
+use super::{interaction::BlockInteraction, block_type::BlockType};
 
 
 pub struct BlockDefault {

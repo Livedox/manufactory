@@ -2,7 +2,7 @@ use std::{collections::HashMap, time::Instant};
 
 use itertools::iproduct;
 
-use crate::{voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType, light_permeability::LightPermeability}}, engine::vertices::block_vertex::BlockVertex, world::{World, chunk_coords::ChunkCoords}, engine::pipeline::IS_LINE, graphic::render::block_managers::BlockManagers};
+use crate::{voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType}}, engine::vertices::block_vertex::BlockVertex, world::{World, chunk_coords::ChunkCoords}, engine::pipeline::IS_LINE, graphic::render::block_managers::BlockManagers};
 use crate::light::light_map::Light;
 use self::{model::{Models, ModelRenderResult, render_model}, animated_model::{AnimatedModels, AnimatedModelRenderResult, render_animated_model}, complex_object::render_complex_object, block::{BlockFaceLight, BlockFace, render_block}};
 
@@ -98,9 +98,9 @@ pub fn render(chunk_index: usize, chunks: &Chunks) -> Option<RenderResult> {
         match block.block_type() {
             BlockType::Block {faces} => {
                 if block.is_glass() {
-                    render_block(&mut glass_manager, chunks, &chunk, block.as_ref(), faces, (lx, ly, lz));
+                    render_block(&mut glass_manager, chunks, &chunk, &block.base, faces, (lx, ly, lz));
                 } else {
-                    render_block(&mut block_manager, chunks, &chunk, block.as_ref(), faces, (lx, ly, lz));
+                    render_block(&mut block_manager, chunks, &chunk, &block.base, faces, (lx, ly, lz));
                 }
             },
             BlockType::None => {},

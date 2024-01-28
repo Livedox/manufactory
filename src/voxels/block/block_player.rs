@@ -1,4 +1,4 @@
-use super::{interaction::{BlockInteraction, BlockItem}, block_type::BlockType, light_permeability::LightPermeability};
+use super::{interaction::{BlockInteraction, BlockItem}, block_type::BlockType};
 
 pub struct BlockPlayer {
     pub item_id: u32,

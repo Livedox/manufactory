@@ -1,6 +1,6 @@
 use crate::graphic::complex_object::ComplexObject;
 
-use super::{block_type::BlockType, interaction::BlockInteraction, block_default::BlockDefault, block_player::BlockPlayer, light_permeability::LightPermeability};
+use super::{block_type::BlockType, interaction::BlockInteraction, block_default::BlockDefault, block_player::BlockPlayer};
 
 pub enum BlockTraitType {
     Default,

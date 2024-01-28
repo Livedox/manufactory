@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, sync::{Arc, Mutex, mpsc::{Sender, Receiver}, atomic::{AtomicUsize, Ordering}}, cell::UnsafeCell, ptr::null};
 
-use crate::{voxels::{chunks::Chunks, block::{light_permeability::LightPermeability, blocks::BLOCKS}, chunk::Chunk}, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
+use crate::{voxels::{chunks::Chunks, block::{blocks::BLOCKS}, chunk::Chunk}, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
 
 const COORDS: [(i32, i32, i32); 6] = [
     (1,  0, 0),

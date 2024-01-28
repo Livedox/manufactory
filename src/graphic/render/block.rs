@@ -1,4 +1,4 @@
-use crate::voxels::{block::{light_permeability::LightPermeability, blocks::BLOCKS, interaction::BlockInteraction}, chunks::Chunks, chunk::Chunk};
+use crate::voxels::{block::{block_test::BlockBase, blocks::BLOCKS, interaction::BlockInteraction}, chunks::Chunks, chunk::Chunk};
 use crate::light::light_map::Light;
 use super::block_managers::BlockManagers;
 
@@ -49,7 +49,7 @@ impl BlockFace {
 }
 
 #[inline]
-pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &Chunk, block: &dyn BlockInteraction, faces: &[u32; 6], local: (usize, usize, usize)) {
+pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &Chunk, block: &BlockBase, faces: &[u32; 6], local: (usize, usize, usize)) {
     let (lx, ly, lz) = local;
     let (x, y, z) = chunk.xyz.to_global((lx, ly, lz).into()).into();
     let (nx, px, ny, py, nz, pz) = (x-1, x+1, y-1, y+1, z-1, z+1);
@@ -110,11 +110,11 @@ pub fn render_block(block_manager: &mut BlockManagers, chunks: &Chunks, chunk: &
 }
 
 #[inline]
-fn is_blocked(x: i32, y: i32, z: i32, chunks: &Chunks, block: &dyn BlockInteraction) -> bool {
+fn is_blocked(x: i32, y: i32, z: i32, chunks: &Chunks, block: &BlockBase) -> bool {
     let Some(voxel) = chunks.voxel_global((x, y, z).into()) else {return false};
-    let nblock = &BLOCKS()[voxel.id as usize];
-    if block.is_glass() && nblock.is_glass() {
-        return block.id() == nblock.id();
+    let nblock = &BLOCKS()[voxel.id as usize].base;
+    if block.is_glass && nblock.is_glass {
+        return block.id == nblock.id;
     }
-    !nblock.is_light_passing()
+    !nblock.is_light_passing
 }

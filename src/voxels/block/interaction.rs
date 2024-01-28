@@ -1,6 +1,6 @@
 use crate::{player::player::Player, direction::Direction, world::{World, global_coords::GlobalCoords, coords::Coords}, recipes::item::Item};
 
-use super::{block_type::BlockType, light_permeability::LightPermeability};
+use super::{block_type::BlockType};
 
 pub trait BlockInteraction {
     fn id(&self) -> u32;

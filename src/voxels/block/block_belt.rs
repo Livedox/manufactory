@@ -1,6 +1,6 @@
 use crate::world::coords::Coords;
 
-use super::{interaction::BlockInteraction, block_type::BlockType, light_permeability::LightPermeability};
+use super::{interaction::BlockInteraction, block_type::BlockType};
 
 pub struct BlockBelt {
     pub id: u32,
