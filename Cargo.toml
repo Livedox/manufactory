@@ -35,6 +35,10 @@ egui-winit = "0.25.0"
 egui-wgpu = "0.25"
 egui = { version = "0.25", features = ["color-hex"]}
 
+walkdir = "2"
+
+rayon = "1.8"
+
 russimp = { version = "=2.0.5", features = ["prebuilt"] }
 
 [profile.dev]

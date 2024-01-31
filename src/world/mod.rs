@@ -34,6 +34,7 @@ impl World {
     }
 
     pub fn load_column_of_chunks(&self, regions: &mut WorldRegions, cx: i32, cz: i32) {
+        let start = Instant::now();
         for cy in (0..WORLD_HEIGHT as i32).rev() {
             let chunk = match regions.chunk((cx, cy, cz).into()) {
                 EncodedChunk::None => Chunk::new(cx, cy, cz),
@@ -46,6 +47,7 @@ impl World {
             self.build_chunk(cx, cy, cz);
         }
         self.solve_rgbs();
+        println!("Load column: {:?}", start.elapsed().as_secs_f32());
     }
 
     pub fn build_chunk(&self, cx: i32, cy: i32, cz: i32) {

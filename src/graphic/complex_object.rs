@@ -107,7 +107,7 @@ impl Default for ComplexObject {
     }
 }
 
-pub fn new_transport_belt() -> ComplexObject {
-    let data = std::fs::read("./complex_objects/transport_belt.json").unwrap();
+pub fn load_complex_object(name: &str) -> ComplexObject {
+    let data = std::fs::read(format!("./complex_objects/{}", name)).unwrap();
     serde_json::from_slice(&data).unwrap()
 }

@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 use super::block_test::{self, Block, BlockBase};
-use crate::{graphic::complex_object::new_transport_belt, voxels::block::{block_test::{block_multiblock_break, block_player_add_item, block_world_break}, functions::FUNCTIONS}};
+use crate::{voxels::block::{block_test::{}, functions::{on_break, player_add_item, FUNCTIONS}}};
 
 use super::{interaction::BlockInteraction, block_ore::BlockOre, multiblock::MultiBlock, block_type::BlockType, block_builder::BlockBuilder, block_belt::BlockBelt};
 
@@ -10,11 +10,11 @@ static BLOCKS_CONTAINER: OnceLock<Vec<Block>> = OnceLock::new();
 #[allow(non_snake_case)]
 pub fn BLOCKS() -> &'static Vec<Block> {
     BLOCKS_CONTAINER.get_or_init(|| {
-        vec![
+        let v = vec![
             Block {
                 base: BlockBase {
                     id: 0,
-                    item_id: 0,
+                    item_id: Some(0),
                     block_type: BlockType::None,
                     depth: 1,
                     height: 1,
@@ -23,6 +23,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
                     is_additional_data: false,
                     is_light_passing: true,
                     is_glass: false,
+                    is_ore: false,
                 },
                 on_block_break: Box::new([]),
                 on_block_set: Box::new([]),
@@ -30,7 +31,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
             Block {
                 base: BlockBase {
                     id: 1,
-                    item_id: 0,
+                    item_id: None,
                     block_type: BlockType::None,
                     depth: 1,
                     height: 1,
@@ -39,6 +40,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
                     is_additional_data: false,
                     is_light_passing: true,
                     is_glass: false,
+                    is_ore: false,
                 },
                 on_block_break: Box::new([]),
                 on_block_set: Box::new([]),
@@ -46,7 +48,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
             Block {
                 base: BlockBase {
                     id: 2,
-                    item_id: 0,
+                    item_id: None,
                     block_type: BlockType::Block { faces: [4, 4, 4, 4, 4, 4] },
                     depth: 1,
                     height: 1,
@@ -55,6 +57,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
                     is_additional_data: false,
                     is_light_passing: true,
                     is_glass: false,
+                    is_ore: false,
                 },
                 on_block_break: Box::new([]),
                 on_block_set: Box::new([]),
@@ -62,7 +65,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
             Block {
                 base: BlockBase {
                     id: 3,
-                    item_id: 0,
+                    item_id: None,
                     block_type: BlockType::Block { faces: [4, 4, 4, 4, 4, 4] },
                     depth: 1,
                     height: 1,
@@ -71,6 +74,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
                     is_additional_data: false,
                     is_light_passing: true,
                     is_glass: false,
+                    is_ore: false,
                 },
                 on_block_break: Box::new([]),
                 on_block_set: Box::new([]),
@@ -78,7 +82,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
             Block {
                 base: BlockBase {
                     id: 4,
-                    item_id: 0,
+                    item_id: None,
                     block_type: BlockType::Block { faces: [4, 4, 4, 4, 4, 4] },
                     depth: 1,
                     height: 1,
@@ -87,6 +91,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
                     is_additional_data: false,
                     is_light_passing: true,
                     is_glass: false,
+                    is_ore: false,
                 },
                 on_block_break: Box::new([]),
                 on_block_set: Box::new([]),
@@ -94,7 +99,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
             Block {
                 base: BlockBase {
                     id: 5,
-                    item_id: 0,
+                    item_id: None,
                     block_type: BlockType::Block { faces: [4, 4, 4, 4, 4, 4] },
                     depth: 1,
                     height: 1,
@@ -103,14 +108,15 @@ pub fn BLOCKS() -> &'static Vec<Block> {
                     is_additional_data: false,
                     is_light_passing: true,
                     is_glass: false,
+                    is_ore: false,
                 },
-                on_block_break: Box::new([&block_world_break, &block_player_add_item]),
+                on_block_break: Box::new([&on_break, &player_add_item]),
                 on_block_set: Box::new([]),
             },
             Block {
                 base: BlockBase {
                     id: 6,
-                    item_id: 0,
+                    item_id: None,
                     block_type: BlockType::Block { faces: [4, 4, 4, 4, 4, 4] },
                     depth: 1,
                     height: 1,
@@ -119,6 +125,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
                     is_additional_data: false,
                     is_light_passing: true,
                     is_glass: false,
+                    is_ore: false,
                 },
                 on_block_break: Box::new([]),
                 on_block_set: Box::new([]),
@@ -126,7 +133,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
             Block {
                 base: BlockBase {
                     id: 7,
-                    item_id: 0,
+                    item_id: None,
                     block_type: BlockType::Block { faces: [4, 4, 4, 4, 4, 4] },
                     depth: 1,
                     height: 1,
@@ -135,6 +142,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
                     is_additional_data: false,
                     is_light_passing: true,
                     is_glass: false,
+                    is_ore: false,
                 },
                 on_block_break: Box::new([]),
                 on_block_set: Box::new([]),
@@ -142,7 +150,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
             Block {
                 base: BlockBase {
                     id: 8,
-                    item_id: 0,
+                    item_id: None,
                     block_type: BlockType::Block { faces: [4, 4, 4, 4, 4, 4] },
                     depth: 1,
                     height: 1,
@@ -151,6 +159,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
                     is_additional_data: false,
                     is_light_passing: true,
                     is_glass: false,
+                    is_ore: false,
                 },
                 on_block_break: Box::new([]),
                 on_block_set: Box::new([]),
@@ -158,7 +167,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
             Block {
                 base: BlockBase {
                     id: 9,
-                    item_id: 0,
+                    item_id: None,
                     block_type: BlockType::Block { faces: [4, 4, 4, 4, 4, 4] },
                     depth: 1,
                     height: 1,
@@ -167,6 +176,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
                     is_additional_data: false,
                     is_light_passing: true,
                     is_glass: false,
+                    is_ore: false,
                 },
                 on_block_break: Box::new([]),
                 on_block_set: Box::new([]),
@@ -174,7 +184,7 @@ pub fn BLOCKS() -> &'static Vec<Block> {
             Block {
                 base: BlockBase {
                     id: 10,
-                    item_id: 0,
+                    item_id: Some(0),
                     block_type: BlockType::Block { faces: [4, 4, 4, 4, 4, 4] },
                     depth: 1,
                     height: 1,
@@ -183,11 +193,16 @@ pub fn BLOCKS() -> &'static Vec<Block> {
                     is_additional_data: false,
                     is_light_passing: true,
                     is_glass: false,
+                    is_ore: false,
                 },
                 on_block_break: Box::new([]),
                 on_block_set: Box::new([]),
             },
-        ]
+        ];
+        
+        std::fs::write("./block.json", serde_json::to_vec_pretty(&v[10].base).unwrap()).unwrap();
+
+        v
     })
 }
 // static BLOCKS_CONTAINER: OnceLock<Vec<Box<(dyn BlockInteraction + Send + Sync)>>> = OnceLock::new();

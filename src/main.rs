@@ -134,7 +134,7 @@ pub async fn main() {
         
                         let mut debug_data = String::new();
                         let mesh_vec = if let Some(level) = &mut level {
-                            let result = unsafe {&mut *(level as *mut Level)}.update(
+                            let result = level.update(
                                 &input,
                                 &time,
                                 &mut state,

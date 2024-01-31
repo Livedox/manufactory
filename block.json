@@ -1,0 +1,28 @@
+{
+  "id": 10,
+  "item_id": 0,
+  "emission": [
+    0,
+    0,
+    0
+  ],
+  "block_type": {
+    "Block": {
+      "faces": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ]
+    }
+  },
+  "width": 1,
+  "height": 1,
+  "depth": 1,
+  "is_light_passing": true,
+  "is_additional_data": false,
+  "is_glass": false,
+  "is_ore": false
+}

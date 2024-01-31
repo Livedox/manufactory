@@ -1,4 +1,4 @@
-use std::{collections::HashMap, iter, sync::Arc};
+use std::{collections::HashMap, iter, sync::Arc, time::Instant};
 use egui::{style::{Spacing, Widgets}, vec2, Color32, Rect, Style, Visuals};
 use egui_winit::winit::raw_window_handle;
 use itertools::Itertools;
@@ -7,6 +7,27 @@ use winit::window::Window;
 use crate::{meshes::Mesh, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, bind_group_layout::{Layouts, self}, pipeline::Pipelines, shaders::Shaders, texture::Texture}};
 use crate::engine::texture::TextureAtlas;
 use super::{bind_group_buffer::BindGroupsBuffers, egui::Egui, setting::GraphicSetting, texture::{self}};
+
+pub mod draw;
+
+pub fn load_textures(device: &wgpu::Device, queue: &wgpu::Queue) -> Texture {
+    let files = walkdir::WalkDir::new("./res/assets/blocks/")
+        .into_iter()
+        .filter_map(|f| f.ok())
+        .filter(|f| f.file_type().is_file())
+        .enumerate();
+
+    let mut indices = HashMap::<String, u32>::new();
+    let images = files.map(|(index, file)| {
+        let name = file.file_name().to_str().unwrap();
+        let dot_index = name.rfind(".").unwrap();
+        indices.insert(name[..dot_index].to_string(), index as u32);
+
+        image::open(file.path()).expect(&format!("Failed to open image on path: {:?}", file.path()))
+    }).collect_vec();
+
+    texture::Texture::image_array_n(device, queue, &images)
+}
 
 pub trait Priority {
     fn to_priority(&self) -> u8;
@@ -22,9 +43,6 @@ impl Priority for wgpu::DeviceType {
     }
 }
 
-pub mod draw;
-
-const MAX_SAMPLE_COUNT: u32 = 4;
 
 fn get_supported_multisample_count(surface_format: &TextureFormat, sample_flags: &TextureFormatFeatureFlags) -> Vec<u32> {
     let sample: [u32; 5] = [1, 2, 4, 8, 16];
@@ -142,6 +160,7 @@ impl State {
         //
         // The surface needs to live as long as the window that created it.
         // State owns the window so this should be safe.
+        let start = Instant::now();
         let surface = unsafe { instance.create_surface(window.as_ref()) }.unwrap();
 
         let power_preference = wgpu::PowerPreference::HighPerformance;
@@ -150,6 +169,7 @@ impl State {
         println!("{:?}", adapter.get_info());
         let (device, queue) = request_device(&adapter)
             .await.expect("Failed to request device");
+        println!("Load time: {:?}", start.elapsed().as_secs_f32());
 
         let surface_caps = surface.get_capabilities(&adapter);
         // Shader code in this tutorial assumes an Srgb surface texture. Using a different
@@ -192,58 +212,61 @@ impl State {
         // let mut egui = Egui::new(&device, surface_format, size.width, size.height, window.scale_factor());
         let mut egui = Egui::new(&device, &window, surface_format, sample_count);
         // TODO: Make texture atlas from files not one file.
-        let texture_atlas = TextureAtlas::new(egui.renderer(), &device, &queue, "./assets/items/items.png", 4);
+        let texture_atlas = TextureAtlas::new(egui.renderer(), &device, &queue, "./res/assets/items/items.png", 4);
        
         let shaders = Shaders::new(&device);
         let layouts = Layouts::new(&device);
         let bind_groups_buffers = BindGroupsBuffers::new(&device, &layouts, proj_view);
         let pipelines = Pipelines::new(&device, &layouts, &shaders, config.format, sample_count);
 
-        let block_texture = texture::Texture::image_array(&device, &queue, &[
-            "./assets/blocks/0_no_texture.png",
-            "./assets/blocks/1_block.png",
-            "./assets/blocks/2_block.png",
-            "./assets/blocks/marble.png",
-            "./assets/blocks/iron_ore.png",
-            "./assets/blocks/top.png",
-            "./assets/blocks/green.png",
-            "./assets/blocks/conveyor.png",
-            "./assets/blocks/box.png",
-            "./assets/blocks/rock.png",
-            "./assets/blocks/glass_red.png",
-            "./assets/blocks/glass_blue.png",
-            "./assets/blocks/glass_green.png",
-            "./assets/blocks/glass.png",
-            "./assets/blocks/glass_classic.png",
-            "./assets/debug/0.png",
-            "./assets/debug/1.png",
-            "./assets/debug/2.png",
-            "./assets/debug/3.png",
-            "./assets/debug/4.png",
-            "./assets/debug/5.png",
-            "./assets/debug/6.png",
-            "./assets/debug/7.png",
-            "./assets/debug/8.png",
-            "./assets/debug/9.png",
-            "./assets/debug/10.png",
-            "./assets/debug/11.png",
-            "./assets/debug/12.png",
-            "./assets/debug/13.png",
-            "./assets/debug/14.png",
-            "./assets/debug/15.png",], None).unwrap();
+        let start = Instant::now();
+        let block_texture = load_textures(&device, &queue);
+        println!("Load time: {:?}", start.elapsed().as_secs_f32());
+        // texture::Texture::image_array(&device, &queue, &[
+        //     "./res/assets/blocks/0_no_texture.png",
+        //     "./res/assets/blocks/1_block.png",
+        //     "./res/assets/blocks/2_block.png",
+        //     "./res/assets/blocks/marble.png",
+        //     "./res/assets/blocks/iron_ore.png",
+        //     "./res/assets/blocks/top.png",
+        //     "./res/assets/blocks/green.png",
+        //     "./res/assets/blocks/conveyor.png",
+        //     "./res/assets/blocks/box.png",
+        //     "./res/assets/blocks/rock.png",
+        //     "./res/assets/blocks/glass_red.png",
+        //     "./res/assets/blocks/glass_blue.png",
+        //     "./res/assets/blocks/glass_green.png",
+        //     "./res/assets/blocks/glass.png",
+        //     "./res/assets/blocks/glass_classic.png",
+        //     "./res/assets/blocks/debug/0.png",
+        //     "./res/assets/blocks/debug/1.png",
+        //     "./res/assets/blocks/debug/2.png",
+        //     "./res/assets/blocks/debug/3.png",
+        //     "./res/assets/blocks/debug/4.png",
+        //     "./res/assets/blocks/debug/5.png",
+        //     "./res/assets/blocks/debug/6.png",
+        //     "./res/assets/blocks/debug/7.png",
+        //     "./res/assets/blocks/debug/8.png",
+        //     "./res/assets/blocks/debug/9.png",
+        //     "./res/assets/blocks/debug/10.png",
+        //     "./res/assets/blocks/debug/11.png",
+        //     "./res/assets/blocks/debug/12.png",
+        //     "./res/assets/blocks/debug/13.png",
+        //     "./res/assets/blocks/debug/14.png",
+        //     "./res/assets/blocks/debug/15.png",], None).unwrap();
 
         let block_texutre_bg = bind_group::block_texture::get(&device, &layouts.block_texture, &block_texture);
         
         let models = load_models(&device, &queue, &layouts.model_texture, &[
-            ("./models/monkey.obj", "./assets/models/monkey.png", "monkey"),
-            ("./models/astronaut.obj", "./assets/models/astronaut.png", "astronaut"),
-            ("./models/furnace.obj", "./assets/models/furnace.png", "furnace"),
-            ("./models/drill.obj", "./assets/models/drill.png", "drill"),
-            ("./models/assembling_machine.obj", "./assets/models/assembling_machine.png", "assembler"),
+            ("./res/models/monkey.obj", "./res/assets/models/monkey.png", "monkey"),
+            ("./res/models/astronaut.obj", "./res/assets/models/astronaut.png", "astronaut"),
+            ("./res/models/furnace.obj", "./res/assets/models/furnace.png", "furnace"),
+            ("./res/models/drill.obj", "./res/assets/models/drill.png", "drill"),
+            ("./res/models/assembling_machine.obj", "./res/assets/models/assembling_machine.png", "assembler"),
         ]);
         let animated_models = load_animated_models(&device, &queue, &layouts.model_texture, &[
-            ("./models/manipulator.dae", "./assets/models/manipulator.png", "manipulator"),
-            ("./models/cowboy.dae", "./assets/models/cowboy.png", "cowboy"),
+            ("./res/models/manipulator.dae", "./res/assets/models/manipulator.png", "manipulator"),
+            ("./res/models/cowboy.dae", "./res/assets/models/cowboy.png", "cowboy"),
         ]);
 
         let multisampled_framebuffer =

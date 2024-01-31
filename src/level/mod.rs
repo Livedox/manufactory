@@ -134,8 +134,11 @@ impl Level {
                     ));
             }
 
+            let front = player.camera().front();
+            let direction = Direction::new(front.x, front.y, front.z);
+
             if input.is_mouse(&Mouse::Left, KeypressState::AnyPress) && !is_cursor {
-                BLOCKS()[voxel_id as usize].on_block_break(&self.world, &mut player, &global);
+                BLOCKS()[voxel_id as usize].on_block_break(&self.world, &mut player, &global, &direction);
             } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !is_cursor {
                 let gxyz = global + norm.tuple().into();
                 let storage = self.world.chunks.voxel_data(global).and_then(|vd| vd.player_unlockable());
@@ -144,8 +147,6 @@ impl Level {
                     gui_controller.set_cursor_lock(player.is_inventory);
                     state.set_ui_interaction(player.is_inventory);
                 } else {
-                    let front = player.camera().front();
-                    let direction = Direction::new(front.x, front.y, front.z);
                     if let Some(block_id) = debug_block_id {
                         BLOCKS()[*block_id as usize].on_block_set(
                             &self.world, &mut player, &gxyz, &direction);

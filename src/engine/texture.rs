@@ -1,4 +1,6 @@
-use image::DynamicImage;
+use image::{imageops::FilterType, DynamicImage, EncodableLayout};
+use itertools::Itertools;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 
 #[derive(Debug)]
@@ -71,6 +73,79 @@ impl Texture {
     }
 
 
+    pub fn image_array_n(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        images: &[DynamicImage]
+    ) -> Self {
+        const BASE_SIZE: u32 = 32;
+        //Maximum mipmap_count is BASE_SIZE.ilog2() + 1 (img size 1px) but it's too small
+        let mipmap_count = BASE_SIZE.ilog2();
+        let format = wgpu::TextureFormat::Rgba8UnormSrgb;
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("image texture array"),
+            size: wgpu::Extent3d {
+                width: BASE_SIZE,
+                height: BASE_SIZE,
+                depth_or_array_layers: images.len() as u32,
+            },
+            mip_level_count: mipmap_count,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+
+        (0..mipmap_count).into_par_iter().for_each(|mipmap| {
+            let img_size = BASE_SIZE / 2u32.pow(mipmap);
+            let bytes = images.iter().map(|image| {
+                    if mipmap == 0 {return image.to_rgba8().to_vec()};
+                    image.resize(img_size, img_size, FilterType::Triangle).to_rgba8().to_vec()
+                })
+                .flatten()
+                .collect_vec();
+
+            queue.write_texture(
+                wgpu::ImageCopyTexture {
+                    aspect: wgpu::TextureAspect::All,
+                    texture: &texture,
+                    mip_level: mipmap,
+                    origin: wgpu::Origin3d::ZERO,
+                },
+                &bytes,
+                wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(4 * img_size),
+                    rows_per_image: Some(img_size),
+                },
+                wgpu::Extent3d {
+                    width: img_size,
+                    height: img_size,
+                    depth_or_array_layers: images.len() as u32,
+                }
+            );
+        });
+
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::Repeat,
+            address_mode_v: wgpu::AddressMode::Repeat,
+            address_mode_w: wgpu::AddressMode::Repeat,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Linear,
+            ..Default::default()
+        });
+
+        Self {
+            texture,
+            view,
+            sampler,
+        }
+    }
+
+
     pub fn image_array(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -96,18 +171,15 @@ impl Texture {
             view_formats: &[],
         });
 
-        let mut images: Vec<DynamicImage> = vec![];
-        srcs.iter().for_each(|src| { images.push(image::open(src).expect(src)) });
-        (0..mipmap_count).for_each(|mipmap| {
-            let mut data: Vec<u8> = vec![];
+        let images: Vec<DynamicImage> = srcs.iter().map(|src| image::open(src).expect(src)).collect_vec();
+        (0..mipmap_count).into_par_iter().for_each(|mipmap| {
             let img_size = BASE_SIZE / 2u32.pow(mipmap);
-            (0..srcs.len()).for_each(|i| {
-                let rgba = match mipmap {
-                    0 => images[i].to_rgba8(),
-                    _ => images[i].resize(img_size, img_size, image::imageops::FilterType::Triangle).to_rgba8(),
-                };
-                data.extend_from_slice(&rgba);
-            });
+            let bytes = images.iter().map(|image| {
+                    if mipmap == 0 {return image.to_rgba8().to_vec()};
+                    image.resize(img_size, img_size, FilterType::Triangle).to_rgba8().to_vec()
+                })
+                .flatten()
+                .collect_vec();
 
             queue.write_texture(
                 wgpu::ImageCopyTexture {
@@ -116,7 +188,7 @@ impl Texture {
                     mip_level: mipmap,
                     origin: wgpu::Origin3d::ZERO,
                 },
-                &data,
+                &bytes,
                 wgpu::ImageDataLayout {
                     offset: 0,
                     bytes_per_row: Some(4 * img_size),
