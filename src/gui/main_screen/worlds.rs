@@ -1,7 +1,7 @@
-use std::{collections::hash_map::DefaultHasher, hash::{Hash, Hasher}};
+use std::{collections::{hash_map::DefaultHasher, HashMap}, hash::{Hash, Hasher}};
 
 use chrono::{Utc, TimeZone};
-use egui::{vec2, Color32, RichText, Ui, Stroke};
+use egui::{vec2, Color32, RichText, Stroke, Ui};
 
 use crate::{world::loader::{WorldData, WorldLoader}, gui::theme::DEFAULT_THEME, level::Level, setting::Setting};
 
@@ -64,7 +64,7 @@ impl Default for WorldCreator {
 }
 
 
-pub(crate) fn draw_world_display(ui: &mut Ui, world: &WorldData, level: &mut Option<Level>, setting: &Setting, remove_world: &mut Option<String>) {
+pub(crate) fn draw_world_display(ui: &mut Ui, world: &WorldData, level: &mut Option<Level>, setting: &Setting, remove_world: &mut Option<String>, block_texture_id: &HashMap<String, u32>) {
     egui::Frame::none()
         .fill(Color32::WHITE)
         .outer_margin(vec2(0.0, 0.0))
@@ -106,7 +106,7 @@ pub(crate) fn draw_world_display(ui: &mut Ui, world: &WorldData, level: &mut Opt
             .fill(DEFAULT_THEME.green)
             .stroke(Stroke::NONE);
         if ui.add(button).clicked() {
-            *level = Some(Level::new(&world.name, &setting));
+            *level = Some(Level::new(&world.name, &setting, block_texture_id));
         }
         ui.add_space(5.0);
         let text = egui::RichText::new("🗑")

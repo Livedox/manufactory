@@ -1,4 +1,4 @@
-use std::{time::{Duration, Instant}, sync::{Arc, Mutex, Condvar, atomic::{AtomicBool, Ordering}}, collections::VecDeque, io::BufReader, fs::File, path::Path};
+use std::{time::{Duration, Instant}, sync::{Arc, Mutex, Condvar, atomic::{AtomicBool, Ordering}}, collections::{HashMap, VecDeque}, io::BufReader, fs::File, path::Path};
 use camera::frustum::Frustum;
 use direction::Direction;
 use engine::state;
@@ -14,7 +14,7 @@ use setting::Setting;
 use threads::{save::SaveState, Threads};
 use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}, loader::WorldLoader};
-use crate::{voxels::chunk::HALF_CHUNK_SIZE, world::{chunk_coords::ChunkCoords, local_coords::LocalCoords}, save_load::Save};
+use crate::{engine::state::State, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}, world::{chunk_coords::ChunkCoords, local_coords::LocalCoords}};
 use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE};
 
 use winit::{
@@ -78,6 +78,7 @@ pub fn frustum(chunks: &Chunks, frustum: &Frustum) -> Vec<usize> {
 
 #[tokio::main]
 pub async fn main() {
+    test_serde_block();
     println!("{:?}", Path::new("./data/").canonicalize());
     let mut world_loader = WorldLoader::new(Path::new("./data/worlds/"));
     //let (_stream, stream_handle) = OutputStream::try_default().unwrap();
@@ -188,6 +189,7 @@ pub async fn main() {
                             state.set_ui_interaction(gui_controller.is_menu);
                         }
                         
+                        let block_texture_id = unsafe {&*(&state.block_texture_id as *const HashMap<String, u32>)};
                         match state.render(&mesh_vec, |ctx| {
                             if let Some(l) = &level {
                                 let mut player = unsafe {l.player.lock_unsafe()}.unwrap();
@@ -200,7 +202,7 @@ pub async fn main() {
                                 gui_controller.draw_in_game_menu(ctx, &mut exit_level);
                             } else {
                                 gui_controller
-                                    .draw_main_screen(ctx, target, &mut world_loader, &mut setting, &mut level);
+                                    .draw_main_screen(ctx, target, &mut world_loader, &mut setting, &mut level, block_texture_id);
                             }
         
                             gui_controller.draw_setting(ctx, &mut setting, &save.setting);

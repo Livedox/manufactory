@@ -10,7 +10,7 @@ use super::{bind_group_buffer::BindGroupsBuffers, egui::Egui, setting::GraphicSe
 
 pub mod draw;
 
-pub fn load_textures(device: &wgpu::Device, queue: &wgpu::Queue) -> Texture {
+pub fn load_textures(device: &wgpu::Device, queue: &wgpu::Queue) -> (HashMap::<String, u32>, Texture) {
     let files = walkdir::WalkDir::new("./res/assets/blocks/")
         .into_iter()
         .filter_map(|f| f.ok())
@@ -26,7 +26,7 @@ pub fn load_textures(device: &wgpu::Device, queue: &wgpu::Queue) -> Texture {
         image::open(file.path()).expect(&format!("Failed to open image on path: {:?}", file.path()))
     }).collect_vec();
 
-    texture::Texture::image_array_n(device, queue, &images)
+    (indices, texture::Texture::image_array_n(device, queue, &images))
 }
 
 pub trait Priority {
@@ -115,7 +115,7 @@ pub struct State {
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
 
-    texture_layer_blocks: HashMap<String, u32>,
+    pub block_texture_id: HashMap<String, u32>,
     block_texutre_bg: wgpu::BindGroup,
     window: Arc<Window>,
 
@@ -220,40 +220,8 @@ impl State {
         let pipelines = Pipelines::new(&device, &layouts, &shaders, config.format, sample_count);
 
         let start = Instant::now();
-        let block_texture = load_textures(&device, &queue);
+        let (block_texture_id, block_texture) = load_textures(&device, &queue);
         println!("Load time: {:?}", start.elapsed().as_secs_f32());
-        // texture::Texture::image_array(&device, &queue, &[
-        //     "./res/assets/blocks/0_no_texture.png",
-        //     "./res/assets/blocks/1_block.png",
-        //     "./res/assets/blocks/2_block.png",
-        //     "./res/assets/blocks/marble.png",
-        //     "./res/assets/blocks/iron_ore.png",
-        //     "./res/assets/blocks/top.png",
-        //     "./res/assets/blocks/green.png",
-        //     "./res/assets/blocks/conveyor.png",
-        //     "./res/assets/blocks/box.png",
-        //     "./res/assets/blocks/rock.png",
-        //     "./res/assets/blocks/glass_red.png",
-        //     "./res/assets/blocks/glass_blue.png",
-        //     "./res/assets/blocks/glass_green.png",
-        //     "./res/assets/blocks/glass.png",
-        //     "./res/assets/blocks/glass_classic.png",
-        //     "./res/assets/blocks/debug/0.png",
-        //     "./res/assets/blocks/debug/1.png",
-        //     "./res/assets/blocks/debug/2.png",
-        //     "./res/assets/blocks/debug/3.png",
-        //     "./res/assets/blocks/debug/4.png",
-        //     "./res/assets/blocks/debug/5.png",
-        //     "./res/assets/blocks/debug/6.png",
-        //     "./res/assets/blocks/debug/7.png",
-        //     "./res/assets/blocks/debug/8.png",
-        //     "./res/assets/blocks/debug/9.png",
-        //     "./res/assets/blocks/debug/10.png",
-        //     "./res/assets/blocks/debug/11.png",
-        //     "./res/assets/blocks/debug/12.png",
-        //     "./res/assets/blocks/debug/13.png",
-        //     "./res/assets/blocks/debug/14.png",
-        //     "./res/assets/blocks/debug/15.png",], None).unwrap();
 
         let block_texutre_bg = bind_group::block_texture::get(&device, &layouts.block_texture, &block_texture);
         
@@ -288,7 +256,7 @@ impl State {
             config,
             size,
 
-            texture_layer_blocks: HashMap::new(),
+            block_texture_id,
             block_texutre_bg,
             window,
 

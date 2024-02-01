@@ -1,5 +1,5 @@
-use std::{sync::{Arc, Mutex, Condvar, mpsc::{Sender, Receiver}, RwLock}, path::PathBuf, marker::PhantomPinned};
-use crate::{camera, content::Content, direction::Direction, engine::state::State, frustum, graphic::{render::RenderResult, render_selection::render_selection}, gui::gui_controller::{self, GuiController}, input_event::{input_service::{InputService, Mouse}, KeypressState}, meshes::{Meshes, MeshesRenderInput, Mesh}, my_time::Time, nalgebra_converter::Conventer, player::player::Player, recipes::{storage::Storage, item::Item}, save_load::WorldSaver, setting::Setting, threads::{Threads, save::SaveState}, unsafe_mutex::UnsafeMutex, voxels::{chunks::WORLD_HEIGHT, ray_cast::ray_cast}, world::{World, sun::{Sun, Color}, global_coords::GlobalCoords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
+use std::{collections::HashMap, marker::PhantomPinned, path::PathBuf, sync::{Arc, Mutex, Condvar, mpsc::{Sender, Receiver}, RwLock}};
+use crate::{camera, content::Content, direction::Direction, engine::{bind_group::block_texture, state::State}, frustum, graphic::{render::RenderResult, render_selection::render_selection}, gui::gui_controller::{self, GuiController}, input_event::{input_service::{InputService, Mouse}, KeypressState}, meshes::{Meshes, MeshesRenderInput, Mesh}, my_time::Time, nalgebra_converter::Conventer, player::player::Player, recipes::{storage::Storage, item::Item}, save_load::WorldSaver, setting::Setting, threads::{Threads, save::SaveState}, unsafe_mutex::UnsafeMutex, voxels::{chunks::WORLD_HEIGHT, ray_cast::ray_cast}, world::{World, sun::{Sun, Color}, global_coords::GlobalCoords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
 use nalgebra_glm as glm;
 
 pub struct Level {
@@ -17,8 +17,8 @@ pub struct Level {
 }
 
 impl Level {
-    pub fn new(world_name: &str, setting: &Setting) -> Self {
-        let content = Arc::new(Content::new());
+    pub fn new(world_name: &str, setting: &Setting, block_texture_id: &HashMap<String, u32>) -> Self {
+        let content = Arc::new(Content::new(block_texture_id));
         let (render_sender, render_recv) = std::sync::mpsc::channel::<RenderResult>();
         let (indices_sender, indices_recv) = std::sync::mpsc::channel::<Vec<(usize, usize)>>();
         let mut path = PathBuf::from("./data/worlds/");

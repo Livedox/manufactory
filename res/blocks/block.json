@@ -1,16 +1,8 @@
 {
   "id": "iron_ore",
-  "block_type": {
-    "block": {
-      "faces": "iron_ore"
-    }
-  },
+  "block_type": {"block": {"faces": "iron_ore"}},
   "item_id": null,
-  "emission": [
-    0,
-    0,
-    0
-  ],
+  "emission": [0,0,0],
   "width": 1,
   "height": 1,
   "depth": 1,

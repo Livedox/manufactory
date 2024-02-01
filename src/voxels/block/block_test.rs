@@ -1,19 +1,26 @@
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
 use serde::{Deserialize, Serialize};
 
 use crate::{direction::Direction, player::player::Player, recipes::{item::Item, storage::Storage}, world::{coords::Coords, global_coords::GlobalCoords, World}};
 
-use super::{block_type::BlockType, functions::Function};
+use super::{block_type::BlockType, functions::{on_break, Function}};
 
 fn one() -> usize {1}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Faces {
+    One(String),
+    All(Vec<String>)
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum BlockTypeFile {
     #[serde(rename = "complex_object")]
     ComplexObject { cp: String },
     #[serde(rename = "block")]
-    Block { faces: [String; 6] },
+    Block { faces: Faces },
     #[serde(rename = "model")]
     Model { name: String },
     #[serde(rename = "animated_model")]
@@ -25,12 +32,12 @@ pub enum BlockTypeFile {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BlockFile {
     pub id: String,
+    pub block_type: BlockTypeFile,
 
     #[serde(default)]
     pub item_id: Option<String>,
     #[serde(default)]
     pub emission: [u8; 3],
-    pub block_type: BlockTypeFile,
 
     #[serde(default = "one")]
     pub width: usize,
@@ -47,6 +54,66 @@ pub struct BlockFile {
     pub is_glass: bool,
     #[serde(default)]
     pub is_ore: bool,
+}
+
+
+pub fn to_block(block_file: BlockFile, block_texture_id: &HashMap<String, u32>, id: u32) -> Block {
+    let block_type = match &block_file.block_type {
+        BlockTypeFile::Block { faces } => {
+            let faces = match faces {
+                Faces::One(texture) => {
+                    let id = *block_texture_id.get(texture).unwrap();
+                    [id, id, id, id, id, id]
+                },
+                Faces::All(textures) => {
+                    [0, 1, 2, 3, 4, 5].map(|i| {
+                        *block_texture_id.get(&textures[i%textures.len()]).unwrap()
+                    })
+                },
+            };
+            BlockType::Block { faces }
+        }
+        BlockTypeFile::ComplexObject { cp } => todo!(),
+        BlockTypeFile::Model { name } => todo!(),
+        BlockTypeFile::AnimatedModel { name } => todo!(),
+        BlockTypeFile::None => BlockType::None,
+    };
+
+    Block {
+        base: BlockBase {
+            id,
+            item_id: None,
+            emission: block_file.emission,
+            block_type,
+            width: block_file.width,
+            height: block_file.height,
+            depth: block_file.depth,
+            is_light_passing: block_file.is_light_passing,
+            is_additional_data: block_file.is_additional_data,
+            is_glass: block_file.is_glass,
+            is_ore: block_file.is_ore
+        },
+        on_block_break: Box::new([&on_break]),
+        on_block_set: Box::new([])
+    }
+}
+
+pub fn test_serde_block() {
+    let b = BlockFile {
+        id: String::from("iron_ore"),
+        block_type: BlockTypeFile::Block { faces: Faces::One(String::from("iron_ore")) },
+        item_id: None,
+        emission: [0, 0, 0],
+        width: 1,
+        height: 1,
+        depth: 1,
+        is_light_passing: false,
+        is_additional_data: false,
+        is_glass: false,
+        is_ore: false,
+    };
+
+    std::fs::write("./block.json", serde_json::to_vec_pretty(&b).unwrap()).unwrap();
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -76,8 +143,7 @@ pub struct Block {
 
 impl Debug for Block {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let result = self.base.fmt(f);
-        write!(f, "{:?}", result)
+        self.base.fmt(f)
     }
 }
 

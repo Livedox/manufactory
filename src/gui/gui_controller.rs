@@ -1,6 +1,6 @@
-use std::{borrow::BorrowMut, sync::Arc, time::SystemTime};
+use std::{borrow::BorrowMut, collections::HashMap, sync::Arc, time::SystemTime};
 
-use egui::{Align2, vec2, Context, Align, Color32, epaint::Shadow, Rounding, Margin, RichText, Style, Visuals, style::WidgetVisuals, Widget, Stroke};
+use egui::{epaint::Shadow, style::WidgetVisuals, vec2, Align, Align2, Color32, Context, Margin, RichText, Rounding, Stroke, Style, Visuals, Widget};
 use winit::{window::Window, dpi::PhysicalPosition, event_loop::{ControlFlow, EventLoopWindowTarget}};
 
 use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, setting::Setting, save_load::SettingSave, world::loader::{WorldData, WorldLoader}, level::Level};
@@ -74,9 +74,10 @@ impl GuiController {
         window_target: &EventLoopWindowTarget<()>,
         world_loader: &mut WorldLoader,
         setting: &mut Setting,
-        level: &mut Option<Level>
+        level: &mut Option<Level>,
+        block_texture_id: &HashMap<String, u32>
     ) -> &mut Self {
-        self.main_screen.draw(ctx, window_target, world_loader, setting, level, &mut self.is_setting);
+        self.main_screen.draw(ctx, window_target, world_loader, setting, level, &mut self.is_setting, block_texture_id);
         self
     }
 

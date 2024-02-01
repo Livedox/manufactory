@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use egui::{vec2, Align2, Frame};
 use winit::event_loop::{ControlFlow, EventLoopWindowTarget};
 
@@ -28,9 +30,10 @@ impl MainScreen {
       setting: &mut Setting,
       level: &mut Option<Level>,
       is_setting: &mut bool,
+      block_texture_id: &HashMap<String, u32>
     ) {
         self.draw_main_screen(ctx, window_target, is_setting);
-        self.draw_worlds(ctx, worlds, level, setting);
+        self.draw_worlds(ctx, worlds, level, setting, block_texture_id);
     }
 
     fn draw_main_screen(&mut self, ctx: &egui::Context, window_target: &EventLoopWindowTarget<()>, is_setting: &mut bool) {
@@ -57,7 +60,7 @@ impl MainScreen {
     }
 
 
-    fn draw_worlds(&mut self, ctx: &egui::Context, world_loader: &mut WorldLoader, level: &mut Option<Level>, setting: &Setting) {
+    fn draw_worlds(&mut self, ctx: &egui::Context, world_loader: &mut WorldLoader, level: &mut Option<Level>, setting: &Setting, block_texture_id: &HashMap<String, u32>) {
         let mut remove_world = None;
         egui::Window::new("Worlds")
             .open(&mut self.is_worlds)
@@ -72,7 +75,7 @@ impl MainScreen {
                     .show(ui, |ui| {
                         world_loader.worlds.iter().for_each(|world| {
                             ui.horizontal_top(|ui| {
-                                draw_world_display(ui, world, level, setting, &mut remove_world);
+                                draw_world_display(ui, world, level, setting, &mut remove_world, block_texture_id);
                             });
                         });
                     });

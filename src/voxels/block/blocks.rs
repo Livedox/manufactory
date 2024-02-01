@@ -199,8 +199,6 @@ pub fn BLOCKS() -> &'static Vec<Block> {
                 on_block_set: Box::new([]),
             },
         ];
-        
-        std::fs::write("./block.json", serde_json::to_vec_pretty(&v[10].base).unwrap()).unwrap();
 
         v
     })
