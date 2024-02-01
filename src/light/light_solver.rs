@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, sync::{Arc, Mutex, mpsc::{Sender, Receiver}, atomic::{AtomicUsize, Ordering}}, cell::UnsafeCell, ptr::null};
 
-use crate::{voxels::{chunks::Chunks, block::{blocks::BLOCKS}, chunk::Chunk}, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
+use crate::{content::Content, voxels::{chunks::Chunks, chunk::Chunk}, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
 
 const COORDS: [(i32, i32, i32); 6] = [
     (1,  0, 0),
@@ -138,9 +138,9 @@ impl LightSolver {
     }
 
 
-    pub fn solve(&self, chunks: &Chunks) {
+    pub fn solve(&self, chunks: &Chunks, content: &Content) {
         self.solve_remove_queue(chunks);
-        self.solve_add_queue(chunks);
+        self.solve_add_queue(chunks, content);
     }
 
     fn solve_remove_queue(&self, chunks: &Chunks) {
@@ -168,7 +168,7 @@ impl LightSolver {
         }
     }
 
-    fn solve_add_queue(&self, chunks: &Chunks) {
+    fn solve_add_queue(&self, chunks: &Chunks, content: &Content) {
         let mut chunk_buffer = ChunkBuffer::new();
         while let Some(mut entry) = self.add_queue.pop() {
             if entry.light <= 1 { continue; }
@@ -184,7 +184,7 @@ impl LightSolver {
                     .get_unchecked_channel(self.channel)};
                 let id = unsafe {chunk.voxels.get_unchecked(index).id()};
 
-                if BLOCKS()[id as usize].is_light_passing() && (light+2) <= prev_light {
+                if content.blocks[id as usize].is_light_passing() && (light+2) <= prev_light {
                     self.add_queue.push(entry);
                     unsafe {chunk.lightmap.0.get_unchecked(index)
                         .set_unchecked_channel(entry.light, self.channel)};

@@ -1,4 +1,4 @@
-use super::{voxel::Voxel, chunks::Chunks, block::blocks::BLOCKS};
+use super::{voxel::Voxel, chunks::Chunks};
 
 use nalgebra_glm as glm;
 
@@ -45,7 +45,7 @@ pub fn ray_cast(
         let voxel = chunks.voxel_global((ix as i32, iy as i32, iz as i32).into());
         let id = if let Some(voxel) = voxel {voxel.id} else {0};
         let mut condition = id != 0;
-        let block = &BLOCKS()[id as usize];
+        let block = &chunks.content.blocks[id as usize];
         if block.is_voxel_size() {
             let min_p = block.min_point();
             let min = [ix + min_p.0, iy + min_p.1, iz + min_p.2];

@@ -1,7 +1,7 @@
 use std::{marker::PhantomPinned, pin::Pin, sync::{Arc, RwLock}, time::Instant};
 use itertools::iproduct;
 
-use crate::{light::light::LightSolvers, voxels::{chunks::{Chunks, WORLD_HEIGHT}, voxel::Voxel, chunk::{Chunk, CHUNK_VOLUME}}, direction::Direction, save_load::{WorldRegions, EncodedChunk}, bytes::BytesCoder};
+use crate::{bytes::BytesCoder, content::Content, direction::Direction, light::light::{LightSolvers, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP}, save_load::{WorldRegions, EncodedChunk}, voxels::{chunks::{Chunks, WORLD_HEIGHT}, voxel::Voxel, chunk::{Chunk, CHUNK_VOLUME}}};
 
 use self::global_coords::GlobalCoords;
 
@@ -21,11 +21,11 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(width: i32, height: i32, depth: i32, ox: i32, oy: i32, oz: i32) -> Self {
+    pub fn new(content: Arc<Content>, width: i32, height: i32, depth: i32, ox: i32, oy: i32, oz: i32) -> Self {
         Self {
-            chunks: Arc::new(Chunks::new(width, height, depth, ox, oy, oz)),
-            light: LightSolvers::default(),
-            player_light_solver: LightSolvers::new(CHUNK_VOLUME, CHUNK_VOLUME),
+            chunks: Arc::new(Chunks::new(Arc::clone(&content), width, height, depth, ox, oy, oz)),
+            light: LightSolvers::new(ADD_QUEUE_CAP, REMOVE_QUEUE_CAP, Arc::clone(&content)),
+            player_light_solver: LightSolvers::new(CHUNK_VOLUME, CHUNK_VOLUME, content),
         }
     }
 

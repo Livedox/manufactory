@@ -1,9 +1,9 @@
 use std::{collections::HashMap, sync::{Arc, atomic::{AtomicBool, Ordering}, RwLock}, time::{SystemTime, UNIX_EPOCH}};
 
 use itertools::iproduct;
-use crate::{light::light_map::{LightMap, Light}, direction::Direction, world::{local_coords::LocalCoords, chunk_coords::ChunkCoords}, bytes::{AsFromBytes, BytesCoder}};
+use crate::{bytes::{AsFromBytes, BytesCoder}, content::{self, Content}, direction::Direction, light::light_map::{LightMap, Light}, world::{local_coords::LocalCoords, chunk_coords::ChunkCoords}};
 
-use super::{voxel::{self, Voxel, VoxelAtomic}, voxel_data::{VoxelData, VoxelAdditionalData}, block::blocks::BLOCKS};
+use super::{voxel::{self, Voxel, VoxelAtomic}, voxel_data::{VoxelData, VoxelAdditionalData}};
 use std::io::prelude::*;
 use flate2::{Compression, read::ZlibDecoder};
 use flate2::write::ZlibEncoder;
@@ -127,10 +127,10 @@ impl Chunk {
         self.unsaved.store(value, Ordering::Release);
     }
 
-    pub fn set_voxel_id(&self, local_coords: LocalCoords, id: u32, direction: Option<&Direction>) {
+    pub fn set_voxel_id(&self, local_coords: LocalCoords, id: u32, direction: Option<&Direction>, content: &Content) {
         self.voxels_data.write().unwrap().remove(&local_coords.index());
         self.set_voxel(local_coords, id);
-        if BLOCKS()[id as usize].is_additional_data() {
+        if content.blocks[id as usize].is_additional_data() {
             self.voxels_data.write().unwrap().insert(local_coords.index(), Arc::new(VoxelData {
                 id,
                 global_coords: self.xyz.to_global(local_coords),

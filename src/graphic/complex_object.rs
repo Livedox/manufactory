@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 /// 0: position, 1: uv
 pub struct ComplexObjectVertex(pub [f32; 3], pub [f32; 2]);
 
@@ -25,7 +25,7 @@ impl From<([f32; 3], [f32; 2])> for ComplexObjectVertex {
         Self (value.0, value.1)
     }
 }
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ComplexObjectGroup(pub [ComplexObjectVertex; 4]);
 
 impl ComplexObjectGroup {
@@ -73,7 +73,7 @@ impl From<[ComplexObjectVertex; 4]> for ComplexObjectGroup {
         Self(value)
     }
 }
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ComplexObjectSide {
     pub texture_layer: u32,
     pub vertex_groups: Vec<ComplexObjectGroup>,
@@ -86,7 +86,7 @@ impl ComplexObjectSide {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(default)]
 
 pub struct ComplexObject {

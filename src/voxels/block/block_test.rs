@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{direction::Direction, player::player::Player, recipes::{item::Item, storage::Storage}, world::{coords::Coords, global_coords::GlobalCoords, World}};
@@ -70,6 +72,13 @@ pub struct Block {
     // pub on_use: Box<[Function]>,
     pub on_block_break: Box<[Function]>,
     pub on_block_set: Box<[Function]>
+}
+
+impl Debug for Block {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let result = self.base.fmt(f);
+        write!(f, "{:?}", result)
+    }
 }
 
 impl Block {

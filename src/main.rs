@@ -15,7 +15,7 @@ use threads::{save::SaveState, Threads};
 use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}, loader::WorldLoader};
 use crate::{voxels::chunk::HALF_CHUNK_SIZE, world::{chunk_coords::ChunkCoords, local_coords::LocalCoords}, save_load::Save};
-use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE, block::blocks::BLOCKS};
+use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE};
 
 use winit::{
     event::*,
@@ -49,6 +49,7 @@ mod bytes;
 mod setting;
 mod level;
 mod nalgebra_converter;
+mod content;
 
 static WORLD_EXIT: AtomicBool = AtomicBool::new(false);
 const _GAME_VERSION: u32 = 1;

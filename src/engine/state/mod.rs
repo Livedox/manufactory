@@ -114,6 +114,8 @@ pub struct State {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
+
+    texture_layer_blocks: HashMap<String, u32>,
     block_texutre_bg: wgpu::BindGroup,
     window: Arc<Window>,
 
@@ -160,7 +162,6 @@ impl State {
         //
         // The surface needs to live as long as the window that created it.
         // State owns the window so this should be safe.
-        let start = Instant::now();
         let surface = unsafe { instance.create_surface(window.as_ref()) }.unwrap();
 
         let power_preference = wgpu::PowerPreference::HighPerformance;
@@ -169,7 +170,6 @@ impl State {
         println!("{:?}", adapter.get_info());
         let (device, queue) = request_device(&adapter)
             .await.expect("Failed to request device");
-        println!("Load time: {:?}", start.elapsed().as_secs_f32());
 
         let surface_caps = surface.get_capabilities(&adapter);
         // Shader code in this tutorial assumes an Srgb surface texture. Using a different
@@ -287,6 +287,8 @@ impl State {
             queue,
             config,
             size,
+
+            texture_layer_blocks: HashMap::new(),
             block_texutre_bg,
             window,
 

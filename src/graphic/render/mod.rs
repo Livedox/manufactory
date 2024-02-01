@@ -2,7 +2,7 @@ use std::{collections::HashMap, time::Instant};
 
 use itertools::iproduct;
 
-use crate::{voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{blocks::BLOCKS, block_type::BlockType}}, engine::vertices::block_vertex::BlockVertex, world::{World, chunk_coords::ChunkCoords}, engine::pipeline::IS_LINE, graphic::render::block_managers::BlockManagers};
+use crate::{content::Content, engine::pipeline::IS_LINE, engine::vertices::block_vertex::BlockVertex, graphic::render::block_managers::BlockManagers, voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{block_type::BlockType}}, world::{World, chunk_coords::ChunkCoords}};
 use crate::light::light_map::Light;
 use self::{model::{Models, ModelRenderResult, render_model}, animated_model::{AnimatedModels, AnimatedModelRenderResult, render_animated_model}, complex_object::render_complex_object, block::{BlockFaceLight, BlockFace, render_block}};
 
@@ -78,7 +78,7 @@ pub struct RenderResult {
     pub animated_models: AnimatedModels,
 }
 
-pub fn render(chunk_index: usize, chunks: &Chunks) -> Option<RenderResult> {
+pub fn render(chunk_index: usize, chunks: &Chunks, content: &Content) -> Option<RenderResult> {
     let Some(Some(chunk)) = unsafe {&*chunks.chunks.get()}.get(chunk_index).map(|c| c.clone()) else {return None};
     
     let mut models = Models::new();
@@ -94,13 +94,13 @@ pub fn render(chunk_index: usize, chunks: &Chunks) -> Option<RenderResult> {
     for (ly, lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
         let id = unsafe {chunk.get_unchecked_voxel((lx, ly, lz).into()).id};
         if id == 0 { continue };
-        let block = &BLOCKS()[id as usize];
+        let block = &content.blocks[id as usize];
         match block.block_type() {
             BlockType::Block {faces} => {
                 if block.is_glass() {
-                    render_block(&mut glass_manager, chunks, &chunk, &block.base, faces, (lx, ly, lz));
+                    render_block(content, &mut glass_manager, chunks, &chunk, &block.base, faces, (lx, ly, lz));
                 } else {
-                    render_block(&mut block_manager, chunks, &chunk, &block.base, faces, (lx, ly, lz));
+                    render_block(content, &mut block_manager, chunks, &chunk, &block.base, faces, (lx, ly, lz));
                 }
             },
             BlockType::None => {},

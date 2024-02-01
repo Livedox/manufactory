@@ -1,6 +1,6 @@
 use std::{thread::JoinHandle, sync::{Arc, mpsc::Sender, Mutex, Condvar, atomic::{Ordering, AtomicBool}, RwLock}};
 
-use crate::{unsafe_mutex::UnsafeMutex, world::World, save_load::{WorldRegions, WorldSaver}, graphic::render::RenderResult, WORLD_EXIT, player::player::Player};
+use crate::{content::Content, graphic::render::RenderResult, player::player::Player, save_load::{WorldRegions, WorldSaver}, unsafe_mutex::UnsafeMutex, world::World, WORLD_EXIT};
 
 use self::save::SaveState;
 
@@ -21,6 +21,7 @@ pub struct Threads {
 
 impl Threads {
     pub fn new(
+        content: Arc<Content>,
         world: Arc<World>,
         player: Arc<UnsafeMutex<Player>>,
         world_saver: Arc<WorldSaver>,
@@ -32,7 +33,7 @@ impl Threads {
             save: save::spawn(world.clone(), player, world_saver.clone(), save_condvar.clone()),
             world_loader: world_loader::spawn(world.clone(), world_saver.regions.clone(), exit.clone()),
             voxel_data_updater: voxel_data_updater::spawn(world.clone(), exit.clone()),
-            renderer: renderer::spawn(world, sender, exit.clone()),
+            renderer: renderer::spawn(content, world, sender, exit.clone()),
             save_condvar,
             exit
         }

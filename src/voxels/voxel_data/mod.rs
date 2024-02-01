@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex, Weak};
 use egui::{ahash::HashMap, mutex::RwLock};
 
-use crate::{direction::Direction, recipes::storage::Storage, world::global_coords::GlobalCoords, gui::draw::Draw, bytes::{BytesCoder, AsFromBytes}};
+use crate::{bytes::{BytesCoder, AsFromBytes}, content::Content, direction::Direction, gui::draw::Draw, recipes::storage::Storage, world::global_coords::GlobalCoords};
 use self::{voxel_box::VoxelBox, furnace::Furnace, drill::Drill, cowboy::Cowboy, assembling_machine::AssemblingMachine, transport_belt::TransportBelt, manipulator::Manipulator, multiblock::MultiBlock};
 
 use super::chunks::Chunks;

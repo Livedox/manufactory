@@ -1,8 +1,9 @@
 use std::{sync::{Mutex, Arc, mpsc::Sender, atomic::{Ordering, AtomicBool}, RwLock}, time::{Duration, Instant}, thread::{JoinHandle}};
 
-use crate::{world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, graphic::render::{RenderResult, render}, unsafe_mutex::UnsafeMutex, WORLD_EXIT};
+use crate::{content::Content, graphic::render::{RenderResult, render}, unsafe_mutex::UnsafeMutex, world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, WORLD_EXIT};
 
 pub fn spawn(
+    content: Arc<Content>,
     world: Arc<World>,
     sender: Sender<RenderResult>,
     exit: Arc<AtomicBool>
@@ -18,7 +19,7 @@ pub fn spawn(
         
         if let Some(chunk) = world.chunks.find_unrendered() {
             chunk.modify(false);
-            if let Some(result) = render(chunk.xyz.nindex(width, depth, ox, oz), &world.chunks) {
+            if let Some(result) = render(chunk.xyz.nindex(width, depth, ox, oz), &world.chunks, &content) {
                 let _ = sender.send(result);
             }
         } else {

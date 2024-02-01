@@ -1,5 +1,5 @@
 use std::{sync::{Mutex, Arc, Weak}, cell::UnsafeCell};
-use crate::{recipes::{storage::Storage, items::ITEMS, item_interaction::ItemInteraction}, world::{World, global_coords::GlobalCoords}, direction::Direction, voxels::voxel_data::DrawStorage, camera::camera_controller::CameraController, input_event::{input_service::{InputService, Key}, KeypressState}, bytes::{AsFromBytes, BytesCoder}, CAMERA_FOV, CAMERA_NEAR, CAMERA_FAR};
+use crate::{bytes::{AsFromBytes, BytesCoder}, camera::camera_controller::CameraController, content::Content, direction::Direction, input_event::{input_service::{InputService, Key}, KeypressState}, recipes::{storage::Storage, items::ITEMS, item_interaction::ItemInteraction}, voxels::voxel_data::DrawStorage, world::{World, global_coords::GlobalCoords}, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
 use super::inventory::PlayerInventory;
 
 use nalgebra_glm as glm;
@@ -35,12 +35,12 @@ impl Player {
     }
 
 
-    pub fn on_right_click(&mut self, world: &World, xyz: &GlobalCoords, dir: &Direction) {
+    pub fn on_right_click(&mut self, world: &World, xyz: &GlobalCoords, dir: &Direction, content: &Content) {
         let Some(item_id) = self.inventory
             .lock().unwrap()
             .storage()[self.active_slot].0
             .map(|item| item.id()) else {return};
-        ITEMS()[item_id as usize].on_right_click(world, self, xyz, dir);
+        ITEMS()[item_id as usize].on_right_click(world, self, xyz, dir, content);
     }
 
     pub fn set_open_storage(&mut self, storage: Weak<Mutex<dyn DrawStorage>>) {

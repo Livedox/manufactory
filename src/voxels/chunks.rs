@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, 
 
 use itertools::iproduct;
 
-use crate::{direction::Direction, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}, vec_none, unsafe_mutex::UnsafeMutex, save_load::{WorldRegions, EncodedChunk}, bytes::BytesCoder, light::light_map::Light};
+use crate::{bytes::BytesCoder, content::Content, direction::Direction, light::light_map::Light, save_load::{WorldRegions, EncodedChunk}, unsafe_mutex::UnsafeMutex, vec_none, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
 
 use super::{chunk::{Chunk, CHUNK_SIZE}, voxel::Voxel, voxel_data::{VoxelAdditionalData, VoxelData, multiblock::MultiBlock}};
 
@@ -10,6 +10,7 @@ pub const WORLD_HEIGHT: usize = 256 / CHUNK_SIZE; // In chunks
 
 #[derive(Debug)]
 pub struct Chunks {
+    pub content: Arc<Content>,
     is_translate: AtomicBool,
     // I tried to do this using safe code, but it kills performance by about 2 times
     pub chunks: UnsafeCell<Vec<Option<Arc<Chunk>>>>,
@@ -28,12 +29,13 @@ pub struct Chunks {
 }
 
 impl Chunks {
-    pub fn new(width: i32, height: i32, depth: i32, ox: i32, oy: i32, oz: i32) -> Chunks {
+    pub fn new(content: Arc<Content>, width: i32, height: i32, depth: i32, ox: i32, oy: i32, oz: i32) -> Chunks {
         let volume = width*height*depth;
         let mut chunks: Vec<Option<Arc<Chunk>>> = vec![];
         for _ in 0..volume { chunks.push(None); }
 
         Chunks {
+            content,
             chunks: UnsafeCell::new(chunks),
             chunks_awaiting_deletion: Arc::new(Mutex::new(Vec::new())),
             volume,
@@ -146,7 +148,7 @@ impl Chunks {
         let x_offset = (local.0 == (CHUNK_SIZE-1) as u8) as i32 - (local.0 == 0) as i32;
         let y_offset = (local.1 == (CHUNK_SIZE-1) as u8) as i32 - (local.1 == 0) as i32;
         let z_offset = (local.2 == (CHUNK_SIZE-1) as u8) as i32 - (local.2 == 0) as i32;
-        chunk.set_voxel_id(local, id, direction);
+        chunk.set_voxel_id(local, id, direction, &self.content);
         chunk.modify(true);
         chunk.save(true);
         

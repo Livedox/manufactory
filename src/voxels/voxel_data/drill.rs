@@ -1,7 +1,7 @@
 use std::time::{Instant, Duration};
 
 use crate::bytes::{BytesCoder, AsFromBytes, cast_vec_from_bytes, cast_bytes_from_slice};
-use crate::{world::global_coords::GlobalCoords, direction::Direction, voxels::{chunks::Chunks, block::blocks::BLOCKS}, recipes::{item::PossibleItem, storage::Storage}};
+use crate::{world::global_coords::GlobalCoords, direction::Direction, voxels::{chunks::Chunks}, recipes::{item::PossibleItem, storage::Storage}};
 
 use super::multiblock::MultiBlock;
 
@@ -43,7 +43,7 @@ impl Drill {
             let ore_coords = GlobalCoords(coord.0, coord.1-1, coord.2);
             let voxel = chunks.voxel_global(ore_coords);
             let Some(voxel) = voxel else {return};
-            if let Some(item) = BLOCKS()[voxel.id as usize].ore() {
+            if let Some(item) = chunks.content.blocks[voxel.id as usize].ore() {
                 self.storage[0].try_add_item(&item);
             }
         });

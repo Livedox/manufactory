@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::{Mutex, Arc, mpsc::Receiver}};
 use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
-use crate::{graphic::render::{RenderResult, animated_model::AnimatedModelRenderResult, model::ModelRenderResult}, voxels::block::{block_type::BlockType, blocks::BLOCKS}, engine::vertices::{model_instance::ModelInstance, animated_model_instance::AnimatedModelInstance}, models::animated_model::AnimatedModel, world::World, state::State};
+use crate::{content::Content, engine::vertices::{model_instance::ModelInstance, animated_model_instance::AnimatedModelInstance}, graphic::render::{RenderResult, animated_model::AnimatedModelRenderResult, model::ModelRenderResult}, models::animated_model::AnimatedModel, state::State, voxels::block::{block_type::BlockType}, world::World};
 
 #[derive(Debug)]
 pub struct Mesh {
@@ -40,6 +40,7 @@ pub struct MeshesRenderInput<'a> {
 
 #[derive(Debug)]
 pub struct Meshes {
+    content: Arc<Content>,
     meshes: Vec<Option<Arc<Mesh>>>,
     // Indicates how many translate need to be performed.
     // Use atomicity if I add this to another thread
@@ -47,7 +48,8 @@ pub struct Meshes {
 }
 
 impl Meshes {
-    pub fn new() -> Self { Self {
+    pub fn new(content: Arc<Content>) -> Self { Self {
+        content,
         meshes: vec![],
         need_translate: Arc::new(Mutex::new(0)),
     }}
@@ -201,7 +203,7 @@ impl Meshes {
     
             chunk.voxels_data.read().unwrap().iter().sorted_by_key(|data| {data.0}).for_each(|data| {
                 let progress = data.1.additionally.as_ref().animation_progress().unwrap_or(0.0);
-                let block_type = &BLOCKS()[data.1.id as usize].block_type();
+                let block_type = &self.content.blocks[data.1.id as usize].block_type();
                 if let BlockType::AnimatedModel {name} = block_type {
                     if let Some(animated_model) = animated_models.get_mut(name) {
                         animated_model.push(progress);
