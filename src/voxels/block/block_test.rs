@@ -2,9 +2,9 @@ use std::{collections::HashMap, fmt::Debug};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{direction::Direction, player::player::Player, recipes::{item::Item, storage::Storage}, world::{coords::Coords, global_coords::GlobalCoords, World}};
+use crate::{direction::Direction, engine::state::Indices, player::player::Player, recipes::{item::Item, storage::Storage}, world::{coords::Coords, global_coords::GlobalCoords, World}};
 
-use super::{block_type::BlockType, functions::{on_break, Function}};
+use super::{block_type::BlockType, functions::{on_break, on_set, Function}};
 
 fn one() -> usize {1}
 
@@ -57,25 +57,29 @@ pub struct BlockFile {
 }
 
 
-pub fn to_block(block_file: BlockFile, block_texture_id: &HashMap<String, u32>, id: u32) -> Block {
+pub fn to_block(block_file: BlockFile, indices: &Indices, id: u32) -> Block {
     let block_type = match &block_file.block_type {
         BlockTypeFile::Block { faces } => {
             let faces = match faces {
                 Faces::One(texture) => {
-                    let id = *block_texture_id.get(texture).unwrap();
+                    let id = *indices.block.get(texture).unwrap();
                     [id, id, id, id, id, id]
                 },
                 Faces::All(textures) => {
                     [0, 1, 2, 3, 4, 5].map(|i| {
-                        *block_texture_id.get(&textures[i%textures.len()]).unwrap()
+                        *indices.block.get(&textures[i%textures.len()]).unwrap()
                     })
                 },
             };
             BlockType::Block { faces }
         }
         BlockTypeFile::ComplexObject { cp } => todo!(),
-        BlockTypeFile::Model { name } => todo!(),
-        BlockTypeFile::AnimatedModel { name } => todo!(),
+        BlockTypeFile::Model { name } => {
+            BlockType::Model { id: *indices.models.get(name).unwrap() }
+        },
+        BlockTypeFile::AnimatedModel { name } => {
+            BlockType::AnimatedModel { id: *indices.animated_models.get(name).unwrap() }
+        },
         BlockTypeFile::None => BlockType::None,
     };
 
@@ -94,7 +98,7 @@ pub fn to_block(block_file: BlockFile, block_texture_id: &HashMap<String, u32>, 
             is_ore: block_file.is_ore
         },
         on_block_break: Box::new([&on_break]),
-        on_block_set: Box::new([])
+        on_block_set: Box::new([&on_set])
     }
 }
 

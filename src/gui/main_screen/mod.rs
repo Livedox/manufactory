@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use egui::{vec2, Align2, Frame};
 use winit::event_loop::{ControlFlow, EventLoopWindowTarget};
 
-use crate::{world::loader::{WorldData, WorldLoader}, save_load::SettingSave, setting::Setting, level::Level, engine::state};
+use crate::{world::loader::{WorldData, WorldLoader}, save_load::SettingSave, setting::Setting, level::Level, engine::state::{self, Indices}};
 
 use self::worlds::{draw_world_display, WorldCreator};
 
@@ -30,10 +30,10 @@ impl MainScreen {
       setting: &mut Setting,
       level: &mut Option<Level>,
       is_setting: &mut bool,
-      block_texture_id: &HashMap<String, u32>
+      indices: &Indices
     ) {
         self.draw_main_screen(ctx, window_target, is_setting);
-        self.draw_worlds(ctx, worlds, level, setting, block_texture_id);
+        self.draw_worlds(ctx, worlds, level, setting, indices);
     }
 
     fn draw_main_screen(&mut self, ctx: &egui::Context, window_target: &EventLoopWindowTarget<()>, is_setting: &mut bool) {
@@ -60,7 +60,7 @@ impl MainScreen {
     }
 
 
-    fn draw_worlds(&mut self, ctx: &egui::Context, world_loader: &mut WorldLoader, level: &mut Option<Level>, setting: &Setting, block_texture_id: &HashMap<String, u32>) {
+    fn draw_worlds(&mut self, ctx: &egui::Context, world_loader: &mut WorldLoader, level: &mut Option<Level>, setting: &Setting, indices: &Indices) {
         let mut remove_world = None;
         egui::Window::new("Worlds")
             .open(&mut self.is_worlds)
@@ -75,7 +75,7 @@ impl MainScreen {
                     .show(ui, |ui| {
                         world_loader.worlds.iter().for_each(|world| {
                             ui.horizontal_top(|ui| {
-                                draw_world_display(ui, world, level, setting, &mut remove_world, block_texture_id);
+                                draw_world_display(ui, world, level, setting, &mut remove_world, indices);
                             });
                         });
                     });

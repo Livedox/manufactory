@@ -48,13 +48,13 @@ impl BlockBuilder {
         self
     }
 
-    pub fn model_name(mut self, name: String) -> Self {
-        self.block_type = Some(BlockType::Model { name });
+    pub fn model_name(mut self, id: u32) -> Self {
+        self.block_type = Some(BlockType::Model { id });
         self
     }
 
-    pub fn animated_model_name(mut self, name: String) -> Self {
-        self.block_type = Some(BlockType::AnimatedModel { name });
+    pub fn animated_model_name(mut self, id: u32) -> Self {
+        self.block_type = Some(BlockType::AnimatedModel { id });
         self
     }
 

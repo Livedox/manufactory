@@ -3,7 +3,7 @@ use std::{collections::{hash_map::DefaultHasher, HashMap}, hash::{Hash, Hasher}}
 use chrono::{Utc, TimeZone};
 use egui::{vec2, Color32, RichText, Stroke, Ui};
 
-use crate::{world::loader::{WorldData, WorldLoader}, gui::theme::DEFAULT_THEME, level::Level, setting::Setting};
+use crate::{engine::state::Indices, gui::theme::DEFAULT_THEME, level::Level, setting::Setting, world::loader::{WorldData, WorldLoader}};
 
 #[derive(Debug, Clone)]
 pub struct WorldCreator {
@@ -40,7 +40,7 @@ impl WorldCreator {
                         let mut hasher = DefaultHasher::new();
                         self.seed.hash(&mut hasher);
                         let hash = hasher.finish();
-                        self.seed.parse::<u64>().unwrap_or(hash)
+                        self.seed.parse::<u64>().unwrap_or(hash as u64)
                     } else {
                         rand::random::<u64>()
                     };
@@ -64,7 +64,7 @@ impl Default for WorldCreator {
 }
 
 
-pub(crate) fn draw_world_display(ui: &mut Ui, world: &WorldData, level: &mut Option<Level>, setting: &Setting, remove_world: &mut Option<String>, block_texture_id: &HashMap<String, u32>) {
+pub(crate) fn draw_world_display(ui: &mut Ui, world: &WorldData, level: &mut Option<Level>, setting: &Setting, remove_world: &mut Option<String>, indices: &Indices) {
     egui::Frame::none()
         .fill(Color32::WHITE)
         .outer_margin(vec2(0.0, 0.0))
@@ -106,7 +106,7 @@ pub(crate) fn draw_world_display(ui: &mut Ui, world: &WorldData, level: &mut Opt
             .fill(DEFAULT_THEME.green)
             .stroke(Stroke::NONE);
         if ui.add(button).clicked() {
-            *level = Some(Level::new(&world.name, &setting, block_texture_id));
+            *level = Some(Level::new(&world.name, world.seed, &setting, indices));
         }
         ui.add_space(5.0);
         let text = egui::RichText::new("🗑")

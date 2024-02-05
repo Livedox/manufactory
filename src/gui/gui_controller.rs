@@ -3,7 +3,7 @@ use std::{borrow::BorrowMut, collections::HashMap, sync::Arc, time::SystemTime};
 use egui::{epaint::Shadow, style::WidgetVisuals, vec2, Align, Align2, Color32, Context, Margin, RichText, Rounding, Stroke, Style, Visuals, Widget};
 use winit::{window::Window, dpi::PhysicalPosition, event_loop::{ControlFlow, EventLoopWindowTarget}};
 
-use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::texture::TextureAtlas, setting::Setting, save_load::SettingSave, world::loader::{WorldData, WorldLoader}, level::Level};
+use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::{state::Indices, texture::TextureAtlas}, setting::Setting, save_load::SettingSave, world::loader::{WorldData, WorldLoader}, level::Level};
 use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME, main_screen::{self, MainScreen, in_game_menu::draw_in_game_menu}, setting::draw_setting};
 use chrono::{Utc, TimeZone};
 enum Task {
@@ -75,9 +75,9 @@ impl GuiController {
         world_loader: &mut WorldLoader,
         setting: &mut Setting,
         level: &mut Option<Level>,
-        block_texture_id: &HashMap<String, u32>
+        indices: &Indices
     ) -> &mut Self {
-        self.main_screen.draw(ctx, window_target, world_loader, setting, level, &mut self.is_setting, block_texture_id);
+        self.main_screen.draw(ctx, window_target, world_loader, setting, level, &mut self.is_setting, indices);
         self
     }
 

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use russimp::scene::{Scene, PostProcess};
 
@@ -11,11 +11,12 @@ pub fn load_model(
   device: &wgpu::Device,
   queue: &wgpu::Queue,
   texture_layout: &wgpu::BindGroupLayout,
-  src: &str,
-  src_texture: &str,
+  src: impl AsRef<Path>,
+  src_texture: impl AsRef<Path>,
   name: &str
 ) -> Model {
-    let scene = Scene::from_file(src, vec![PostProcess::FlipUVs, PostProcess::MakeLeftHanded]).unwrap();
+    let scene = Scene::from_file(src.as_ref().to_str().unwrap(),
+        vec![PostProcess::FlipUVs, PostProcess::MakeLeftHanded]).unwrap();
 
     let mut model_vertex: Vec<ModelVertex> = vec![];
     scene.meshes[0].vertices.iter().for_each(|vertex| {

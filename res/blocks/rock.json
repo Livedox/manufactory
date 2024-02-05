@@ -1,6 +1,6 @@
 {
-  "id": "iron_ore",
-  "block_type": {"block": {"faces": "iron_ore"}},
+  "id": "rock",
+  "block_type": {"block": {"faces": "rock"}},
   "item_id": null,
   "emission": [0,0,0],
   "width": 1,

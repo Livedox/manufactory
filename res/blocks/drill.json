@@ -1,0 +1,5 @@
+{
+  "id": "drill",
+  "block_type": {"model": {"name": "drill"}},
+  "is_light_passing": true
+}

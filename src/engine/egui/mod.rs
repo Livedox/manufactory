@@ -3,7 +3,7 @@ use winit::window::Window;
 
 pub struct EguiRenderer<'a> {
     primitives: Vec<ClippedPrimitive>,
-    screen_descriptor: egui_wgpu::renderer::ScreenDescriptor,
+    screen_descriptor: egui_wgpu::ScreenDescriptor,
     renderer: &'a mut egui_wgpu::Renderer,
     free: Vec<egui::TextureId>
 }
@@ -67,7 +67,7 @@ impl Egui {
         self.state.handle_platform_output(window, output.platform_output);
 
         let primitives = self.state.egui_ctx().tessellate(output.shapes, output.pixels_per_point);
-        let screen_descriptor = egui_wgpu::renderer::ScreenDescriptor {
+        let screen_descriptor = egui_wgpu::ScreenDescriptor {
             pixels_per_point: output.pixels_per_point,
             size_in_pixels,
         };

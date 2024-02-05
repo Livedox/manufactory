@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{engine::vertices::block_vertex::BlockVertex, graphic::complex_object::{ComplexObjectSide, ComplexObject}, voxels::chunk::Chunk};
-use super::{animated_model::{render_animated_model, AnimatedModels}, model::{render_model, ModelRenderResult}, Buffer};
+use super::{animated_model::{render_animated_model, AnimatedModels}, model::{render_model, ModelRenderResult, Models}, Buffer};
 
 const INDICES: [[usize; 6]; 2] = [[0,1,2,0,2,3], [3,2,0,2,1,0]];
 
@@ -27,7 +27,7 @@ fn render_side(
 #[inline]
 pub fn render_complex_object(
   complex_object: &ComplexObject,
-  models: &mut HashMap<String, Vec<ModelRenderResult>>,
+  models: &mut Models,
   animated_models: &mut AnimatedModels,
   buffer: &mut Buffer,
   belt_buffer: &mut Buffer,
@@ -48,9 +48,9 @@ pub fn render_complex_object(
         render_side(belt_buffer, part, light, global, rotation_index);
     });
     complex_object.model_names.iter().for_each(|name| {
-        render_model(models, chunk, name, lx, ly, lz);
+        render_model(models, chunk, u32::MAX, lx, ly, lz);
     });
     complex_object.animated_models_names.iter().for_each(|name| {
-        render_animated_model(animated_models, chunk, name, lx, ly, lz);
+        render_animated_model(animated_models, chunk, u32::MAX, lx, ly, lz);
     });
 }

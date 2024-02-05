@@ -6,7 +6,8 @@ use crate::{bytes::BytesCoder, content::Content, direction::Direction, light::li
 
 use super::{chunk::{Chunk, CHUNK_SIZE}, voxel::Voxel, voxel_data::{VoxelAdditionalData, VoxelData, multiblock::MultiBlock}};
 
-pub const WORLD_HEIGHT: usize = 256 / CHUNK_SIZE; // In chunks
+pub const WORLD_BLOCK_HEIGHT: usize = 256;
+pub const WORLD_HEIGHT: usize = WORLD_BLOCK_HEIGHT / CHUNK_SIZE; // In chunks
 
 #[derive(Debug)]
 pub struct Chunks {
@@ -109,21 +110,6 @@ impl Chunks {
         indices
     }
 
-
-    pub fn load_all(&self, world_regions: Arc<UnsafeMutex<WorldRegions>>) {
-        for (cy, cz, cx) in iproduct!(0..self.height, 0..self.depth, 0..self.width) {
-            let index = ChunkCoords(cx, cy, cz).index_without_offset(self.width, self.depth);
-            let chunks = unsafe {&mut *self.chunks.get()};
-            let Some(chunk) = chunks.get_mut(index) else {continue};
-            let mut world_regions = unsafe {world_regions.lock_unsafe()}.unwrap();
-            *chunk = match world_regions.chunk(ChunkCoords(cx+self.ox(), cy, cz+self.oz())) {
-                EncodedChunk::None => Some(Arc::new(Chunk::new(cx+self.ox(), cy, cz+self.oz()))),
-                EncodedChunk::Some(b) => Some(Arc::new(Chunk::decode_bytes(b))),
-            }
-        }
-    }
-
-    #[inline(never)]
     pub fn voxel(&self, chunk_coords: ChunkCoords, local_coords: LocalCoords) -> Option<Voxel> {
         let chunk = self.chunk_ptr(chunk_coords)?;
         Some(unsafe {&*chunk}.voxel(local_coords))

@@ -1,14 +1,80 @@
-use std::{collections::HashMap, iter, sync::Arc, time::Instant};
+use std::{collections::HashMap, iter, path::Path, sync::Arc, time::Instant};
 use egui::{style::{Spacing, Widgets}, vec2, Color32, Rect, Style, Visuals};
 use egui_winit::winit::raw_window_handle;
 use itertools::Itertools;
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
-use crate::{meshes::Mesh, my_time::Time, models::{load_model::load_models, model::Model, load_animated_model::load_animated_models, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, bind_group_layout::{Layouts, self}, pipeline::Pipelines, shaders::Shaders, texture::Texture}};
+use crate::{meshes::Mesh, my_time::Time, models::{load_model::{load_model}, model::Model, load_animated_model::{load_animated_model, load_animated_models}, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, bind_group_layout::{Layouts, self}, pipeline::Pipelines, shaders::Shaders, texture::Texture}};
 use crate::engine::texture::TextureAtlas;
 use super::{bind_group_buffer::BindGroupsBuffers, egui::Egui, setting::GraphicSetting, texture::{self}};
 
 pub mod draw;
+
+pub struct Indices {
+    pub block: HashMap<String, u32>,
+    pub models: HashMap<String, u32>,
+    pub animated_models: HashMap<String, u32>,
+}
+
+pub fn load_animated_models_test(
+    models_path: impl AsRef<Path>,
+    textures_path: impl AsRef<Path>,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    texture_layout: &wgpu::BindGroupLayout
+) -> (HashMap::<String, u32>, Box<[AnimatedModel]>) {
+    let files = walkdir::WalkDir::new(models_path)
+        .into_iter()
+        .filter_map(|f| f.ok())
+        .filter(|f| f.file_type().is_file())
+        .enumerate();
+    let textures_path = textures_path.as_ref();
+
+    let mut indices = HashMap::<String, u32>::new();
+    let models: Box<[AnimatedModel]> = files.map(|(index, file)| {
+        let file_name = file.file_name().to_str().unwrap();
+        let dot_index = file_name.rfind(".").unwrap();
+        let name = file_name[..dot_index].to_string();
+        let texture_name = name.clone() + ".png";
+        let src_texture = textures_path.join(texture_name);
+        let model = load_animated_model(device, queue, texture_layout, file.path(), &src_texture, &name);
+        indices.insert(name, index as u32);
+        model
+    }).collect();
+
+    println!("{:?}", indices);
+
+    (indices, models)
+  }
+
+pub fn load_models(
+    models_path: impl AsRef<Path>,
+    textures_path: impl AsRef<Path>,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    texture_layout: &wgpu::BindGroupLayout
+) -> (HashMap::<String, u32>, Box<[Model]>) {
+    let files = walkdir::WalkDir::new(models_path)
+        .into_iter()
+        .filter_map(|f| f.ok())
+        .filter(|f| f.file_type().is_file())
+        .enumerate();
+    let textures_path = textures_path.as_ref();
+
+    let mut indices = HashMap::<String, u32>::new();
+    let models: Box<[Model]> = files.map(|(index, file)| {
+        let file_name = file.file_name().to_str().unwrap();
+        let dot_index = file_name.rfind(".").unwrap();
+        let name = file_name[..dot_index].to_string();
+        let texture_name = name.clone() + ".png";
+        let src_texture = textures_path.join(texture_name);
+        let model = load_model(device, queue, texture_layout, file.path(), &src_texture, &name);
+        indices.insert(name, index as u32);
+        model
+    }).collect();
+
+    (indices, models)
+}
 
 pub fn load_textures(device: &wgpu::Device, queue: &wgpu::Queue) -> (HashMap::<String, u32>, Texture) {
     let files = walkdir::WalkDir::new("./res/assets/blocks/")
@@ -57,7 +123,7 @@ fn get_supported_multisample_count(surface_format: &TextureFormat, sample_flags:
 
 async fn request_adapter(
     instance: &wgpu::Instance,
-    surface: &wgpu::Surface,
+    surface: &wgpu::Surface<'_>,
     power: wgpu::PowerPreference,
     setting: &GraphicSetting,
 ) -> Option<wgpu::Adapter> {
@@ -65,6 +131,7 @@ async fn request_adapter(
         let backends = setting.backends.unwrap_or(wgpu::Backends::all());
         let device = setting.device_type;
         rev_qumark!(instance.enumerate_adapters(backends)
+            .into_iter()
             .filter(|a| a.is_surface_supported(surface))
             .max_by(|a1, a2| {
                 let d1 = a1.get_info().device_type;
@@ -84,6 +151,7 @@ async fn request_adapter(
     // Why is a second search needed?
     // https://sotrh.github.io/learn-wgpu/beginner/tutorial2-surface/#state-new
     instance.enumerate_adapters(wgpu::Backends::all())
+        .into_iter()
         .find(|adapter| {
             adapter.is_surface_supported(surface)
         })
@@ -95,10 +163,10 @@ async fn request_device(adapter: &Adapter) -> Result<(wgpu::Device, wgpu::Queue)
     adapter.request_device(
         &wgpu::DeviceDescriptor {
             label: None,
-            features: wgpu::Features::empty().union(wgpu::Features::DUAL_SOURCE_BLENDING),
+            required_features: wgpu::Features::empty().union(wgpu::Features::DUAL_SOURCE_BLENDING),
             // WebGL doesn't support all of wgpu's features, so if
             // we're building for the web we'll have to disable some.
-            limits: if cfg!(target_arch = "wasm32") {
+            required_limits: if cfg!(target_arch = "wasm32") {
                 wgpu::Limits::downlevel_webgl2_defaults()
             } else {
                 wgpu::Limits::default()
@@ -108,14 +176,14 @@ async fn request_device(adapter: &Adapter) -> Result<(wgpu::Device, wgpu::Queue)
     ).await
 }
 
-pub struct State {
-    surface: wgpu::Surface,
+pub struct State<'a> {
+    surface: wgpu::Surface<'a>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
 
-    pub block_texture_id: HashMap<String, u32>,
+    pub indices: Indices,
     block_texutre_bg: wgpu::BindGroup,
     window: Arc<Window>,
 
@@ -127,8 +195,8 @@ pub struct State {
 
     pub egui: Egui,
 
-    models: HashMap<String, Model>,
-    pub animated_models: HashMap<String, AnimatedModel>,
+    models: Box<[Model]>,
+    pub animated_models: Box<[AnimatedModel]>,
 
     pub animated_model_buffer: wgpu::Buffer,
 
@@ -144,7 +212,7 @@ pub struct State {
     clear_color: wgpu::Color,
 }
 
-impl State {
+impl<'a> State<'a> {
     pub async fn new(window: Arc<Window>, proj_view: &[[f32; 4]; 4], setting: &GraphicSetting) -> Self {
         let size = window.inner_size();
         // The instance is a handle to our GPU
@@ -162,7 +230,7 @@ impl State {
         //
         // The surface needs to live as long as the window that created it.
         // State owns the window so this should be safe.
-        let surface = unsafe { instance.create_surface(window.as_ref()) }.unwrap();
+        let surface = instance.create_surface(Arc::clone(&window)).unwrap();
 
         let power_preference = wgpu::PowerPreference::HighPerformance;
         let adapter = request_adapter(&instance, &surface, power_preference, setting)
@@ -195,6 +263,7 @@ impl State {
             present_mode: surface_present_mode,
             alpha_mode: surface_alpha_mode,
             view_formats: vec![surface_format],
+            desired_maximum_frame_latency: 2,
         };
         surface.configure(&device, &config);
 
@@ -224,18 +293,10 @@ impl State {
         println!("Load time: {:?}", start.elapsed().as_secs_f32());
 
         let block_texutre_bg = bind_group::block_texture::get(&device, &layouts.block_texture, &block_texture);
-        
-        let models = load_models(&device, &queue, &layouts.model_texture, &[
-            ("./res/models/monkey.obj", "./res/assets/models/monkey.png", "monkey"),
-            ("./res/models/astronaut.obj", "./res/assets/models/astronaut.png", "astronaut"),
-            ("./res/models/furnace.obj", "./res/assets/models/furnace.png", "furnace"),
-            ("./res/models/drill.obj", "./res/assets/models/drill.png", "drill"),
-            ("./res/models/assembling_machine.obj", "./res/assets/models/assembling_machine.png", "assembler"),
-        ]);
-        let animated_models = load_animated_models(&device, &queue, &layouts.model_texture, &[
-            ("./res/models/manipulator.dae", "./res/assets/models/manipulator.png", "manipulator"),
-            ("./res/models/cowboy.dae", "./res/assets/models/cowboy.png", "cowboy"),
-        ]);
+
+        let (models_indices, models) = load_models("./res/models", "./res/assets/models", &device, &queue, &layouts.model_texture);
+        let (animated_models_indices, animated_models) = load_animated_models_test(
+            "./res/animated_models", "./res/assets/models", &device, &queue, &layouts.model_texture);
 
         let multisampled_framebuffer =
             texture::Texture::create_multisampled_framebuffer(&device, &config, sample_count);
@@ -256,7 +317,12 @@ impl State {
             config,
             size,
 
-            block_texture_id,
+            indices: Indices {
+                block: block_texture_id,
+                models: models_indices,
+                animated_models: animated_models_indices,
+            },
+
             block_texutre_bg,
             window,
 
@@ -394,7 +460,7 @@ impl State {
         self.queue.write_buffer(&self.bind_groups_buffers.sun.buffer, 0, bytemuck::cast_slice(&color));
     }
 
-    fn get_rpass_color_attachment<'a>(&'a self, view: &'a wgpu::TextureView, store: wgpu::StoreOp) -> wgpu::RenderPassColorAttachment {
+    fn get_rpass_color_attachment<'b>(&'b self, view: &'b wgpu::TextureView, store: wgpu::StoreOp) -> wgpu::RenderPassColorAttachment {
         if self.sample_count == 1 {
             wgpu::RenderPassColorAttachment {
                 view,

@@ -1,7 +1,7 @@
 use std::{marker::PhantomPinned, pin::Pin, sync::{Arc, RwLock}, time::Instant};
 use itertools::iproduct;
 
-use crate::{bytes::BytesCoder, content::Content, direction::Direction, light::light::{LightSolvers, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP}, save_load::{WorldRegions, EncodedChunk}, voxels::{chunks::{Chunks, WORLD_HEIGHT}, voxel::Voxel, chunk::{Chunk, CHUNK_VOLUME}}};
+use crate::{bytes::BytesCoder, content::Content, direction::Direction, light::light::{LightSolvers, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP}, save_load::{WorldRegions, EncodedChunk}, voxels::{chunk::{Chunk, CHUNK_VOLUME}, chunks::{Chunks, WORLD_HEIGHT}, generator::Generator, voxel::Voxel}};
 
 use self::global_coords::GlobalCoords;
 
@@ -15,14 +15,16 @@ pub mod loader;
 
 #[derive(Debug)]
 pub struct World {
+    generator: Generator,
     pub chunks: Arc<Chunks>,
     pub light: LightSolvers,
     pub player_light_solver: LightSolvers
 }
 
 impl World {
-    pub fn new(content: Arc<Content>, width: i32, height: i32, depth: i32, ox: i32, oy: i32, oz: i32) -> Self {
+    pub fn new(content: Arc<Content>, seed: u64, width: i32, height: i32, depth: i32, ox: i32, oy: i32, oz: i32) -> Self {
         Self {
+            generator: Generator::new(&content, seed),
             chunks: Arc::new(Chunks::new(Arc::clone(&content), width, height, depth, ox, oy, oz)),
             light: LightSolvers::new(ADD_QUEUE_CAP, REMOVE_QUEUE_CAP, Arc::clone(&content)),
             player_light_solver: LightSolvers::new(CHUNK_VOLUME, CHUNK_VOLUME, content),
@@ -37,7 +39,7 @@ impl World {
         let start = Instant::now();
         for cy in (0..WORLD_HEIGHT as i32).rev() {
             let chunk = match regions.chunk((cx, cy, cz).into()) {
-                EncodedChunk::None => Chunk::new(cx, cy, cz),
+                EncodedChunk::None => Chunk::new(&self.generator, cx, cy, cz),
                 EncodedChunk::Some(b) => Chunk::decode_bytes(b),
             };
             

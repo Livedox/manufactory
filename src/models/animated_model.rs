@@ -26,7 +26,7 @@ impl AnimatedModel {
       joint_count: usize
     ) -> Self {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some(&format!("Model vertex buffer ({})", name)),
+            label: Some(&format!("Animated model vertex buffer ({})", name)),
             contents: bytemuck::cast_slice(model),
             usage: wgpu::BufferUsages::VERTEX,
         });

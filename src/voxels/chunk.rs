@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::{Arc, atomic::{AtomicBool, Ordering}, RwLo
 use itertools::iproduct;
 use crate::{bytes::{AsFromBytes, BytesCoder}, content::{self, Content}, direction::Direction, light::light_map::{LightMap, Light}, world::{local_coords::LocalCoords, chunk_coords::ChunkCoords}};
 
-use super::{voxel::{self, Voxel, VoxelAtomic}, voxel_data::{VoxelData, VoxelAdditionalData}};
+use super::{generator::Generator, voxel::{self, Voxel, VoxelAtomic}, voxel_data::{VoxelData, VoxelAdditionalData}};
 use std::io::prelude::*;
 use flate2::{Compression, read::ZlibDecoder};
 use flate2::write::ZlibEncoder;
@@ -45,7 +45,7 @@ pub struct Chunk {
 
 
 impl Chunk {
-    pub fn new(pos_x: i32, pos_y: i32, pos_z: i32) -> Chunk {
+    pub fn new(generator: &Generator, pos_x: i32, pos_y: i32, pos_z: i32) -> Chunk {
         let voxels: [VoxelAtomic; CHUNK_VOLUME] = unsafe {std::mem::zeroed()};
 
         for (y, z, x) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
@@ -53,22 +53,8 @@ impl Chunk {
             let real_y = y as i32 + pos_y*CHUNK_SIZE as i32;
             let real_z = z as i32 + pos_z*CHUNK_SIZE as i32;
 
-            if real_y as f64 <= ((real_x as f64 *0.3).sin() * 0.5 + 0.5) * 10. {
-                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].update(7);
-            }
-            if real_y <= 2 {
-                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].update(5);
-            }
-            if z == 0 && y == 16 {
-                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].update(7);
-            }
-            if x == 0 && y == 0 {
-                voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].update(5);
-            }
-
-            // if real_z == 200 {
-            //     voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].id = 7;
-            // }
+            let id = generator.generate(real_x, real_y, real_z);
+            voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].update(id);
         }
 
         Chunk {

@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use image::{imageops::FilterType, DynamicImage, EncodableLayout};
 use itertools::Itertools;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -14,9 +16,9 @@ impl Texture {
     pub fn image(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        src: &str,
+        src: impl AsRef<Path>,
     ) -> Result<Self, ()> {
-        let img = image::open(src).expect(src);
+        let img = image::open(src).expect("Failed to open file!");
         let (width, height) = (img.width(), img.height());
         
         if width != height { panic!("Use square textures") }

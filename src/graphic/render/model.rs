@@ -9,10 +9,10 @@ pub struct ModelRenderResult {
     pub rotation_index: u32,
 }
 
-pub type Models = HashMap::<String, Vec<ModelRenderResult>>;
+pub type Models = HashMap::<u32, Vec<ModelRenderResult>>;
 
 #[inline]
-pub fn render_model(models: &mut Models, chunk: &Chunk, name: &str, lx: usize, ly: usize, lz: usize) {
+pub fn render_model(models: &mut Models, chunk: &Chunk, model_id: u32, lx: usize, ly: usize, lz: usize) {
     let rotation_index = chunk.voxels_data.read().unwrap().get(&((ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx))
         .and_then(|vd| vd.rotation_index()).unwrap_or(0);
 
@@ -24,9 +24,9 @@ pub fn render_model(models: &mut Models, chunk: &Chunk, name: &str, lx: usize, l
         rotation_index
     };
 
-    if let Some(model) = models.get_mut(name) {
+    if let Some(model) = models.get_mut(&model_id) {
         model.push(data);
     } else {
-        models.insert(name.to_string(), vec![data]);
+        models.insert(model_id, vec![data]);
     }
 }

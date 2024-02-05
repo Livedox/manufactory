@@ -1,0 +1,5 @@
+{
+  "id": "cowboy",
+  "block_type": {"animated_model": {"name": "cowboy"}},
+  "is_light_passing": true
+}

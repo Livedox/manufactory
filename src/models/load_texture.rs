@@ -1,10 +1,12 @@
+use std::path::Path;
+
 use crate::engine::texture::Texture;
 
 pub fn load_texture(
   device: &wgpu::Device,
   queue: &wgpu::Queue,
   texture_layout: &wgpu::BindGroupLayout,
-  src: &str,
+  src: impl AsRef<Path>,
   name: &str
 ) -> wgpu::BindGroup {
     let image = Texture::image(device, queue, src).unwrap();

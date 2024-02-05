@@ -47,7 +47,6 @@ pub fn draw_setting(ctx: &Context, open: &mut bool, setting: &mut Setting, save:
                 ui.selectable_value(backends, None, "Auto");
                 ui.selectable_value(backends, Some(wgpu::Backends::VULKAN), "Vulkan");
                 ui.selectable_value(backends, Some(wgpu::Backends::DX12), "Dx12");
-                ui.selectable_value(backends, Some(wgpu::Backends::DX11), "Dx11");
                 ui.selectable_value(backends, Some(wgpu::Backends::METAL), "Metal");
             });
             ui.horizontal(|ui| {

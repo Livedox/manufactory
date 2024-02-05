@@ -1,5 +1,5 @@
 use std::{collections::HashMap, marker::PhantomPinned, path::PathBuf, sync::{Arc, Mutex, Condvar, mpsc::{Sender, Receiver}, RwLock}};
-use crate::{camera, content::Content, direction::Direction, engine::{bind_group::block_texture, state::State}, frustum, graphic::{render::RenderResult, render_selection::render_selection}, gui::gui_controller::{self, GuiController}, input_event::{input_service::{InputService, Mouse}, KeypressState}, meshes::{Meshes, MeshesRenderInput, Mesh}, my_time::Time, nalgebra_converter::Conventer, player::player::Player, recipes::{storage::Storage, item::Item}, save_load::WorldSaver, setting::Setting, threads::{Threads, save::SaveState}, unsafe_mutex::UnsafeMutex, voxels::{chunks::WORLD_HEIGHT, ray_cast::ray_cast}, world::{World, sun::{Sun, Color}, global_coords::GlobalCoords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
+use crate::{camera, content::Content, direction::Direction, engine::{bind_group::block_texture, state::{Indices, State}}, frustum, graphic::{render::RenderResult, render_selection::render_selection}, gui::gui_controller::{self, GuiController}, input_event::{input_service::{InputService, Mouse}, KeypressState}, meshes::{Meshes, MeshesRenderInput, Mesh}, my_time::Time, nalgebra_converter::Conventer, player::player::Player, recipes::{storage::Storage, item::Item}, save_load::WorldSaver, setting::Setting, threads::{Threads, save::SaveState}, unsafe_mutex::UnsafeMutex, voxels::{chunks::WORLD_HEIGHT, ray_cast::ray_cast}, world::{World, sun::{Sun, Color}, global_coords::GlobalCoords, chunk_coords::ChunkCoords, local_coords::LocalCoords}, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
 use nalgebra_glm as glm;
 
 pub struct Level {
@@ -17,8 +17,8 @@ pub struct Level {
 }
 
 impl Level {
-    pub fn new(world_name: &str, setting: &Setting, block_texture_id: &HashMap<String, u32>) -> Self {
-        let content = Arc::new(Content::new(block_texture_id));
+    pub fn new(world_name: &str, seed: u64, setting: &Setting, indices: &Indices) -> Self {
+        let content = Arc::new(Content::new(indices));
         let (render_sender, render_recv) = std::sync::mpsc::channel::<RenderResult>();
         let (indices_sender, indices_recv) = std::sync::mpsc::channel::<Vec<(usize, usize)>>();
         let mut path = PathBuf::from("./data/worlds/");
@@ -39,13 +39,12 @@ impl Level {
                 player
             }
         };
-
         let render_diameter = (setting.render_radius * 2 + 1) as i32;
         let chunk_position: ChunkCoords = GlobalCoords::from(player.position().tuple()).into();
         let ox = chunk_position.0 - setting.render_radius as i32;
         let oz = chunk_position.2 - setting.render_radius as i32;
         let world = Arc::new(
-            World::new(Arc::clone(&content), render_diameter, WORLD_HEIGHT as i32, render_diameter, ox, 0, oz));
+            World::new(Arc::clone(&content), seed, render_diameter, WORLD_HEIGHT as i32, render_diameter, ox, 0, oz));
         let save_condvar = Arc::new((Mutex::new(SaveState::Unsaved), Condvar::new()));
         
         let player = Arc::new(UnsafeMutex::new(player));

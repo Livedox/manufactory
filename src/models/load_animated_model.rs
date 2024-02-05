@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use crate::engine::vertices::animated_model_vertex::AnimatedModelVertex;
 
@@ -62,12 +62,13 @@ pub fn load_animated_model(
   device: &wgpu::Device,
   queue: &wgpu::Queue,
   texture_layout: &wgpu::BindGroupLayout,
-  src: &str,
-  src_texture: &str,
+  src: impl AsRef<Path>,
+  src_texture: impl AsRef<Path>,
   name: &str
 ) -> AnimatedModel {
     let texture = crate::models::load_texture::load_texture(device, queue, texture_layout, src_texture, name);
-    let scene = Scene::from_file(src, vec![PostProcess::FlipUVs, PostProcess::MakeLeftHanded]).unwrap();
+    let scene = Scene::from_file(src.as_ref().to_str().unwrap(),
+        vec![PostProcess::FlipUVs, PostProcess::MakeLeftHanded]).unwrap();
     let root = scene.root.unwrap();
     let bones = &scene.meshes[0].bones;
     let vertices = &scene.meshes[0].vertices;
@@ -132,7 +133,7 @@ pub fn load_animated_model(
     });
 
     let joint = create_joint(&root, bones, &armature_name)
-        .unwrap_or_else(|_| panic!("Model loading error ({:?})", src)); 
+        .unwrap_or_else(|_| panic!("Model loading error (unknown)")); 
     
     
     let mut bones_with_keyframes: Vec<BoneKeyFrames> = vec![];

@@ -104,11 +104,11 @@ pub fn render(chunk_index: usize, chunks: &Chunks, content: &Content) -> Option<
                 }
             },
             BlockType::None => {},
-            BlockType::Model {name} => {
-                render_model(&mut models, &chunk, name, lx, ly, lz);
+            BlockType::Model {id} => {
+                render_model(&mut models, &chunk, *id, lx, ly, lz);
             },
-            BlockType::AnimatedModel {name} => {
-                render_animated_model(&mut animated_models, &chunk, name, lx, ly, lz);
+            BlockType::AnimatedModel {id} => {
+                render_animated_model(&mut animated_models, &chunk, *id, lx, ly, lz);
             },
             BlockType::ComplexObject {cp} => {
                 render_complex_object(cp, &mut models, &mut animated_models, &mut buffer, &mut belt_buffer, &chunk, lx, ly, lz);

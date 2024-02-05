@@ -10,13 +10,22 @@ pub struct AnimatedModelRenderResult {
     pub rotation_index: u32,
 }
 
-pub type AnimatedModels = HashMap::<String, Vec<AnimatedModelRenderResult>>;
+pub type AnimatedModels = HashMap::<u32, Vec<AnimatedModelRenderResult>>;
 
 #[inline]
-pub fn render_animated_model(animated_models: &mut AnimatedModels, chunk: &Chunk, name: &str, lx: usize, ly: usize, lz: usize) {
-    let voxel_data = chunk.voxels_data.read().unwrap().get(&((ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx)).map(|d| d.clone()).unwrap();
-    let progress = voxel_data.additionally.animation_progress().unwrap_or(0.0);
-    let rotation_index = voxel_data.rotation_index().unwrap_or(0);
+pub fn render_animated_model(animated_models: &mut AnimatedModels, chunk: &Chunk, model_id: u32, lx: usize, ly: usize, lz: usize) {
+    let mut progress = 0.0;
+    let mut rotation_index = 0;
+    
+    if let Some(voxel_data) = chunk.voxels_data.read().unwrap().get(&((ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx)).map(|d| d.clone()) {
+        if let Some(p) = voxel_data.additionally.animation_progress() {
+            progress = p;
+        }
+        if let Some(rotation) = voxel_data.rotation_index() {
+            rotation_index = rotation;
+        }
+    }
+    
     let light = chunk.get_light((lx, ly, lz).into()).get_normalized();
 
     let data = AnimatedModelRenderResult {
@@ -26,9 +35,9 @@ pub fn render_animated_model(animated_models: &mut AnimatedModels, chunk: &Chunk
         rotation_index
     };
 
-    if let Some(model) = animated_models.get_mut(name) {
+    if let Some(model) = animated_models.get_mut(&model_id) {
         model.push(data);
     } else {
-        animated_models.insert(name.to_string(), vec![data]);
+        animated_models.insert(model_id, vec![data]);
     }
 }

@@ -22,9 +22,9 @@ pub struct Mesh {
     pub glass_vertex_count: u32,
     pub glass_index_count: u32,
 
-    pub models: HashMap<String, (wgpu::Buffer, usize)>,
+    pub models: HashMap<u32, (wgpu::Buffer, usize)>,
 
-    pub animated_models: HashMap<String, (wgpu::Buffer, usize)>,
+    pub animated_models: HashMap<u32, (wgpu::Buffer, usize)>,
     pub transformation_matrices_buffer: Option<wgpu::Buffer>,
     pub transformation_matrices_bind_group: Option<wgpu::BindGroup>
 }
@@ -33,7 +33,7 @@ pub struct Mesh {
 pub struct MeshesRenderInput<'a> {
     pub device: &'a wgpu::Device,
     pub animated_model_layout: &'a wgpu::BindGroupLayout,
-    pub all_animated_models: &'a HashMap<String, AnimatedModel>,
+    pub all_animated_models: &'a Box<[AnimatedModel]>,
     pub render_result: RenderResult,
 }
 
@@ -57,8 +57,8 @@ impl Meshes {
     pub fn render(&mut self, input: MeshesRenderInput, index: usize) {
         let MeshesRenderInput {device, animated_model_layout, all_animated_models, render_result} = input;
 
-        let mut models = HashMap::<String, (wgpu::Buffer, usize)>::new();
-        let mut animated_models = HashMap::<String, (wgpu::Buffer, usize)>::new();
+        let mut models = HashMap::<u32, (wgpu::Buffer, usize)>::new();
+        let mut animated_models = HashMap::<u32, (wgpu::Buffer, usize)>::new();
 
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -99,9 +99,9 @@ impl Meshes {
 
         let mut animation: Vec<u8> = vec![];
         let mut start_matrix: u32 = 0;
-        render_result.animated_models.iter().sorted_by_key(|(name, _)| *name).for_each(|(name, data)| {
+        render_result.animated_models.iter().sorted_by_key(|(id, _)| *id).for_each(|(id, data)| {
             let mut animated_model_instances = Vec::<AnimatedModelInstance>::new();
-            let animated_model = all_animated_models.get(name).unwrap();
+            let animated_model = all_animated_models.get(*id as usize).unwrap();
             data.iter().for_each(|AnimatedModelRenderResult {position, light, progress, rotation_index}| {
                 animated_model_instances.push(AnimatedModelInstance {
                     position: *position,
@@ -115,8 +115,8 @@ impl Meshes {
                 });
                 start_matrix += animated_model.joint_count() as u32;
             });
-            animated_models.insert(name.to_string(), (device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some(&format!("Model ({}) instance buffer (Chunk: {})", name, index)),
+            animated_models.insert(*id, (device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(&format!("Model ({}) instance buffer (Chunk: {})", id, index)),
                 contents: bytemuck::cast_slice(animated_model_instances.as_slice()),
                 usage: wgpu::BufferUsages::VERTEX,
             }), data.len()));
@@ -141,13 +141,13 @@ impl Meshes {
         }
 
         
-        render_result.models.iter().for_each(|(name, positions)| {
+        render_result.models.iter().for_each(|(id, positions)| {
             let mut model_instances = Vec::<ModelInstance>::new();
             positions.iter().for_each(|ModelRenderResult {position, light, rotation_index}| {
                 model_instances.push(ModelInstance { position: *position, light: *light, rotation_index: *rotation_index })
             });
-            models.insert(name.to_string(), (device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some(&format!("Model ({}) instance buffer (Chunk: {})", name, index)),
+            models.insert(*id, (device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some(&format!("Model ({}) instance buffer (Chunk: {})", id, index)),
                 contents: bytemuck::cast_slice(model_instances.as_slice()),
                 usage: wgpu::BufferUsages::VERTEX,
             }), positions.len()));
@@ -199,30 +199,30 @@ impl Meshes {
             let Some(Some(chunk)) = unsafe {&*world.chunks.chunks.get()}.get(*index).map(|c| c.clone()) else { return };
             if chunk.voxels_data.read().unwrap().is_empty() {return};
             let mut transforms_buffer: Vec<u8> = vec![];
-            let mut animated_models: HashMap<String, Vec<f32>> = HashMap::new();
+            let mut animated_models: HashMap<u32, Vec<f32>> = HashMap::new();
     
             chunk.voxels_data.read().unwrap().iter().sorted_by_key(|data| {data.0}).for_each(|data| {
                 let progress = data.1.additionally.as_ref().animation_progress().unwrap_or(0.0);
                 let block_type = &self.content.blocks[data.1.id as usize].block_type();
-                if let BlockType::AnimatedModel {name} = block_type {
-                    if let Some(animated_model) = animated_models.get_mut(name) {
+                if let BlockType::AnimatedModel {id} = block_type {
+                    if let Some(animated_model) = animated_models.get_mut(id) {
                         animated_model.push(progress);
                     } else {
-                        animated_models.insert(name.to_string(), vec![progress]);
+                        animated_models.insert(*id, vec![progress]);
                     }
                 } else if let BlockType::ComplexObject { cp } = block_type {
-                    cp.animated_models_names.iter().for_each(|name| {
-                        if let Some(animated_model) = animated_models.get_mut(name) {
+                    cp.animated_models_names.iter().for_each(|id| {
+                        if let Some(animated_model) = animated_models.get_mut(&u32::MAX) {
                             animated_model.push(progress);
                         } else {
-                            animated_models.insert(name.to_string(), vec![progress]);
+                            animated_models.insert(u32::MAX, vec![progress]);
                         }
                     });
                 }
             });
     
-            animated_models.iter().sorted_by_key(|(name, _)| *name).for_each(|(name, progress_vec)| {
-                let model = state.animated_models.get(name).unwrap();
+            animated_models.iter().sorted_by_key(|(id, _)| *id).for_each(|(id, progress_vec)| {
+                let model = state.animated_models.get(*id as usize).unwrap();
                 progress_vec.iter().for_each(|progress| {
                     transforms_buffer.extend(model.calculate_bytes_transforms(None, *progress));
                 });
