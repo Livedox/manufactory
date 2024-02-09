@@ -2,15 +2,6 @@ use std::{collections::VecDeque, sync::{Arc, Mutex, mpsc::{Sender, Receiver}, at
 
 use crate::{content::Content, voxels::{chunks::Chunks, chunk::Chunk}, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
 
-const COORDS: [(i32, i32, i32); 6] = [
-    (1,  0, 0),
-    (-1, 0, 0),
-    (0, 1, 0),
-    (0, -1, 0),
-    (0, 0, 1),
-    (0, 0, -1),
-];
-
 /// It's very unsafe, but very fast.
 /// May issue STATUS_HEAP_CORRUPTION during relocation.
 #[derive(Debug)]

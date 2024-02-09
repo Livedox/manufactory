@@ -1,11 +1,15 @@
 use std::{collections::HashMap, hash::Hash, sync::{Arc, Mutex, Weak}};
 
-use crate::{direction::Direction, gui::draw::Draw, recipes::storage::Storage, world::global_coords::GlobalCoords};
+use serde::{ser::SerializeStruct, Serialize};
+
+use crate::{bytes::AsFromBytes, content::Content, direction::Direction, gui::draw::Draw, recipes::storage::Storage, world::global_coords::GlobalCoords};
 use std::fmt::Debug;
-use self::furnace::Furnace;
+use self::{furnace::Furnace, voxel_box::VoxelBox};
 
 use super::{chunks::Chunks, voxel_data::transport_belt::TransportBelt};
 pub mod furnace;
+pub mod voxel_box;
+pub mod unit;
 
 pub trait PlayerUnlockable: Draw {
     fn get_storage(&self) -> Option<&dyn Storage> {None}
@@ -21,11 +25,25 @@ pub struct LiveVoxelContainer {
 
 impl LiveVoxelContainer {
     pub fn to_bytes(&self) -> Vec<u8> {
-        vec![]
+        let mut bytes = Vec::new();
+        bytes.extend(&self.id.to_le_bytes());
+        bytes.extend(bincode::serialize(&self.coords).unwrap());
+        bytes.extend(self.live_voxel.serialize());
+        bytes
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        todo!();
+    pub fn from_bytes(content: &Content, bytes: &[u8]) -> Self {
+        let id = u32::from_le_bytes([0, 1, 2, 3].map(|i| *bytes.get(i).unwrap()));
+        let coords_end = 4+std::mem::size_of::<GlobalCoords>();
+        let coords = bincode::deserialize(&bytes[4..coords_end]).unwrap();
+        let live_voxel: Box<dyn LiveVoxel> = if let Some(name) = content.blocks[id as usize].live_voxel() {
+            content.live_voxel.deserialize.get(name)
+                .map_or(Box::new(()), |desiarialize| desiarialize(&bytes[coords_end..]))
+        } else {
+            Box::new(())
+        };
+
+        Self { id, coords, live_voxel }
     }
 }
 
@@ -50,8 +68,11 @@ pub fn register() -> LiveVoxelRegistrator {
     new.insert(String::from("furnace"), &<Arc<Mutex<Furnace>>>::new_livevoxel);
     deserialize.insert(String::from("furnace"), &<Arc<Mutex<Furnace>>>::deserialize);
 
-    LiveVoxelRegistrator {
-        new: new,
+    new.insert(String::from("voxel_box"), &<Arc<Mutex<VoxelBox>>>::new_livevoxel);
+    deserialize.insert(String::from("voxel_box"), &<Arc<Mutex<VoxelBox>>>::deserialize);
+
+    LiveVoxelRegistrator { 
+        new,
         deserialize,
     }
 }

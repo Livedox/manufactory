@@ -13,7 +13,7 @@ pub type Models = HashMap::<u32, Vec<ModelRenderResult>>;
 
 #[inline]
 pub fn render_model(models: &mut Models, chunk: &Chunk, model_id: u32, lx: usize, ly: usize, lz: usize) {
-    let rotation_index = chunk.voxels_data.read().unwrap().get(&((ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx))
+    let rotation_index = chunk.live_voxels.0.read().unwrap().get(&((ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx))
         .and_then(|vd| vd.live_voxel.rotation_index()).unwrap_or(0);
 
     let light = chunk.get_light((lx, ly, lz).into()).get_normalized();

@@ -40,7 +40,7 @@ impl World {
         for cy in (0..WORLD_HEIGHT as i32).rev() {
             let chunk = match regions.chunk((cx, cy, cz).into()) {
                 EncodedChunk::None => Chunk::new(&self.generator, cx, cy, cz),
-                EncodedChunk::Some(b) => Chunk::decode_bytes(b),
+                EncodedChunk::Some(b) => Chunk::decode_bytes(&self.chunks.content, b),
             };
             
             let index = chunk.xyz.chunk_index(&self.chunks);

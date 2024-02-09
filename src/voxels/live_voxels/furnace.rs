@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex, Weak};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{bytes::{AsFromBytes, BytesCoder}, direction::{self, Direction}, engine::texture::TextureAtlas, gui::{draw::Draw, my_widgets::inventory_slot::inventory_slot}, player::inventory::PlayerInventory, recipes::{item::{Item, PossibleItem}, recipe::ActiveRecipe, recipes::RECIPES, storage::Storage}, voxels::chunks::Chunks, world::global_coords::GlobalCoords};
+use crate::{bytes::{AsFromBytes, BytesCoder}, direction::{self, Direction}, engine::texture::TextureAtlas, gui::{draw::Draw, my_widgets::inventory_slot::inventory_slot}, player::inventory::PlayerInventory, player_unlockable, recipes::{item::{Item, PossibleItem}, recipe::ActiveRecipe, recipes::RECIPES, storage::Storage}, voxels::chunks::Chunks, world::global_coords::GlobalCoords};
 
 use super::{LiveVoxel, LiveVoxelDesiarialize, LiveVoxelNew, PlayerUnlockable};
 
@@ -13,16 +13,13 @@ pub struct Furnace {
 }
 
 impl LiveVoxelNew for Arc<Mutex<Furnace>> {
-    fn new_livevoxel(direction: &Direction) -> Box<dyn LiveVoxel> {
+    fn new_livevoxel(_: &Direction) -> Box<dyn LiveVoxel> {
         Box::new(Arc::new(Mutex::new(Furnace::default())))
     }
 }
 
 impl LiveVoxel for Arc<Mutex<Furnace>> {
-    fn player_unlockable(&self) -> Option<Weak<Mutex<dyn PlayerUnlockable>>> {
-        let tmp: Arc<Mutex<dyn PlayerUnlockable>> = self.clone();
-        Some(Arc::downgrade(&tmp))
-    }
+    player_unlockable!();
 
     fn update(&self, _: GlobalCoords, _: &Chunks) {
         let mut furnace = self.lock().unwrap();

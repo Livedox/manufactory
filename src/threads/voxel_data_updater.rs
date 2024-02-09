@@ -10,11 +10,11 @@ pub fn spawn(world: Arc<World>, exit: Arc<AtomicBool>) -> JoinHandle<()> {
             for chunk in unsafe {&*(world.chunks.chunks.get())}.iter() {
                 let Some(chunk) = chunk else {continue};
 
-                if !chunk.voxels_data.read().unwrap().is_empty() {
+                if !chunk.live_voxels.0.read().unwrap().is_empty() {
                     chunk.save(true);
                 }
 
-                for vd in chunk.voxels_data.read().unwrap().values() {
+                for vd in chunk.live_voxels.0.read().unwrap().values() {
                     vd.live_voxel.update(GlobalCoords(0, 0, 0), &world.chunks);
                 }
             }

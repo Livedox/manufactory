@@ -1,9 +1,11 @@
 use std::ops::{Add, Sub};
 use std::ops::AddAssign;
+use serde::{Deserialize, Serialize};
+
 use crate::bytes::AsFromBytes;
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
 pub struct GlobalCoords(pub i32, pub i32, pub i32);
 
 impl AsFromBytes for GlobalCoords {}

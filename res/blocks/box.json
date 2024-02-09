@@ -1,0 +1,5 @@
+{
+  "id": "box",
+  "block_type": {"block": {"faces": ["box"]}},
+  "live_voxel": "voxel_box"
+}

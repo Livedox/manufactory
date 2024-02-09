@@ -11,7 +11,7 @@ pub mod save;
 
 
 pub struct Threads {
-    // save: JoinHandle<()>,
+    save: JoinHandle<()>,
     world_loader: JoinHandle<()>,
     voxel_data_updater: JoinHandle<()>,
     renderer: JoinHandle<()>,
@@ -30,7 +30,7 @@ impl Threads {
     ) -> Self {
         let exit = Arc::new(AtomicBool::new(false));
         Self {
-            // save: save::spawn(world.clone(), player, world_saver.clone(), save_condvar.clone()),
+            save: save::spawn(world.clone(), player, world_saver.clone(), save_condvar.clone()),
             world_loader: world_loader::spawn(world.clone(), world_saver.regions.clone(), exit.clone()),
             voxel_data_updater: voxel_data_updater::spawn(world.clone(), exit.clone()),
             renderer: renderer::spawn(content, world, sender, exit.clone()),
@@ -54,8 +54,8 @@ impl Threads {
         let (save_state, cvar) = &*self.save_condvar;
         *save_state.lock().unwrap() = SaveState::WorldExit;
         cvar.notify_one();
-        // if self.save.join().is_err() {
-        //     eprintln!("Failed to finish save thread!");
-        // }
+        if self.save.join().is_err() {
+            eprintln!("Failed to finish save thread!");
+        }
     }
 }

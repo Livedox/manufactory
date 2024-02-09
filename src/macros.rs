@@ -20,3 +20,22 @@ macro_rules! vec_none {
         }
     };
 }
+
+
+/// Do this:
+/// ```rust, ignore
+/// fn player_unlockable(&self) -> Option<Weak<Mutex<dyn PlayerUnlockable>>> {
+///     let tmp: Arc<Mutex<dyn PlayerUnlockable>> = self.clone();
+///     Some(Arc::downgrade(&tmp))
+/// }
+/// ```
+#[macro_export]
+macro_rules! player_unlockable {
+    () => {
+        fn player_unlockable(&self) -> Option<Weak<Mutex<dyn PlayerUnlockable>>> {
+            let tmp: Arc<Mutex<dyn PlayerUnlockable>> = self.clone();
+            Some(Arc::downgrade(&tmp))
+        }
+    };
+}
+
