@@ -2,12 +2,14 @@ use std::collections::HashMap;
 
 use itertools::Itertools;
 
-use crate::{engine::state::Indices, voxels::block::{block_test::{to_block, Block, BlockBase, BlockFile}, block_type::BlockType, functions::{on_break, player_add_item}}};
+use crate::{engine::state::Indices, voxels::{block::{block_test::{to_block, Block, BlockBase, BlockFile}, block_type::BlockType, functions::{on_break, player_add_item}}, live_voxels::{register, LiveVoxelRegistrator}}};
 
 #[derive(Debug)]
 pub struct Content {
     pub block_indexes: HashMap<String, u32>,
-    pub blocks: Vec<Block>
+    pub blocks: Vec<Block>,
+
+    pub live_voxel: LiveVoxelRegistrator,
 }
 
 impl Content {
@@ -30,7 +32,7 @@ impl Content {
                     height: 1,
                     depth: 1,
                     is_light_passing: true,
-                    is_additional_data: false,
+                    live_voxel: None,
                     is_glass: false,
                     is_ore: false
                 },
@@ -51,8 +53,8 @@ impl Content {
             id += 1;
         });
 
-        println!("{:?}", block_indexes);
+        println!("{:?}", blocks);
 
-        Self { blocks, block_indexes }
+        Self { blocks, block_indexes, live_voxel: register() }
     }
 }

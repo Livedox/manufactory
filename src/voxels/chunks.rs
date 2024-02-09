@@ -4,7 +4,7 @@ use itertools::iproduct;
 
 use crate::{bytes::BytesCoder, content::Content, direction::Direction, light::light_map::Light, save_load::{WorldRegions, EncodedChunk}, unsafe_mutex::UnsafeMutex, vec_none, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
 
-use super::{chunk::{Chunk, CHUNK_SIZE}, voxel::Voxel, voxel_data::{VoxelAdditionalData, VoxelData, multiblock::MultiBlock}};
+use super::{chunk::{Chunk, CHUNK_SIZE}, live_voxels::LiveVoxelContainer, voxel::Voxel, voxel_data::{multiblock::MultiBlock, VoxelAdditionalData, VoxelData}};
 
 pub const WORLD_BLOCK_HEIGHT: usize = 256;
 pub const WORLD_HEIGHT: usize = WORLD_BLOCK_HEIGHT / CHUNK_SIZE; // In chunks
@@ -189,97 +189,100 @@ impl Chunks {
             .as_ref().map(|c| c.as_ref() as *const Chunk)
     }
 
-    pub fn voxels_data<T: Into<ChunkCoords>>(&self, coords: T) -> Option<Arc<RwLock<HashMap<usize, Arc<VoxelData>>>>> {
+    pub fn voxels_data<T: Into<ChunkCoords>>(&self, coords: T) -> Option<Arc<RwLock<HashMap<usize, Arc<LiveVoxelContainer>>>>> {
         self.chunk(coords).map(|c| c.voxels_data())
     }
 
-    pub fn voxel_data(&self, gc: GlobalCoords) -> Option<Arc<VoxelData>> {
+    pub fn voxel_data(&self, gc: GlobalCoords) -> Option<Arc<LiveVoxelContainer>> {
         let voxel_data = self.voxels_data(gc).and_then(|vd| {
             vd.read().unwrap().get(&LocalCoords::from(gc).index()).map(|d| d.clone())
         });
-        let Some(VoxelAdditionalData::MultiBlockPart(gc)) = voxel_data.as_ref().map(|vd| vd.additionally.as_ref()) else {
-            return voxel_data;
+        if let Some(Some(gc)) = voxel_data.as_ref().map(|vd| vd.live_voxel.src_livevoxel()) {
+            return self.voxels_data(gc).and_then(|vd| {
+                vd.read().unwrap().get(&LocalCoords::from(gc).index()).map(|d| d.clone())
+            });
         };
-        return self.voxels_data(*gc).and_then(|vd| {
-            vd.read().unwrap().get(&LocalCoords::from(*gc).index()).map(|d| d.clone())
-        });
+        return voxel_data;
     }
 
     pub fn set_additional_voxel_data(&self, id: u32, gc: GlobalCoords, ad: Arc<VoxelAdditionalData>) {
-        let local: LocalCoords = gc.into();
-        let vd = self.voxels_data(gc);
+        todo!();
+        // let local: LocalCoords = gc.into();
+        // let vd = self.voxels_data(gc);
 
-        if let Some(vd) = vd {
-            vd.write().unwrap().insert(local.index(), Arc::new(VoxelData { id, global_coords: gc, additionally: ad }));
-        }
+        // if let Some(vd) = vd {
+        //     vd.write().unwrap().insert(local.index(), Arc::new(VoxelData { id, global_coords: gc, additionally: ad }));
+        // }
     }
 
 
     pub fn add_multiblock_structure(&self, xyz: &GlobalCoords, width: i32, height: i32, depth: i32, id: u32, dir: &Direction) -> Option<Vec<GlobalCoords>> {
-        let mut coords: Vec<GlobalCoords> = vec![];
-        // FIX THIS SHIT
-        let width_range = if width > 0 {
-            (xyz.0)..(xyz.0+width)
-        } else {
-            (xyz.0+width+1)..(xyz.0+1)
-        };
-        let height_range = if height > 0 {
-            (xyz.1)..(xyz.1+height)
-        } else {
-            (xyz.1+height+1)..(xyz.1+1)
-        };
-        let depth_range = if depth > 0 {
-            (xyz.2)..(xyz.2+depth)
-        } else {
-            (xyz.2+depth+1)..(xyz.2+1)
-        };
-        coords.push(*xyz);
-        for (nx, nz, ny) in iproduct!(width_range, depth_range, height_range) {
-            if nx == xyz.0 && ny == xyz.1 && nz == xyz.2 {continue};
-            if !self.is_air_global((nx, ny, nz).into()) {return None};
-            coords.push((nx, ny, nz).into());
-        }
+        todo!();
+        // let mut coords: Vec<GlobalCoords> = vec![];
+        // // FIX THIS SHIT
+        // let width_range = if width > 0 {
+        //     (xyz.0)..(xyz.0+width)
+        // } else {
+        //     (xyz.0+width+1)..(xyz.0+1)
+        // };
+        // let height_range = if height > 0 {
+        //     (xyz.1)..(xyz.1+height)
+        // } else {
+        //     (xyz.1+height+1)..(xyz.1+1)
+        // };
+        // let depth_range = if depth > 0 {
+        //     (xyz.2)..(xyz.2+depth)
+        // } else {
+        //     (xyz.2+depth+1)..(xyz.2+1)
+        // };
+        // coords.push(*xyz);
+        // for (nx, nz, ny) in iproduct!(width_range, depth_range, height_range) {
+        //     if nx == xyz.0 && ny == xyz.1 && nz == xyz.2 {continue};
+        //     if !self.is_air_global((nx, ny, nz).into()) {return None};
+        //     coords.push((nx, ny, nz).into());
+        // }
 
-        self.set(coords[0], id, None);
-        let voxels_data = self.voxels_data(coords[0]).unwrap();
-        voxels_data.write().unwrap().insert(LocalCoords::from(coords[0]).index(), Arc::new(VoxelData {
-            id,
-            global_coords: coords[0],
-            additionally: Arc::new(VoxelAdditionalData::new_multiblock(id, dir, coords.clone())),
-        }));
-        coords.iter().skip(1).for_each(|coord| {
-            self.set(*coord, 1, None);
-            let voxels_data = self.voxels_data(*coord).unwrap();
-            voxels_data.write().unwrap().insert(LocalCoords::from(*coord).index(), Arc::new(VoxelData {
-                id: 1,
-                global_coords: *coord,
-                additionally: Arc::new(VoxelAdditionalData::MultiBlockPart(coords[0])),
-            }));
-        });
-        Some(coords)
+        // self.set(coords[0], id, None);
+        // let voxels_data = self.voxels_data(coords[0]).unwrap();
+        // voxels_data.write().unwrap().insert(LocalCoords::from(coords[0]).index(), Arc::new(VoxelData {
+        //     id,
+        //     global_coords: coords[0],
+        //     additionally: Arc::new(VoxelAdditionalData::new_multiblock(id, dir, coords.clone())),
+        // }));
+        // coords.iter().skip(1).for_each(|coord| {
+        //     self.set(*coord, 1, None);
+        //     let voxels_data = self.voxels_data(*coord).unwrap();
+        //     voxels_data.write().unwrap().insert(LocalCoords::from(*coord).index(), Arc::new(VoxelData {
+        //         id: 1,
+        //         global_coords: *coord,
+        //         additionally: Arc::new(VoxelAdditionalData::MultiBlockPart(coords[0])),
+        //     }));
+        // });
+        // Some(coords)
     }
 
 
     pub fn remove_multiblock_structure(&self, global: GlobalCoords) -> Option<Vec<GlobalCoords>> {
-        let Some(voxel_data) = self.voxel_data(global) else {return None};
-        let mut coords: Vec<GlobalCoords> = vec![];
-        match &voxel_data.additionally.as_ref() {
-            VoxelAdditionalData::Drill(drill) => {
-                drill.lock().unwrap().structure_coordinates().iter().for_each(|coord| {
-                    coords.push(*coord);
-                });
-            },
-            VoxelAdditionalData::AssemblingMachine(asembler) => {
-                asembler.lock().unwrap().structure_coordinates().iter().for_each(|coord| {
-                    coords.push(*coord);
-                });
-            },
-            _ => (),
-        };
-        coords.iter().for_each(|coord| {
-            self.set(*coord, 0, None);
-        });
-        Some(coords)
+        todo!();
+        // let Some(voxel_data) = self.voxel_data(global) else {return None};
+        // let mut coords: Vec<GlobalCoords> = vec![];
+        // match &voxel_data.additionally.as_ref() {
+        //     VoxelAdditionalData::Drill(drill) => {
+        //         drill.lock().unwrap().structure_coordinates().iter().for_each(|coord| {
+        //             coords.push(*coord);
+        //         });
+        //     },
+        //     VoxelAdditionalData::AssemblingMachine(asembler) => {
+        //         asembler.lock().unwrap().structure_coordinates().iter().for_each(|coord| {
+        //             coords.push(*coord);
+        //         });
+        //     },
+        //     _ => (),
+        // };
+        // coords.iter().for_each(|coord| {
+        //     self.set(*coord, 0, None);
+        // });
+        // Some(coords)
     }
 
     pub fn get_sun(&self, coords: GlobalCoords) -> u8 {

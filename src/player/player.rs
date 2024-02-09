@@ -1,5 +1,5 @@
 use std::{sync::{Mutex, Arc, Weak}, cell::UnsafeCell};
-use crate::{bytes::{AsFromBytes, BytesCoder}, camera::camera_controller::CameraController, content::Content, direction::Direction, input_event::{input_service::{InputService, Key}, KeypressState}, recipes::{storage::Storage, items::ITEMS, item_interaction::ItemInteraction}, voxels::voxel_data::DrawStorage, world::{World, global_coords::GlobalCoords}, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
+use crate::{bytes::{AsFromBytes, BytesCoder}, camera::camera_controller::CameraController, content::Content, direction::Direction, gui::draw::Draw, input_event::{input_service::{InputService, Key}, KeypressState}, recipes::{item_interaction::ItemInteraction, items::ITEMS, storage::Storage}, voxels::{live_voxels::PlayerUnlockable, voxel_data::DrawStorage}, world::{global_coords::GlobalCoords, World}, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
 use super::inventory::PlayerInventory;
 
 use nalgebra_glm as glm;
@@ -10,7 +10,7 @@ pub struct Player {
     camera: CameraController,
     pub is_inventory: bool,
     pub active_slot: usize,
-    pub open_storage: Option<Weak<Mutex<dyn DrawStorage>>>,
+    pub open_storage: Option<Weak<Mutex<dyn PlayerUnlockable>>>,
     inventory: Arc<Mutex<PlayerInventory>>,
 }
 
@@ -43,7 +43,7 @@ impl Player {
         ITEMS()[item_id as usize].on_right_click(world, self, xyz, dir, content);
     }
 
-    pub fn set_open_storage(&mut self, storage: Weak<Mutex<dyn DrawStorage>>) {
+    pub fn set_open_storage(&mut self, storage: Weak<Mutex<dyn PlayerUnlockable>>) {
         self.open_storage = Some(storage);
         self.is_inventory = true;
     }

@@ -15,7 +15,7 @@
   "height": 1,
   "depth": 1,
   "is_light_passing": false,
-  "is_additional_data": false,
+  "live_voxel": null,
   "is_glass": false,
   "is_ore": false
 }

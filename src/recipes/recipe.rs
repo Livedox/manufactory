@@ -1,12 +1,13 @@
 use std::{time::{Instant, Duration}, collections::HashMap};
 
 use bitflags::bitflags;
+use serde::{Deserialize, Serialize};
 
 use super::{storage::Storage, item::Item};
 
 
 bitflags! {
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
     pub struct RecipeCrafter: u8 {
         const PLAYER = 0b1;
         const ASSEMBLER = 0b10;
@@ -17,16 +18,19 @@ bitflags! {
 }
 
 bitflags! {
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
     pub struct RecipeCategory: u8 {
         const ITEM = 0b1;
         const BLOCK = 0b10;
     }
 }
 
+fn new_instant() -> Instant {Instant::now()}
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ActiveRecipe {
+    #[serde(default = "new_instant")]
+    #[serde(skip)]
     start_time: Instant,
     pub recipe: Recipe,
 }
@@ -62,7 +66,7 @@ impl ActiveRecipe {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Recipe {
     pub index: usize,
     pub id: u32,

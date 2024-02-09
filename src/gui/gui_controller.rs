@@ -3,7 +3,7 @@ use std::{borrow::BorrowMut, collections::HashMap, sync::Arc, time::SystemTime};
 use egui::{epaint::Shadow, style::WidgetVisuals, vec2, Align, Align2, Color32, Context, Margin, RichText, Rounding, Stroke, Style, Visuals, Widget};
 use winit::{window::Window, dpi::PhysicalPosition, event_loop::{ControlFlow, EventLoopWindowTarget}};
 
-use crate::{player::player::Player, recipes::{storage::Storage, recipes::RECIPES}, engine::{state::Indices, texture::TextureAtlas}, setting::Setting, save_load::SettingSave, world::loader::{WorldData, WorldLoader}, level::Level};
+use crate::{engine::{state::Indices, texture::TextureAtlas}, level::Level, player::player::Player, recipes::{recipes::RECIPES, storage::{self, Storage}}, save_load::SettingSave, setting::Setting, world::loader::{WorldData, WorldLoader}};
 use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME, main_screen::{self, MainScreen, in_game_menu::draw_in_game_menu}, setting::draw_setting};
 use chrono::{Utc, TimeZone};
 enum Task {
@@ -131,7 +131,9 @@ impl GuiController {
                         for i in 1..=(inventory_len / 10) {
                             ui.horizontal(|ui| {
                                 for j in 0..std::cmp::min(inventory_len-10*i, 10) {
-                                    if ui.add(inventory_slot(&self.items_atlas, &inventory.clone().lock().unwrap().storage()[i*10 + j])).clicked() {
+                                    let response = ui.add(inventory_slot(&self.items_atlas, &inventory.clone().lock().unwrap().storage()[i*10 + j]));
+                                    if response.drag_started() {
+                                        println!("click!");
                                         if storage.is_some() {
                                             task = Some(Task::Storage(i*10 + j));
                                         } else {
@@ -178,8 +180,10 @@ impl GuiController {
                 Task::Inventory(i) => {inventory.lock().unwrap().place_in_inventory(i);},
                 Task::Storage(i) => {
                     let Some(item) = inventory.lock().unwrap().mut_storage()[i].0.take() else {return self};
-                    let remainder = storage.unwrap().lock().unwrap().add(&item, true);
-                    if let Some(r) = remainder {inventory.lock().unwrap().set(&r, i)}
+                    if let Some(s) = storage.unwrap().lock().unwrap().get_mut_storage() {
+                        let remainder = s.add(&item, true);
+                        if let Some(r) = remainder {inventory.lock().unwrap().set(&r, i)}
+                    };
                 },
             }
         }

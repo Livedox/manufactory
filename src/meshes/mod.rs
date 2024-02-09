@@ -202,7 +202,7 @@ impl Meshes {
             let mut animated_models: HashMap<u32, Vec<f32>> = HashMap::new();
     
             chunk.voxels_data.read().unwrap().iter().sorted_by_key(|data| {data.0}).for_each(|data| {
-                let progress = data.1.additionally.as_ref().animation_progress().unwrap_or(0.0);
+                let progress = data.1.live_voxel.animation_progress();
                 let block_type = &self.content.blocks[data.1.id as usize].block_type();
                 if let BlockType::AnimatedModel {id} = block_type {
                     if let Some(animated_model) = animated_models.get_mut(id) {

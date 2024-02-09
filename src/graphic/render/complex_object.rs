@@ -37,7 +37,7 @@ pub fn render_complex_object(
   lz: usize
 ) {
     let voxel_data = chunk.voxel_data((lx, ly, lz).into()).unwrap();
-    let rotation_index = voxel_data.rotation_index().unwrap_or(0) as usize;
+    let rotation_index = voxel_data.live_voxel.rotation_index().unwrap_or(0) as usize;
     let light = chunk.get_light((lx, ly, lz).into()).get_normalized();
     let global = chunk.xyz.to_global((lx, ly, lz).into()).into();
 

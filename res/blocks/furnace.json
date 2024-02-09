@@ -1,0 +1,6 @@
+{
+  "id": "furnace",
+  "block_type": {"model": {"name": "furnace"}},
+  "live_voxel": "furnace",
+  "is_light_passing": true
+}

@@ -49,7 +49,7 @@ pub struct BlockFile {
     #[serde(default)]
     pub is_light_passing: bool,
     #[serde(default)]
-    pub is_additional_data: bool,
+    pub live_voxel: Option<String>,
     #[serde(default)]
     pub is_glass: bool,
     #[serde(default)]
@@ -93,7 +93,7 @@ pub fn to_block(block_file: BlockFile, indices: &Indices, id: u32) -> Block {
             height: block_file.height,
             depth: block_file.depth,
             is_light_passing: block_file.is_light_passing,
-            is_additional_data: block_file.is_additional_data,
+            live_voxel: block_file.live_voxel,
             is_glass: block_file.is_glass,
             is_ore: block_file.is_ore
         },
@@ -112,7 +112,7 @@ pub fn test_serde_block() {
         height: 1,
         depth: 1,
         is_light_passing: false,
-        is_additional_data: false,
+        live_voxel: None,
         is_glass: false,
         is_ore: false,
     };
@@ -132,7 +132,7 @@ pub struct BlockBase {
     pub depth: usize,
     
     pub is_light_passing: bool,
-    pub is_additional_data: bool,
+    pub live_voxel: Option<String>,
     pub is_glass: bool,
     pub is_ore: bool,
 }
@@ -174,7 +174,7 @@ impl Block {
     pub fn emission(&self) -> &[u8; 3] {&self.base.emission}
     pub fn is_light_passing(&self) -> bool {self.base.is_light_passing}
     pub fn block_type(&self) -> &BlockType {&self.base.block_type}
-    pub fn is_additional_data(&self) -> bool {self.base.is_additional_data}
+    pub fn live_voxel(&self) -> Option<&String> {self.base.live_voxel.as_ref()}
     pub fn is_glass(&self) -> bool {self.base.is_glass}
     
     pub fn width(&self) -> usize {1}

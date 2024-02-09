@@ -10,38 +10,33 @@ wgpu-core = "0.19.0"
 wgpu-types = { version = "0.19", features = ["serde", "trace", "replay"]}
 wgpu = "0.19"
 
-
 winit = "0.29"
 bytemuck = { version = "1.14", features = ["derive"] }
 image = "0.24.6"
 nalgebra-glm = "0.18.0"
-bitflags = "2.3.3"
+bitflags = {version = "2.3.3", features = ["serde"]}
 rand = "0.8.5"
 itertools = "0.11.0"
 atomic-wait = "1.1.0"
-
-tokio = { version = "1.34.0", features = ["full"] }
-
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-
 chrono = "0.4"
-
 rodio = "0.17.3"
+walkdir = "2"
+russimp = { version = "=2.0.5", features = ["prebuilt"] }
+noise = "0.8.2"
 
+serde = { version = "1", features = ["derive", "rc"] }
+erased-serde = "0.4"
+serde_json = "1"
 flate2 = "1.0.28"
+bincode = "1.3.3"
 
 egui-winit = "0.26.0"
 egui-wgpu = "0.26"
 egui = { version = "0.26", features = ["color-hex"]}
 
-walkdir = "2"
-
+tokio = { version = "1.34.0", features = ["full"] }
 rayon = "1.8"
 
-russimp = { version = "=2.0.5", features = ["prebuilt"] }
-
-noise = "0.8.2"
 
 [profile.dev]
 opt-level = 1

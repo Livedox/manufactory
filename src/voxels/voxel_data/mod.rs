@@ -1,7 +1,8 @@
 use std::sync::{Arc, Mutex, Weak};
 use egui::{ahash::HashMap, mutex::RwLock};
+use serde::{Deserialize, Serialize};
 
-use crate::{bytes::{BytesCoder, AsFromBytes}, content::Content, direction::Direction, gui::draw::Draw, recipes::storage::Storage, world::global_coords::GlobalCoords};
+use crate::{bytes::{AsFromBytes, BytesCoder}, content::Content, direction::Direction, gui::draw::Draw, recipes::{item::PossibleItem, recipe::ActiveRecipe, storage::Storage}, world::global_coords::GlobalCoords};
 use self::{voxel_box::VoxelBox, furnace::Furnace, drill::Drill, cowboy::Cowboy, assembling_machine::AssemblingMachine, transport_belt::TransportBelt, manipulator::Manipulator, multiblock::MultiBlock};
 
 use super::chunks::Chunks;
@@ -16,7 +17,6 @@ pub mod transport_belt;
 
 
 pub trait DrawStorage: Draw + Storage {}
-
 
 #[derive(Debug)]
 pub struct VoxelData {
@@ -211,5 +211,15 @@ impl BytesCoder for VoxelData {
             global_coords: header.global_coords,
             additionally: Arc::new(VoxelAdditionalData::decode_bytes(&bytes[Header::size()..], header.id)),
         }
+    }
+}
+
+pub trait BincodeSerde: Serialize + for<'de> Deserialize<'de> {
+    fn serialize(&self) -> Vec<u8> {
+        bincode::serialize(self).expect("Could not serialize data")
+    }
+
+    fn deserialize(bytes: &[u8]) -> Self {
+        bincode::deserialize(bytes).expect("Could not deserialize data")
     }
 }

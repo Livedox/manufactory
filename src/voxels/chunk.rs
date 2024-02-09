@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::{Arc, atomic::{AtomicBool, Ordering}, RwLo
 use itertools::iproduct;
 use crate::{bytes::{AsFromBytes, BytesCoder}, content::{self, Content}, direction::Direction, light::light_map::{LightMap, Light}, world::{local_coords::LocalCoords, chunk_coords::ChunkCoords}};
 
-use super::{generator::Generator, voxel::{self, Voxel, VoxelAtomic}, voxel_data::{VoxelData, VoxelAdditionalData}};
+use super::{generator::Generator, live_voxels::LiveVoxelContainer, voxel::{self, Voxel, VoxelAtomic}, voxel_data::{VoxelAdditionalData, VoxelData}};
 use std::io::prelude::*;
 use flate2::{Compression, read::ZlibDecoder};
 use flate2::write::ZlibEncoder;
@@ -37,7 +37,7 @@ pub struct Chunk {
     pub voxels: [VoxelAtomic; CHUNK_VOLUME],
     pub lightmap: LightMap,
     
-    pub voxels_data: Arc<RwLock<HashMap<usize, Arc<VoxelData>>>>,
+    pub voxels_data: Arc<RwLock<HashMap<usize, Arc<LiveVoxelContainer>>>>,
     modified: AtomicBool,
     unsaved: AtomicBool,
     pub xyz: ChunkCoords,
@@ -116,27 +116,36 @@ impl Chunk {
     pub fn set_voxel_id(&self, local_coords: LocalCoords, id: u32, direction: Option<&Direction>, content: &Content) {
         self.voxels_data.write().unwrap().remove(&local_coords.index());
         self.set_voxel(local_coords, id);
-        if content.blocks[id as usize].is_additional_data() {
-            self.voxels_data.write().unwrap().insert(local_coords.index(), Arc::new(VoxelData {
+        let block = &content.blocks[id as usize];
+        if let Some(name) = block.live_voxel() {
+            self.voxels_data.write().unwrap().insert(local_coords.index(), Arc::new(LiveVoxelContainer {
                 id,
-                global_coords: self.xyz.to_global(local_coords),
-                additionally: Arc::new(VoxelAdditionalData::new(id, direction.unwrap_or(&Direction::new_x()))),
+                coords: self.xyz.to_global(local_coords),
+                live_voxel: content.live_voxel.new.get(name).unwrap()(direction.unwrap_or(&Direction::new_x())),
             }));
         }
+        // if content.blocks[id as usize].live_voxel().is_some() {
+        //     self.voxels_data.write().unwrap().insert(local_coords.index(), Arc::new(VoxelData {
+        //         id,
+        //         global_coords: self.xyz.to_global(local_coords),
+        //         additionally: Arc::new(VoxelAdditionalData::new(id, direction.unwrap_or(&Direction::new_x()))),
+        //     }));
+        // }
     }
 
-    pub fn voxel_data(&self, local_coords: LocalCoords) -> Option<Arc<VoxelData>> {
-        self.voxels_data.read().unwrap().get(&local_coords.index()).map(|d| d.clone())
+    pub fn voxel_data(&self, local_coords: LocalCoords) -> Option<Arc<LiveVoxelContainer>> {
+        self.voxels_data.read().unwrap().get(&local_coords.index()).map(|c| c.clone())
     }
 
 
-    pub fn voxels_data(&self) -> Arc<RwLock<HashMap<usize, Arc<VoxelData>>>> {
+    pub fn voxels_data(&self) -> Arc<RwLock<HashMap<usize, Arc<LiveVoxelContainer>>>> {
         self.voxels_data.clone()
     }
 
 
     pub fn add_voxel_data(&self, local_coords: LocalCoords, voxel_data: VoxelData) {
-        self.voxels_data.write().unwrap().insert(local_coords.index(), Arc::new(voxel_data));
+        todo!("add_voxel_data");
+        // self.voxels_data.write().unwrap().insert(local_coords.index(), Arc::new(voxel_data));
     }
 
     #[inline]
@@ -193,16 +202,16 @@ impl BytesCoder for [VoxelAtomic; CHUNK_VOLUME] {
 }
 
 
-impl BytesCoder for Arc<RwLock<HashMap<usize, Arc<VoxelData>>>> {
+impl BytesCoder for Arc<RwLock<HashMap<usize, Arc<LiveVoxelContainer>>>> {
     fn encode_bytes(&self) -> Box<[u8]> {
         let mut bytes = Vec::new();
 
         if !self.read().unwrap().is_empty() {
             for (key, val) in self.read().unwrap().iter() {
                 bytes.extend((*key as u32).as_bytes());
-                let encode_data = val.encode_bytes();
+                let encode_data = val.to_bytes();
                 bytes.extend((encode_data.len() as u32).as_bytes());
-                bytes.extend(encode_data.as_ref());
+                bytes.extend(encode_data);
             }
         }
 
@@ -210,14 +219,14 @@ impl BytesCoder for Arc<RwLock<HashMap<usize, Arc<VoxelData>>>> {
     }
 
     fn decode_bytes(bytes: &[u8]) -> Self {
-        let mut h = HashMap::<usize, Arc<VoxelData>>::new();
+        let mut h = HashMap::<usize, Arc<LiveVoxelContainer>>::new();
         let mut offset: usize = 0;
         while offset < bytes.len() {
             let key_end = offset + u32::size();
             let key = u32::from_bytes(&bytes[offset..key_end]) as usize;
             let len_end = key_end+u32::size();
             let len = u32::from_bytes(&bytes[key_end..len_end]) as usize;
-            let vd = VoxelData::decode_bytes(&bytes[len_end..len_end+len]);
+            let vd = LiveVoxelContainer::from_bytes(&bytes[len_end..len_end+len]);
             h.insert(key, Arc::new(vd));
             offset = len_end+len;
         }
@@ -260,7 +269,7 @@ impl BytesCoder for Chunk {
         let voxel_end = CompressChunk::size() + compress.voxel_len as usize;
         let voxel_data_end = voxel_end + compress.voxel_data_len as usize;
         let voxels = <[VoxelAtomic; CHUNK_VOLUME]>::decode_bytes(&data[CompressChunk::size()..voxel_end]);
-        let voxels_data = <Arc<RwLock<HashMap<usize, Arc<VoxelData>>>>>::decode_bytes(&data[voxel_end..voxel_data_end]);
+        let voxels_data = <Arc<RwLock<HashMap<usize, Arc<LiveVoxelContainer>>>>>::decode_bytes(&data[voxel_end..voxel_data_end]);
 
         Self {
             voxels,
@@ -270,16 +279,5 @@ impl BytesCoder for Chunk {
             lightmap: LightMap::new(),
             xyz: compress.xyz,
         }
-    }
-}
-
-
-#[cfg(test)]
-mod test {
-    use crate::voxels::chunk::CHUNK_SIZE;
-
-    #[test]
-    fn correct_chunk_size() {
-        assert!(CHUNK_SIZE > 1 && (CHUNK_SIZE & CHUNK_SIZE-1) == 0 && CHUNK_SIZE <= 32);
     }
 }

@@ -35,53 +35,53 @@ impl TransportBelt {
     }
 
     pub fn update(&mut self, coords: GlobalCoords, chunks: &Chunks) {
-        if self.storage[0].0.is_some() {self.item_progress[0] += 0.1;}
-        if self.storage[3].0.is_some() {self.item_progress[3] += 0.1;}
+        // if self.storage[0].0.is_some() {self.item_progress[0] += 0.1;}
+        // if self.storage[3].0.is_some() {self.item_progress[3] += 0.1;}
 
-        let mut checking_progress = self.item_progress[0] - 0.33;
-        self.item_progress[1..3].iter_mut().enumerate().for_each(|(index, progress)| {
-            if self.storage[index+1].0.is_some() && checking_progress > *progress {
-                *progress += 0.1;
-            } 
-            checking_progress = *progress - 0.33;
-        });
+        // let mut checking_progress = self.item_progress[0] - 0.33;
+        // self.item_progress[1..3].iter_mut().enumerate().for_each(|(index, progress)| {
+        //     if self.storage[index+1].0.is_some() && checking_progress > *progress {
+        //         *progress += 0.1;
+        //     } 
+        //     checking_progress = *progress - 0.33;
+        // });
 
-        let mut checking_progress = self.item_progress[3] - 0.33;
-        self.item_progress[4..6].iter_mut().enumerate().for_each(|(index, progress)| {
-            if self.storage[index+4].0.is_some() && checking_progress > *progress {
-                *progress += 0.1;
-            }
-            checking_progress = *progress - 0.33;
-        });
+        // let mut checking_progress = self.item_progress[3] - 0.33;
+        // self.item_progress[4..6].iter_mut().enumerate().for_each(|(index, progress)| {
+        //     if self.storage[index+4].0.is_some() && checking_progress > *progress {
+        //         *progress += 0.1;
+        //     }
+        //     checking_progress = *progress - 0.33;
+        // });
 
-        let dst_coords = GlobalCoords(coords.0+self.direction[0] as i32, coords.1, coords.2+self.direction[2] as i32);
-        let Some(dst) = (unsafe {
-            chunks
-                .voxel_data(dst_coords)
-                .and_then(|voxel_data| voxel_data.additionally.transport_belt())
-        }) else {return};
+        // let dst_coords = GlobalCoords(coords.0+self.direction[0] as i32, coords.1, coords.2+self.direction[2] as i32);
+        // let Some(dst) = (unsafe {
+        //     chunks
+        //         .voxel_data(dst_coords)
+        //         .and_then(|voxel_data| voxel_data.additionally.transport_belt())
+        // }) else {return};
         
-        if self.item_progress[0] > 1.0
-         && dst.lock().unwrap().put(&self.storage[0].0.unwrap(), TransportBeltSide::Left).is_none() {
-            self.item_progress[0] = self.item_progress[1];
-            self.item_progress[1] = self.item_progress[2];
-            self.item_progress[2] = 0.0;
+        // if self.item_progress[0] > 1.0
+        //  && dst.lock().unwrap().put(&self.storage[0].0.unwrap(), TransportBeltSide::Left).is_none() {
+        //     self.item_progress[0] = self.item_progress[1];
+        //     self.item_progress[1] = self.item_progress[2];
+        //     self.item_progress[2] = 0.0;
 
-            self.storage[0] = self.storage[1];
-            self.storage[1] = self.storage[2];
-            self.storage[2] = PossibleItem::new_none(); 
-        }
+        //     self.storage[0] = self.storage[1];
+        //     self.storage[1] = self.storage[2];
+        //     self.storage[2] = PossibleItem::new_none(); 
+        // }
 
-        if self.item_progress[3] > 1.0 
-         && dst.lock().unwrap().put(&self.storage[3].0.unwrap(), TransportBeltSide::Right).is_none() {
-            self.item_progress[3] = self.item_progress[4];
-            self.item_progress[4] = self.item_progress[5];
-            self.item_progress[5] = 0.0;
+        // if self.item_progress[3] > 1.0 
+        //  && dst.lock().unwrap().put(&self.storage[3].0.unwrap(), TransportBeltSide::Right).is_none() {
+        //     self.item_progress[3] = self.item_progress[4];
+        //     self.item_progress[4] = self.item_progress[5];
+        //     self.item_progress[5] = 0.0;
 
-            self.storage[3] = self.storage[4];
-            self.storage[4] = self.storage[5];
-            self.storage[5] = PossibleItem::new_none();
-        }
+        //     self.storage[3] = self.storage[4];
+        //     self.storage[4] = self.storage[5];
+        //     self.storage[5] = PossibleItem::new_none();
+        // }
     }
 
     pub fn put(&mut self, item: &Item, side: TransportBeltSide) -> Option<Item> {

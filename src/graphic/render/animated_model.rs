@@ -18,10 +18,8 @@ pub fn render_animated_model(animated_models: &mut AnimatedModels, chunk: &Chunk
     let mut rotation_index = 0;
     
     if let Some(voxel_data) = chunk.voxels_data.read().unwrap().get(&((ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx)).map(|d| d.clone()) {
-        if let Some(p) = voxel_data.additionally.animation_progress() {
-            progress = p;
-        }
-        if let Some(rotation) = voxel_data.rotation_index() {
+        progress = voxel_data.live_voxel.animation_progress();
+        if let Some(rotation) = voxel_data.live_voxel.rotation_index() {
             rotation_index = rotation;
         }
     }

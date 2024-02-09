@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 const STACK_SIZE: u32 = 100;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct PossibleItem(pub Option<Item>);
 
 impl PossibleItem {
@@ -79,7 +81,7 @@ impl PossibleItem {
 }
 
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Item {
     id: u32,
     pub count: u32,

@@ -1,6 +1,6 @@
 use std::{sync::{Arc, atomic::{Ordering, AtomicBool}, RwLock}, thread::{self, JoinHandle}, time::{Instant, Duration}};
 
-use crate::{voxels::chunks::Chunks, world::World, unsafe_mutex::UnsafeMutex, WORLD_EXIT};
+use crate::{unsafe_mutex::UnsafeMutex, voxels::chunks::Chunks, world::{global_coords::GlobalCoords, World}, WORLD_EXIT};
 
 pub fn spawn(world: Arc<World>, exit: Arc<AtomicBool>) -> JoinHandle<()> {
     thread::spawn(move || {
@@ -15,7 +15,7 @@ pub fn spawn(world: Arc<World>, exit: Arc<AtomicBool>) -> JoinHandle<()> {
                 }
 
                 for vd in chunk.voxels_data.read().unwrap().values() {
-                    vd.update(&world.chunks)
+                    vd.live_voxel.update(GlobalCoords(0, 0, 0), &world.chunks);
                 }
             }
             thread::sleep(Duration::from_millis(100u64.saturating_sub(now.elapsed().as_millis() as u64)));
