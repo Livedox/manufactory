@@ -21,6 +21,10 @@ impl LiveVoxelNew for Arc<Mutex<Furnace>> {
 impl LiveVoxel for Arc<Mutex<Furnace>> {
     player_unlockable!();
 
+    fn storage(&self) -> Option<Arc<Mutex<dyn Storage>>> {
+        Some(self.clone())
+    }
+
     fn update(&self, _: GlobalCoords, _: &Chunks) {
         let mut furnace = self.lock().unwrap();
         let active_recipe_take = furnace.active_recipe.take();

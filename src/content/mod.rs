@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use itertools::Itertools;
 
-use crate::{engine::state::Indices, voxels::{block::{block_test::{to_block, Block, BlockBase, BlockFile}, block_type::BlockType, functions::{on_break, player_add_item}}, live_voxels::{register, LiveVoxelRegistrator}}};
+use crate::{engine::state::Indices, voxels::{block::{block_test::{to_block, Block, BlockBase, BlockFile}, block_type::BlockType, functions::{on_break, on_multiblock_break, player_add_item}}, live_voxels::{register, LiveVoxelRegistrator}}};
 
 #[derive(Debug)]
 pub struct Content {
@@ -39,6 +39,23 @@ impl Content {
                 on_block_break: Box::new([]),
                 on_block_set: Box::new([]),
             },
+            Block {
+                base: BlockBase {
+                    id: 1,
+                    item_id: None,
+                    emission: [0, 0, 0],
+                    block_type: BlockType::None,
+                    width: 1,
+                    height: 1,
+                    depth: 1,
+                    is_light_passing: true,
+                    live_voxel: None,
+                    is_glass: false,
+                    is_ore: false
+                },
+                on_block_break: Box::new([&on_multiblock_break]),
+                on_block_set: Box::new([]),
+            },
         ];
         let mut id = blocks.len() as u32;
         files.for_each(|(index, file)| {
@@ -53,7 +70,7 @@ impl Content {
             id += 1;
         });
 
-        println!("{:?}", blocks);
+        println!("{:?}", block_indexes);
 
         Self { blocks, block_indexes, live_voxel: register() }
     }

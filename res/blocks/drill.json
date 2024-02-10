@@ -1,5 +1,10 @@
 {
   "id": "drill",
   "block_type": {"model": {"name": "drill"}},
-  "is_light_passing": true
+  "is_light_passing": true,
+  "width": 2,
+  "depth": 2,
+  "on_break": ["on_multiblock_break"],
+  "on_set": ["on_multiblock_set"],
+  "live_voxel": "drill"
 }

@@ -39,3 +39,24 @@ macro_rules! player_unlockable {
     };
 }
 
+/// Do this:
+/// ```rust, ignore
+/// impl LiveVoxelDesiarialize for $type {
+///     fn deserialize(bytes: &[u8]) -> Box<dyn LiveVoxel> {
+///         Box::new(bincode::deserialize::<Self>(bytes)
+///             .expect(concat!("Deserialization error on type: ", stringify!($type))))
+///         }
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! live_voxel_default_deserialize {
+    ( $type:ty ) => {
+        impl LiveVoxelDesiarialize for $type {
+            fn deserialize(bytes: &[u8]) -> Box<dyn LiveVoxel> {
+                Box::new(bincode::deserialize::<Self>(bytes)
+                    .expect(concat!("Deserialization error on type: ", stringify!($type))))
+            }
+        }
+    };
+}

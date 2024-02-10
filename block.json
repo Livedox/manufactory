@@ -17,5 +17,7 @@
   "is_light_passing": false,
   "live_voxel": null,
   "is_glass": false,
-  "is_ore": false
+  "is_ore": false,
+  "on_break": [],
+  "on_set": []
 }

@@ -1,5 +1,7 @@
 {
   "id": "box",
   "block_type": {"block": {"faces": ["box"]}},
-  "live_voxel": "voxel_box"
+  "live_voxel": "voxel_box",
+  "on_break": ["on_break"],
+  "on_set": ["on_set"]
 }

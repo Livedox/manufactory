@@ -35,6 +35,7 @@ pub fn on_multiblock_set(base: &BlockBase, world: &World, player: &mut Player, x
     // FIX THIS SHIT
     let mut width = base.width as i32;
     let mut depth = base.depth as i32;
+    println!("{:?}", base);
     if base.id == 15 {
         let d = dir.simplify_to_one_greatest(true, false, true);
         if d[2] < 0 {width = -(base.width as i32)};

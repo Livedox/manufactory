@@ -32,9 +32,19 @@ impl From<u8> for CompressionType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[repr(transparent)]
 pub struct LiveVoxels(pub Arc<RwLock<HashMap<usize, Arc<LiveVoxelContainer>>>>);
+
+impl LiveVoxels {
+    pub fn get(&self, k: &usize) -> Option<Arc<LiveVoxelContainer>> {
+        self.0.read().unwrap().get(k).map(|v| v.clone())
+    }
+
+    pub fn insert(&self, k: usize, v: Arc<LiveVoxelContainer>) -> Option<Arc<LiveVoxelContainer>> {
+        self.0.write().unwrap().insert(k, v)
+    }
+}
 
 #[derive(Debug)]
 pub struct Chunk {
@@ -121,20 +131,16 @@ impl Chunk {
         self.live_voxels.0.write().unwrap().remove(&local_coords.index());
         self.set_voxel(local_coords, id);
         let block = &content.blocks[id as usize];
+        if id == 1 || id == 5 {return};
         if let Some(name) = block.live_voxel() {
-            self.live_voxels.0.write().unwrap().insert(local_coords.index(), Arc::new(LiveVoxelContainer {
-                id,
-                coords: self.xyz.to_global(local_coords),
-                live_voxel: content.live_voxel.new.get(name).unwrap()(direction.unwrap_or(&Direction::new_x())),
-            }));
+            let coords = self.xyz.to_global(local_coords);
+
+            let live_voxel = content.live_voxel.new.get(name)
+                .unwrap()(direction.unwrap_or(&Direction::new_x()));
+
+            self.live_voxels.0.write().unwrap()
+                .insert(local_coords.index(), LiveVoxelContainer::new_arc(id, coords, live_voxel));
         }
-        // if content.blocks[id as usize].live_voxel().is_some() {
-        //     self.voxels_data.write().unwrap().insert(local_coords.index(), Arc::new(VoxelData {
-        //         id,
-        //         global_coords: self.xyz.to_global(local_coords),
-        //         additionally: Arc::new(VoxelAdditionalData::new(id, direction.unwrap_or(&Direction::new_x()))),
-        //     }));
-        // }
     }
 
     pub fn voxel_data(&self, local_coords: LocalCoords) -> Option<Arc<LiveVoxelContainer>> {
@@ -142,8 +148,8 @@ impl Chunk {
     }
 
 
-    pub fn voxels_data(&self) -> Arc<RwLock<HashMap<usize, Arc<LiveVoxelContainer>>>> {
-        self.live_voxels.0.clone()
+    pub fn voxels_data(&self) -> LiveVoxels {
+        self.live_voxels.clone()
     }
 
 

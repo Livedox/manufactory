@@ -9,5 +9,7 @@
   "is_light_passing": false,
   "is_additional_data": false,
   "is_glass": false,
-  "is_ore": false
+  "is_ore": false,
+  "on_break": ["on_break"],
+  "on_set": ["on_set"]
 }

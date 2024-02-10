@@ -2,9 +2,10 @@ use std::sync::{Arc, Mutex, Weak};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{bytes::BytesCoder, direction::Direction, engine::texture::TextureAtlas, gui::{draw::Draw, my_widgets::inventory_slot::inventory_slot}, player::inventory::PlayerInventory, player_unlockable, recipes::{item::PossibleItem, storage::Storage}};
+use crate::{bytes::BytesCoder, direction::Direction, engine::texture::TextureAtlas, gui::{draw::Draw, my_widgets::inventory_slot::inventory_slot}, live_voxel_default_deserialize, player::inventory::PlayerInventory, player_unlockable, recipes::{item::PossibleItem, storage::Storage}};
 
 use super::{LiveVoxel, LiveVoxelDesiarialize, LiveVoxelNew, PlayerUnlockable};
+use crate::voxels::live_voxels::drill::Drill;
 
 impl LiveVoxelNew for Arc<Mutex<VoxelBox>> {
     fn new_livevoxel(_: &Direction) -> Box<dyn LiveVoxel> {
@@ -12,14 +13,15 @@ impl LiveVoxelNew for Arc<Mutex<VoxelBox>> {
     }
 }
 
-impl LiveVoxelDesiarialize for Arc<Mutex<VoxelBox>> {
-    fn deserialize(bytes: &[u8]) -> Box<dyn LiveVoxel> {
-        Box::new(bincode::deserialize::<Self>(bytes).unwrap())
-    }
-}
+live_voxel_default_deserialize!(Arc<Mutex<VoxelBox>>);
 
 impl LiveVoxel for Arc<Mutex<VoxelBox>> {
     player_unlockable!();
+
+    fn storage(&self) -> Option<Arc<Mutex<dyn Storage>>> {
+        Some(self.clone())
+    }
+
     fn serialize(&self) -> Vec<u8> {
         bincode::serialize(self).unwrap()
     }

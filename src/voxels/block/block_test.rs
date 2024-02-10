@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{direction::Direction, engine::state::Indices, player::player::Player, recipes::{item::Item, storage::Storage}, world::{coords::Coords, global_coords::GlobalCoords, World}};
 
-use super::{block_type::BlockType, functions::{on_break, on_set, Function}};
+use super::{block_type::BlockType, functions::{on_break, on_set, Function, FUNCTIONS}};
 
 fn one() -> usize {1}
 
@@ -54,6 +54,11 @@ pub struct BlockFile {
     pub is_glass: bool,
     #[serde(default)]
     pub is_ore: bool,
+
+    #[serde(default)]
+    pub on_break: Vec<String>,
+    #[serde(default)]
+    pub on_set: Vec<String>,
 }
 
 
@@ -83,6 +88,12 @@ pub fn to_block(block_file: BlockFile, indices: &Indices, id: u32) -> Block {
         BlockTypeFile::None => BlockType::None,
     };
 
+    let on_block_break = block_file.on_break.into_iter()
+        .map(|name| *FUNCTIONS().get(&name).unwrap()).collect();
+
+    let on_block_set = block_file.on_set.into_iter()
+        .map(|name| *FUNCTIONS().get(&name).unwrap()).collect();
+
     Block {
         base: BlockBase {
             id,
@@ -97,8 +108,8 @@ pub fn to_block(block_file: BlockFile, indices: &Indices, id: u32) -> Block {
             is_glass: block_file.is_glass,
             is_ore: block_file.is_ore
         },
-        on_block_break: Box::new([&on_break]),
-        on_block_set: Box::new([&on_set])
+        on_block_break,
+        on_block_set
     }
 }
 
@@ -115,6 +126,8 @@ pub fn test_serde_block() {
         live_voxel: None,
         is_glass: false,
         is_ore: false,
+        on_break: Vec::new(),
+        on_set: Vec::new(),
     };
 
     std::fs::write("./block.json", serde_json::to_vec_pretty(&b).unwrap()).unwrap();
@@ -174,7 +187,7 @@ impl Block {
     pub fn emission(&self) -> &[u8; 3] {&self.base.emission}
     pub fn is_light_passing(&self) -> bool {self.base.is_light_passing}
     pub fn block_type(&self) -> &BlockType {&self.base.block_type}
-    pub fn live_voxel(&self) -> Option<&String> {self.base.live_voxel.as_ref()}
+    pub fn live_voxel(&self) -> Option<&str> {self.base.live_voxel.as_ref().map(|x| x.as_str())}
     pub fn is_glass(&self) -> bool {self.base.is_glass}
     
     pub fn width(&self) -> usize {1}
