@@ -127,35 +127,18 @@ impl Chunk {
         self.unsaved.store(value, Ordering::Release);
     }
 
-    pub fn set_voxel_id(&self, local_coords: LocalCoords, id: u32, direction: Option<&Direction>, content: &Content) {
+    pub fn set_voxel_id(&self, local_coords: LocalCoords, id: u32, content: &Content) {
         self.live_voxels.0.write().unwrap().remove(&local_coords.index());
         self.set_voxel(local_coords, id);
-        let block = &content.blocks[id as usize];
-        if id == 1 || id == 5 {return};
-        if let Some(name) = block.live_voxel() {
-            let coords = self.xyz.to_global(local_coords);
-
-            let live_voxel = content.live_voxel.new.get(name)
-                .unwrap()(direction.unwrap_or(&Direction::new_x()));
-
-            self.live_voxels.0.write().unwrap()
-                .insert(local_coords.index(), LiveVoxelContainer::new_arc(id, coords, live_voxel));
-        }
     }
 
     pub fn voxel_data(&self, local_coords: LocalCoords) -> Option<Arc<LiveVoxelContainer>> {
-        self.live_voxels.0.read().unwrap().get(&local_coords.index()).map(|c| c.clone())
+        self.live_voxels.get(&local_coords.index())
     }
 
 
     pub fn voxels_data(&self) -> LiveVoxels {
         self.live_voxels.clone()
-    }
-
-
-    pub fn add_voxel_data(&self, local_coords: LocalCoords, voxel_data: VoxelData) {
-        todo!("add_voxel_data");
-        // self.voxels_data.write().unwrap().insert(local_coords.index(), Arc::new(voxel_data));
     }
 
     #[inline]

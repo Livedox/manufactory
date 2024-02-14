@@ -59,13 +59,13 @@ impl World {
 
 
     pub fn break_voxel(&self, xyz: &GlobalCoords) {
-        Chunks::set(&self.chunks, *xyz, 0, None);
+        Chunks::set(&self.chunks, *xyz, 0);
         // self.chunks.set(*xyz, 0, None);
         self.player_light_solver.on_block_break(&self.chunks, xyz.0, xyz.1, xyz.2);
     }
 
     pub fn set_voxel(&self, xyz: &GlobalCoords, id: u32, dir: &Direction) {
-        Chunks::set(&self.chunks, *xyz, id, Some(dir));
+        Chunks::set(&self.chunks, *xyz, id);
         // self.chunks.set(*xyz, id, Some(dir));
         self.player_light_solver.on_block_set(&self.chunks, xyz.0, xyz.1, xyz.2, id);
     }
