@@ -4,15 +4,13 @@ use serde::{ser::SerializeStruct, Deserialize, Serialize};
 
 use crate::{bytes::AsFromBytes, content::Content, direction::Direction, gui::draw::Draw, recipes::storage::Storage, world::global_coords::GlobalCoords};
 use std::fmt::Debug;
-use self::{drill::Drill, furnace::Furnace, multiblock::MultiBlock, mutliblock_part::MultiBlockPart, voxel_box::VoxelBox};
+use self::{drill::Drill, furnace::Furnace, voxel_box::VoxelBox};
 
 use super::{chunks::Chunks, voxel_data::transport_belt::TransportBelt};
 pub mod furnace;
 pub mod voxel_box;
 pub mod unit;
-pub mod mutliblock_part;
 pub mod drill;
-pub mod multiblock;
 
 pub trait PlayerUnlockable: Draw {
     fn get_storage(&self) -> Option<&dyn Storage> {None}
@@ -20,65 +18,71 @@ pub trait PlayerUnlockable: Draw {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum LiveVoxelCoord {
-    Standard(GlobalCoords),
-    Slave([GlobalCoords; 2]),
+pub enum MultiBlock {
+    Slave(GlobalCoords),
     Master(Vec<GlobalCoords>)
-}
-
-impl From<GlobalCoords> for LiveVoxelCoord {
-    fn from(value: GlobalCoords) -> Self {
-        Self::Standard(value)
-    }
 }
 
 #[derive(Debug)]
 pub struct LiveVoxelContainer {
     pub id: u32,
-    pub coord: LiveVoxelCoord,
+    pub coord: GlobalCoords,
+    pub multiblock: Option<MultiBlock>,
     pub live_voxel: Box<dyn LiveVoxel>
 }
 
 impl LiveVoxelContainer {
     #[inline]
-    pub fn new(id: u32, coord: LiveVoxelCoord, live_voxel: Box<dyn LiveVoxel>) -> Self {
-        Self { id, coord, live_voxel }
+    pub fn new(id: u32, coord: GlobalCoords, live_voxel: Box<dyn LiveVoxel>) -> Self {
+        Self { id, coord, live_voxel, multiblock: None }
     }
 
     #[inline]
-    pub fn new_arc(id: u32, coord: LiveVoxelCoord, live_voxel: Box<dyn LiveVoxel>) -> Arc<Self> {
+    pub fn new_arc(id: u32, coord: GlobalCoords, live_voxel: Box<dyn LiveVoxel>) -> Arc<Self> {
         Arc::new(Self::new(id, coord, live_voxel))
     }
 
     #[inline]
-    pub fn new_arc_multiblock_part(coord: LiveVoxelCoord, parent: GlobalCoords) -> Arc<Self> {
-        Arc::new(Self::new(1, coord, Box::new(MultiBlockPart::new(parent))))
+    pub fn new_arc_master(id: u32, coord: GlobalCoords, all: Vec<GlobalCoords>, live_voxel: Box<dyn LiveVoxel>) -> Arc<Self> {
+        Arc::new(Self {
+            id,
+            coord,
+            multiblock: Some(MultiBlock::Master(all)),
+            live_voxel,
+        })
+    }
+
+    #[inline]
+    pub fn new_arc_slave(coord: GlobalCoords, master: GlobalCoords) -> Arc<Self> {
+        Arc::new(Self {
+            id: 1,
+            coord,
+            multiblock: Some(MultiBlock::Slave(master)),
+            live_voxel: Box::new(()),
+        })
     }
 
     pub fn coord(&self) -> GlobalCoords {
-        match &self.coord {
-            LiveVoxelCoord::Standard(g) => *g,
-            LiveVoxelCoord::Slave(v) => v[0],
-            LiveVoxelCoord::Master(v) => v[0]
-        }
+        self.coord
     }
 
     #[inline]
     pub fn update(&self, chunks: &Chunks) {
-        self.live_voxel.update(self.coord(), chunks);
+        let multiblock = self.multiblock_coords().unwrap_or(&[]);
+        self.live_voxel.update(chunks, self.coord(), multiblock);
     }
     
     #[inline]
-    pub fn parent_coord(&self) -> Option<GlobalCoords> {
-        match &self.coord {
-            LiveVoxelCoord::Slave(v) => Some(v[1]),
+    pub fn master_coord(&self) -> Option<GlobalCoords> {
+        match &self.multiblock {
+            Some(MultiBlock::Slave(c)) => Some(*c),
             _ => None
         }
     }
     #[inline] 
-    pub fn structure_coordinates(&self) -> Option<Vec<GlobalCoords>> {
-        match &self.coord {
-            LiveVoxelCoord::Master(v) => Some(v.clone()),
+    pub fn multiblock_coords(&self) -> Option<&[GlobalCoords]> {
+        match &self.multiblock {
+            Some(MultiBlock::Master(v)) => Some(&v),
             _ => None
         }
     }
@@ -111,6 +115,9 @@ impl LiveVoxelContainer {
         let coord = bincode::serialize(&self.coord).unwrap();
         bytes.extend((coord.len() as u32).to_le_bytes());
         bytes.extend(coord);
+        let multiblock = bincode::serialize(&self.multiblock).unwrap();
+        bytes.extend((multiblock.len() as u32).to_le_bytes());
+        bytes.extend(multiblock);
         bytes.extend(self.live_voxel.serialize());
         bytes
     }
@@ -119,14 +126,18 @@ impl LiveVoxelContainer {
         let id = u32::from_le_bytes([0, 1, 2, 3].map(|i| *bytes.get(i).unwrap()));
         let coord_end = 8 + u32::from_le_bytes([4, 5, 6, 7].map(|i| *bytes.get(i).unwrap())) as usize;
         let coord = bincode::deserialize(&bytes[8..coord_end]).unwrap();
+        let multiblock_end = 4 + coord_end + u32::from_le_bytes([0, 1, 2, 3]
+            .map(|i| *bytes.get(i+coord_end).unwrap())) as usize;
+        let multiblock = bincode::deserialize(&bytes[coord_end+4..multiblock_end]).unwrap();
+
         let live_voxel: Box<dyn LiveVoxel> = if let Some(name) = content.blocks[id as usize].live_voxel() {
             content.live_voxel.deserialize.get(name)
-                .map_or(Box::new(()), |desiarialize| desiarialize(&bytes[coord_end..]))
+                .map_or(Box::new(()), |desiarialize| desiarialize(&bytes[multiblock_end..]))
         } else {
             Box::new(())
         };
 
-        Self { id, coord, live_voxel }
+        Self { id, coord, live_voxel, multiblock }
     }
 }
 
@@ -157,13 +168,11 @@ pub fn register() -> LiveVoxelRegistrator {
     new.insert(String::from("voxel_box"), &<Arc<Mutex<VoxelBox>>>::new_livevoxel);
     deserialize.insert(String::from("voxel_box"), &<Arc<Mutex<VoxelBox>> as LiveVoxelDesiarialize>::deserialize);
 
-    deserialize.insert(String::from("multiblock_part"), &<MultiBlockPart as LiveVoxelDesiarialize>::deserialize);
-
     deserialize.insert(String::from("drill"), &<Mutex<Drill> as LiveVoxelDesiarialize>::deserialize);
-    new_multiblock.insert(String::from("drill"), &<Mutex<Drill>>::new_multiblock);
+    new.insert(String::from("drill"), &<Mutex<Drill>>::new_livevoxel);
 
-    deserialize.insert(String::from("multiblock"), &<MultiBlock as LiveVoxelDesiarialize>::deserialize);
-    new_multiblock.insert(String::from("multiblock"), &<MultiBlock>::new_multiblock);
+    // deserialize.insert(String::from("multiblock"), &<MultiBlock as LiveVoxelDesiarialize>::deserialize);
+    // new_multiblock.insert(String::from("multiblock"), &<MultiBlock>::new_multiblock);
 
     LiveVoxelRegistrator { 
         new,
@@ -173,12 +182,10 @@ pub fn register() -> LiveVoxelRegistrator {
 }
 
 pub trait LiveVoxel: Debug {
-    fn parent_coord(&self) -> Option<GlobalCoords> {None}
     fn player_unlockable(&self) -> Option<Weak<Mutex<dyn PlayerUnlockable>>> {None}
-    fn structure_coordinates(&self) -> Option<Vec<GlobalCoords>> {None}
     fn rotation_index(&self) -> Option<u32> {None}
     fn storage(&self) -> Option<Arc<Mutex<dyn Storage>>> {None}
-    fn update(&self, coords: GlobalCoords, chunks: &Chunks) {}
+    fn update(&self, chunks: &Chunks, coord: GlobalCoords, multiblock: &[GlobalCoords]) {}
     fn transport_belt(&self) -> Option<Arc<Mutex<TransportBelt>>> {None}
     fn animation_progress(&self) -> f32 {0.0}
 

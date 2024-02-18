@@ -15,7 +15,7 @@ pub fn spawn(world: Arc<World>, exit: Arc<AtomicBool>) -> JoinHandle<()> {
                 }
 
                 for vd in chunk.live_voxels.0.read().unwrap().values() {
-                    vd.live_voxel.update(GlobalCoords(0, 0, 0), &world.chunks);
+                    vd.update(&world.chunks);
                 }
             }
             thread::sleep(Duration::from_millis(100u64.saturating_sub(now.elapsed().as_millis() as u64)));

@@ -16,7 +16,8 @@ pub fn on_break(base: &BlockBase, world: &World, player: &mut Player, xyz: &Glob
 
 pub fn on_set(base: &BlockBase, world: &World, player: &mut Player, xyz: &GlobalCoords, dir: &Direction) -> bool {
     if world.voxel(xyz).map(|v| v.id == 0).unwrap_or(true) {
-        world.set_voxel(xyz, base.id, dir);
+        world.chunks.set_block(*xyz, base.id, Some(dir));
+        world.light.on_block_set(&world.chunks, xyz.0, xyz.1, xyz.2, base.id);
         return true;
     }
     false
@@ -35,7 +36,6 @@ pub fn on_multiblock_set(base: &BlockBase, world: &World, player: &mut Player, x
     // FIX THIS SHIT
     let mut width = base.width as i32;
     let mut depth = base.depth as i32;
-    println!("{:?}", base);
     if base.id == 5 {
         let d = dir.simplify_to_one_greatest(true, false, true);
         if d[2] < 0 {width = -(base.width as i32)};

@@ -26,7 +26,7 @@ pub trait BlockInteraction {
     }
     fn on_block_set(&self, world: &World, _: &mut Player, xyz: &GlobalCoords, dir: &Direction) -> bool {
         if world.voxel(xyz).map(|v| v.id == 0).unwrap_or(true) {
-            world.set_voxel(xyz, self.id(), dir);
+            // world.set_voxel(xyz, self.id(), dir);
             return true;
         }
         false

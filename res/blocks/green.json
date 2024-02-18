@@ -1,0 +1,9 @@
+{
+  "id": "green",
+  "block_type": {"block": {"faces": ["green"]}},
+  "on_break": ["on_multiblock_break"],
+  "on_set": ["on_multiblock_set"],
+  "height": 2,
+  "width": 2,
+  "depth": 3
+}

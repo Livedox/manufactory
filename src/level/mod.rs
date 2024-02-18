@@ -144,7 +144,7 @@ impl Level {
                 self.content.blocks[voxel_id as usize].on_block_break(&self.world, &mut player, &global, &direction);
             } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !is_cursor {
                 let gxyz = global + norm.tuple().into();
-                let storage = self.world.chunks.voxel_data(global).and_then(|vd| vd.live_voxel.player_unlockable());
+                let storage = self.world.chunks.master_live_voxel(global).and_then(|vd| vd.live_voxel.player_unlockable());
                 if let Some(storage) = storage {
                     println!("{:?}", storage);
                     player.set_open_storage(storage);

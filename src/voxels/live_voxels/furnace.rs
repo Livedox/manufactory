@@ -25,7 +25,7 @@ impl LiveVoxel for Arc<Mutex<Furnace>> {
         Some(self.clone())
     }
 
-    fn update(&self, _: GlobalCoords, _: &Chunks) {
+    fn update(&self, _: &Chunks, _: GlobalCoords, _: &[GlobalCoords]) {
         let mut furnace = self.lock().unwrap();
         let active_recipe_take = furnace.active_recipe.take();
         if let Some(active_recipe) = &active_recipe_take {

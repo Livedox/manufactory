@@ -132,12 +132,12 @@ impl Chunk {
         self.set_voxel(local_coords, id);
     }
 
-    pub fn voxel_data(&self, local_coords: LocalCoords) -> Option<Arc<LiveVoxelContainer>> {
+    pub fn live_voxel(&self, local_coords: LocalCoords) -> Option<Arc<LiveVoxelContainer>> {
         self.live_voxels.get(&local_coords.index())
     }
 
 
-    pub fn voxels_data(&self) -> LiveVoxels {
+    pub fn live_voxels(&self) -> LiveVoxels {
         self.live_voxels.clone()
     }
 
