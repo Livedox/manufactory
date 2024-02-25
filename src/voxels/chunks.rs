@@ -4,7 +4,7 @@ use itertools::{iproduct, Itertools};
 
 use crate::{bytes::BytesCoder, content::Content, direction::Direction, light::light_map::Light, save_load::{WorldRegions, EncodedChunk}, unsafe_mutex::UnsafeMutex, vec_none, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
 
-use super::{chunk::{Chunk, LiveVoxels, CHUNK_SIZE}, live_voxels::{LiveVoxel, LiveVoxelContainer}, voxel::Voxel, voxel_data::{multiblock::MultiBlock, VoxelAdditionalData, VoxelData}};
+use super::{chunk::{Chunk, LiveVoxels, CHUNK_SIZE}, live_voxels::{LiveVoxelBehavior, LiveVoxelContainer}, voxel::Voxel, voxel_data::{multiblock::MultiBlock, VoxelAdditionalData, VoxelData}};
 
 pub const WORLD_BLOCK_HEIGHT: usize = 256;
 pub const WORLD_HEIGHT: usize = WORLD_BLOCK_HEIGHT / CHUNK_SIZE; // In chunks
@@ -242,7 +242,7 @@ impl Chunks {
 
         let live_voxel_name = self.content.blocks[id as usize].live_voxel().unwrap_or("");
         let voxels_data = self.live_voxels(coords[0]).unwrap();
-        let live_voxel: Box<(dyn LiveVoxel)> = self.content.live_voxel.new.get(live_voxel_name)
+        let live_voxel: Box<(dyn LiveVoxelBehavior)> = self.content.live_voxel.new.get(live_voxel_name)
             .map_or(Box::new(()), |f| { f(dir)});
 
         voxels_data.insert(LocalCoords::from(coords[0]).index(), 

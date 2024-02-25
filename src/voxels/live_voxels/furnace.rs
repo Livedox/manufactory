@@ -2,9 +2,9 @@ use std::sync::{Arc, Mutex, Weak};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{bytes::{AsFromBytes, BytesCoder}, direction::{self, Direction}, engine::texture::TextureAtlas, gui::{draw::Draw, my_widgets::inventory_slot::inventory_slot}, player::inventory::PlayerInventory, player_unlockable, recipes::{item::{Item, PossibleItem}, recipe::ActiveRecipe, recipes::RECIPES, storage::Storage}, voxels::chunks::Chunks, world::global_coords::GlobalCoords};
+use crate::{bytes::{AsFromBytes, BytesCoder}, direction::{self, Direction}, engine::texture::TextureAtlas, gui::{draw::Draw, my_widgets::inventory_slot::inventory_slot}, live_voxel_default_deserialize, player::inventory::PlayerInventory, player_unlockable, recipes::{item::{Item, PossibleItem}, recipe::ActiveRecipe, recipes::RECIPES, storage::Storage}, voxels::chunks::Chunks, world::global_coords::GlobalCoords};
 
-use super::{LiveVoxel, LiveVoxelDesiarialize, LiveVoxelNew, PlayerUnlockable};
+use super::{LiveVoxelBehavior, PlayerUnlockable, LiveVoxelCreation};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Furnace {
@@ -12,13 +12,15 @@ pub struct Furnace {
     active_recipe: Option<ActiveRecipe>,
 }
 
-impl LiveVoxelNew for Arc<Mutex<Furnace>> {
-    fn new_livevoxel(_: &Direction) -> Box<dyn LiveVoxel> {
+impl LiveVoxelCreation for Arc<Mutex<Furnace>> {
+    fn create(_: &Direction) -> Box<dyn LiveVoxelBehavior> {
         Box::new(Arc::new(Mutex::new(Furnace::default())))
     }
+
+    live_voxel_default_deserialize!(Arc<Mutex<Furnace>>);
 }
 
-impl LiveVoxel for Arc<Mutex<Furnace>> {
+impl LiveVoxelBehavior for Arc<Mutex<Furnace>> {
     player_unlockable!();
 
     fn storage(&self) -> Option<Arc<Mutex<dyn Storage>>> {
@@ -45,12 +47,6 @@ impl LiveVoxel for Arc<Mutex<Furnace>> {
 
     fn serialize(&self) -> Vec<u8> {
         bincode::serialize(self).unwrap()
-    }
-}
-
-impl LiveVoxelDesiarialize for Arc<Mutex<Furnace>> {
-    fn deserialize(bytes: &[u8]) -> Box<dyn LiveVoxel> {
-        Box::new(bincode::deserialize::<Self>(bytes).unwrap())
     }
 }
 

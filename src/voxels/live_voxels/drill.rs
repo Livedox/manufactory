@@ -6,11 +6,10 @@ use serde::{Deserialize, Serialize};
 use crate::bytes::{BytesCoder, AsFromBytes, cast_vec_from_bytes, cast_bytes_from_slice};
 use crate::live_voxel_default_deserialize;
 use crate::recipes::item::Item;
-use crate::voxels::live_voxels::{LiveVoxel, LiveVoxelNewMultiblock};
 use crate::{world::global_coords::GlobalCoords, direction::Direction, voxels::{chunks::Chunks}, recipes::{item::PossibleItem, storage::Storage}};
-
-use super::{LiveVoxelDesiarialize, LiveVoxelNew};
-
+use crate::voxels::live_voxels::LiveVoxelBehavior;
+use std::sync::Arc;
+use crate::voxels::live_voxels::LiveVoxelCreation;
 fn new_instant() -> Instant {Instant::now()}
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -25,19 +24,19 @@ impl Drill {
     pub const DURATION: Duration = Duration::new(4, 0);
 }
 
-live_voxel_default_deserialize!(Mutex<Drill>);
-
-impl LiveVoxelNew for Mutex<Drill> {
-    fn new_livevoxel(direction: &Direction) -> Box<dyn LiveVoxel> {
+impl LiveVoxelCreation for Mutex<Drill> {
+    fn create(direction: &Direction) -> Box<dyn LiveVoxelBehavior> {
         Box::new(Mutex::new(Drill {
             storage: [PossibleItem::new_none()],
             start: Instant::now(),
             dir: direction.simplify_to_one_greatest(true, false, true)
         }))
     }
+
+    live_voxel_default_deserialize!(Mutex<Drill>);
 }
 
-impl LiveVoxel for Mutex<Drill> {
+impl LiveVoxelBehavior for Mutex<Drill> {
     fn update(&self, chunks: &Chunks, xyz: GlobalCoords, multiblock: &[GlobalCoords]) {
         let mut drill = self.lock().unwrap();
         let global = GlobalCoords(xyz.0 - drill.dir[0] as i32, xyz.1, xyz.2-drill.dir[2] as i32);

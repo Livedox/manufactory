@@ -4,18 +4,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::{bytes::BytesCoder, direction::Direction, engine::texture::TextureAtlas, gui::{draw::Draw, my_widgets::inventory_slot::inventory_slot}, live_voxel_default_deserialize, player::inventory::PlayerInventory, player_unlockable, recipes::{item::PossibleItem, storage::Storage}};
 
-use super::{LiveVoxel, LiveVoxelDesiarialize, LiveVoxelNew, PlayerUnlockable};
+use super::{LiveVoxelBehavior, LiveVoxelCreation, PlayerUnlockable};
 use crate::voxels::live_voxels::drill::Drill;
 
-impl LiveVoxelNew for Arc<Mutex<VoxelBox>> {
-    fn new_livevoxel(_: &Direction) -> Box<dyn LiveVoxel> {
+impl LiveVoxelCreation for Arc<Mutex<VoxelBox>> {
+    fn create(_: &Direction) -> Box<dyn LiveVoxelBehavior> {
         Box::new(Arc::new(Mutex::new(VoxelBox::default())))
     }
+    live_voxel_default_deserialize!(Arc<Mutex<VoxelBox>>);
 }
 
-live_voxel_default_deserialize!(Arc<Mutex<VoxelBox>>);
 
-impl LiveVoxel for Arc<Mutex<VoxelBox>> {
+impl LiveVoxelBehavior for Arc<Mutex<VoxelBox>> {
     player_unlockable!();
 
     fn storage(&self) -> Option<Arc<Mutex<dyn Storage>>> {

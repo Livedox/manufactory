@@ -28,22 +28,22 @@ pub struct LiveVoxelContainer {
     pub id: u32,
     pub coord: GlobalCoords,
     pub multiblock: Option<MultiBlock>,
-    pub live_voxel: Box<dyn LiveVoxel>
+    pub live_voxel: Box<dyn LiveVoxelBehavior>
 }
 
 impl LiveVoxelContainer {
     #[inline]
-    pub fn new(id: u32, coord: GlobalCoords, live_voxel: Box<dyn LiveVoxel>) -> Self {
+    pub fn new(id: u32, coord: GlobalCoords, live_voxel: Box<dyn LiveVoxelBehavior>) -> Self {
         Self { id, coord, live_voxel, multiblock: None }
     }
 
     #[inline]
-    pub fn new_arc(id: u32, coord: GlobalCoords, live_voxel: Box<dyn LiveVoxel>) -> Arc<Self> {
+    pub fn new_arc(id: u32, coord: GlobalCoords, live_voxel: Box<dyn LiveVoxelBehavior>) -> Arc<Self> {
         Arc::new(Self::new(id, coord, live_voxel))
     }
 
     #[inline]
-    pub fn new_arc_master(id: u32, coord: GlobalCoords, all: Vec<GlobalCoords>, live_voxel: Box<dyn LiveVoxel>) -> Arc<Self> {
+    pub fn new_arc_master(id: u32, coord: GlobalCoords, all: Vec<GlobalCoords>, live_voxel: Box<dyn LiveVoxelBehavior>) -> Arc<Self> {
         Arc::new(Self {
             id,
             coord,
@@ -130,7 +130,7 @@ impl LiveVoxelContainer {
             .map(|i| *bytes.get(i+coord_end).unwrap())) as usize;
         let multiblock = bincode::deserialize(&bytes[coord_end+4..multiblock_end]).unwrap();
 
-        let live_voxel: Box<dyn LiveVoxel> = if let Some(name) = content.blocks[id as usize].live_voxel() {
+        let live_voxel: Box<dyn LiveVoxelBehavior> = if let Some(name) = content.blocks[id as usize].live_voxel() {
             content.live_voxel.deserialize.get(name)
                 .map_or(Box::new(()), |desiarialize| desiarialize(&bytes[multiblock_end..]))
         } else {
@@ -141,14 +141,12 @@ impl LiveVoxelContainer {
     }
 }
 
-pub type NewLiveVoxel = &'static (dyn Fn(&Direction) -> Box<dyn LiveVoxel> + Send + Sync);
-pub type NewMultiBlockLiveVoxel = &'static (dyn Fn(&Direction, Vec<GlobalCoords>) -> Box<dyn LiveVoxel> + Send + Sync);
-pub type DesiarializeLiveVoxel = &'static (dyn Fn(&[u8]) -> Box<dyn LiveVoxel> + Send + Sync);
+pub type NewLiveVoxel = &'static (dyn Fn(&Direction) -> Box<dyn LiveVoxelBehavior> + Send + Sync);
+pub type DesiarializeLiveVoxel = &'static (dyn Fn(&[u8]) -> Box<dyn LiveVoxelBehavior> + Send + Sync);
 
 pub struct LiveVoxelRegistrator {
     pub new: HashMap<String, NewLiveVoxel>,
-    pub deserialize: HashMap<String, DesiarializeLiveVoxel>,
-    pub new_multiblock: HashMap<String, NewMultiBlockLiveVoxel>
+    pub deserialize: HashMap<String, DesiarializeLiveVoxel>
 }
 
 impl Debug for LiveVoxelRegistrator {
@@ -160,28 +158,23 @@ impl Debug for LiveVoxelRegistrator {
 pub fn register() -> LiveVoxelRegistrator {
     let mut new = HashMap::<String, NewLiveVoxel>::new();
     let mut deserialize = HashMap::<String, DesiarializeLiveVoxel>::new();
-    let mut new_multiblock = HashMap::<String, NewMultiBlockLiveVoxel>::new();
 
-    new.insert(String::from("furnace"), &<Arc<Mutex<Furnace>>>::new_livevoxel);
-    deserialize.insert(String::from("furnace"), &<Arc<Mutex<Furnace>> as LiveVoxelDesiarialize>::deserialize);
+    new.insert(String::from("furnace"), &<Arc<Mutex<Furnace>>>::create);
+    deserialize.insert(String::from("furnace"), &<Arc<Mutex<Furnace>> as LiveVoxelCreation>::deserialize);
 
-    new.insert(String::from("voxel_box"), &<Arc<Mutex<VoxelBox>>>::new_livevoxel);
-    deserialize.insert(String::from("voxel_box"), &<Arc<Mutex<VoxelBox>> as LiveVoxelDesiarialize>::deserialize);
+    new.insert(String::from("voxel_box"), &<Arc<Mutex<VoxelBox>>>::create);
+    deserialize.insert(String::from("voxel_box"), &<Arc<Mutex<VoxelBox>> as LiveVoxelCreation>::deserialize);
 
-    deserialize.insert(String::from("drill"), &<Mutex<Drill> as LiveVoxelDesiarialize>::deserialize);
-    new.insert(String::from("drill"), &<Mutex<Drill>>::new_livevoxel);
-
-    // deserialize.insert(String::from("multiblock"), &<MultiBlock as LiveVoxelDesiarialize>::deserialize);
-    // new_multiblock.insert(String::from("multiblock"), &<MultiBlock>::new_multiblock);
+    deserialize.insert(String::from("drill"), &<Mutex<Drill> as LiveVoxelCreation>::deserialize);
+    new.insert(String::from("drill"), &<Mutex<Drill>>::create);
 
     LiveVoxelRegistrator { 
         new,
         deserialize,
-        new_multiblock,
     }
 }
 
-pub trait LiveVoxel: Debug {
+pub trait LiveVoxelBehavior: Debug {
     fn player_unlockable(&self) -> Option<Weak<Mutex<dyn PlayerUnlockable>>> {None}
     fn rotation_index(&self) -> Option<u32> {None}
     fn storage(&self) -> Option<Arc<Mutex<dyn Storage>>> {None}
@@ -192,14 +185,8 @@ pub trait LiveVoxel: Debug {
     fn serialize(&self) -> Vec<u8>;
 }
 
-pub trait LiveVoxelNew {
-    fn new_livevoxel(direction: &Direction) -> Box<dyn LiveVoxel>;
-}
 
-pub trait LiveVoxelNewMultiblock {
-    fn new_multiblock(direction: &Direction, structure_coordinates: Vec<GlobalCoords>) -> Box<dyn LiveVoxel>;
-}
-
-pub trait LiveVoxelDesiarialize {
-    fn deserialize(bytes: &[u8]) -> Box<dyn LiveVoxel>;
+pub trait LiveVoxelCreation {
+    fn create(direction: &Direction) -> Box<dyn LiveVoxelBehavior>;
+    fn deserialize(bytes: &[u8]) -> Box<dyn LiveVoxelBehavior>;
 }

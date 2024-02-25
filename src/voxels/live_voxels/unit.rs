@@ -1,5 +1,5 @@
-use super::{LiveVoxel, LiveVoxelDesiarialize, LiveVoxelNew, PlayerUnlockable};
+use super::LiveVoxelBehavior;
 
-impl LiveVoxel for () {
+impl LiveVoxelBehavior for () {
     fn serialize(&self) -> Vec<u8> {vec![]}
 }
