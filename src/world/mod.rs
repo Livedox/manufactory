@@ -1,7 +1,7 @@
-use std::{marker::PhantomPinned, pin::Pin, sync::{Arc, RwLock}, time::Instant};
-use itertools::iproduct;
+use std::{sync::{Arc}, time::Instant};
 
-use crate::{bytes::BytesCoder, content::Content, direction::Direction, light::light::{LightSolvers, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP}, save_load::{WorldRegions, EncodedChunk}, voxels::{chunk::{Chunk, CHUNK_VOLUME}, chunks::{Chunks, WORLD_HEIGHT}, generator::Generator, voxel::Voxel}};
+
+use crate::{bytes::BytesCoder, content::Content, light::light::{LightSolvers, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP}, save_load::{WorldRegions, EncodedChunk}, voxels::{chunk::{Chunk, CHUNK_VOLUME}, chunks::{Chunks, WORLD_HEIGHT}, generator::Generator, voxel::Voxel}};
 
 use self::global_coords::GlobalCoords;
 

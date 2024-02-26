@@ -1,10 +1,10 @@
-use std::{collections::HashMap, time::Instant};
+
 
 use itertools::iproduct;
 
-use crate::{content::Content, engine::pipeline::IS_LINE, engine::vertices::block_vertex::BlockVertex, graphic::render::block_managers::BlockManagers, voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{block_type::BlockType}}, world::{World, chunk_coords::ChunkCoords}};
-use crate::light::light_map::Light;
-use self::{model::{Models, ModelRenderResult, render_model}, animated_model::{AnimatedModels, AnimatedModelRenderResult, render_animated_model}, complex_object::render_complex_object, block::{BlockFaceLight, BlockFace, render_block}};
+use crate::{content::Content, engine::pipeline::IS_LINE, engine::vertices::block_vertex::BlockVertex, graphic::render::block_managers::BlockManagers, voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{block_type::BlockType}}, world::{chunk_coords::ChunkCoords}};
+
+use self::{model::{Models, render_model}, animated_model::{AnimatedModels, render_animated_model}, complex_object::render_complex_object, block::{render_block}};
 
 pub mod block_managers;
 pub mod model;

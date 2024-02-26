@@ -1,6 +1,6 @@
-use std::{sync::{Arc, atomic::{Ordering, AtomicBool}, RwLock}, thread::{self, JoinHandle}, time::{Instant, Duration}};
+use std::{sync::{Arc, atomic::{Ordering, AtomicBool}}, thread::{self, JoinHandle}, time::{Instant, Duration}};
 
-use crate::{unsafe_mutex::UnsafeMutex, voxels::chunks::Chunks, world::{global_coords::GlobalCoords, World}, WORLD_EXIT};
+use crate::{world::{World}};
 
 pub fn spawn(world: Arc<World>, exit: Arc<AtomicBool>) -> JoinHandle<()> {
     thread::spawn(move || {

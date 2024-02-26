@@ -1,6 +1,6 @@
-use std::{sync::{Mutex, Arc, mpsc::Sender, atomic::{Ordering, AtomicBool}, RwLock}, time::{Duration, Instant}, thread::{JoinHandle}};
+use std::{sync::{Arc, mpsc::Sender, atomic::{Ordering, AtomicBool}}, time::{Duration}, thread::{JoinHandle}};
 
-use crate::{content::Content, graphic::render::{RenderResult, render}, unsafe_mutex::UnsafeMutex, world::{World, chunk_coords::ChunkCoords, global_coords::GlobalCoords}, WORLD_EXIT};
+use crate::{content::Content, graphic::render::{RenderResult, render}, world::{World}};
 
 pub fn spawn(
     content: Arc<Content>,

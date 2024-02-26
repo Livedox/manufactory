@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use noise::NoiseFn;
-use crate::voxels::chunks::WORLD_BLOCK_HEIGHT;
+
 use crate::content::Content;
 
 pub struct Generator {
@@ -22,7 +22,7 @@ impl Generator {
         }
     }
 
-    pub fn generate(&self, x: i32, y: i32, z: i32) -> u32 {
+    pub fn generate(&self, x: i32, y: i32, _z: i32) -> u32 {
         // println!("{:?}", height);
         if y < 4 {
             return self.rock;

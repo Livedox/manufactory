@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, sync::{Arc, Mutex, mpsc::{Sender, Receiver}, atomic::{AtomicUsize, Ordering}}, cell::UnsafeCell, ptr::null};
+use std::{collections::VecDeque, cell::UnsafeCell, ptr::null};
 
 use crate::{content::Content, voxels::{chunks::Chunks, chunk::Chunk}, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
 

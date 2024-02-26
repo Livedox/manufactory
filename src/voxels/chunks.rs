@@ -1,8 +1,8 @@
-use std::{collections::HashMap, sync::{Arc, Mutex, RwLock, atomic::{AtomicBool, Ordering, AtomicI32}}, marker::PhantomPinned, cell::UnsafeCell};
+use std::{sync::{Arc, Mutex, atomic::{AtomicBool, Ordering, AtomicI32}}, cell::UnsafeCell};
 
 use itertools::{iproduct, Itertools};
 
-use crate::{bytes::BytesCoder, content::Content, direction::Direction, light::light_map::Light, save_load::{WorldRegions, EncodedChunk}, unsafe_mutex::UnsafeMutex, vec_none, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
+use crate::{content::Content, direction::Direction, light::light_map::Light, vec_none, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
 
 use super::{chunk::{Chunk, LiveVoxels, CHUNK_SIZE}, live_voxels::{LiveVoxelBehavior, LiveVoxelContainer}, voxel::Voxel};
 
@@ -30,7 +30,7 @@ pub struct Chunks {
 }
 
 impl Chunks {
-    pub fn new(content: Arc<Content>, width: i32, height: i32, depth: i32, ox: i32, oy: i32, oz: i32) -> Chunks {
+    pub fn new(content: Arc<Content>, width: i32, height: i32, depth: i32, ox: i32, _oy: i32, oz: i32) -> Chunks {
         let volume = width*height*depth;
         let mut chunks: Vec<Option<Arc<Chunk>>> = vec![];
         for _ in 0..volume { chunks.push(None); }
@@ -145,7 +145,7 @@ impl Chunks {
         let x_offset = (local.0 == (CHUNK_SIZE-1) as u8) as i32 - (local.0 == 0) as i32;
         let y_offset = (local.1 == (CHUNK_SIZE-1) as u8) as i32 - (local.1 == 0) as i32;
         let z_offset = (local.2 == (CHUNK_SIZE-1) as u8) as i32 - (local.2 == 0) as i32;
-        chunk.set_voxel_id(local, id, &self.content);
+        chunk.set_voxel_id(local, id);
         chunk.modify(true);
         chunk.save(true);
         

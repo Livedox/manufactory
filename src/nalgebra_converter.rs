@@ -1,5 +1,5 @@
 use nalgebra_glm as glm;
-use glm::{TVec, TVec1, Vec3};
+use glm::{Vec3};
 
 
 pub trait Conventer<T: Copy> {

@@ -1,8 +1,8 @@
 use std::time::Instant;
 
-use serde::{Deserialize, Serialize};
 
-use crate::{direction::Direction, live_voxel_default_deserialize};
+
+use crate::{direction::Direction};
 
 use super::{LiveVoxelBehavior, LiveVoxelCreation};
 

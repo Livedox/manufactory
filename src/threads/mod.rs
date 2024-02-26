@@ -1,6 +1,6 @@
-use std::{thread::JoinHandle, sync::{Arc, mpsc::Sender, Mutex, Condvar, atomic::{Ordering, AtomicBool}, RwLock}};
+use std::{thread::JoinHandle, sync::{Arc, mpsc::Sender, Mutex, Condvar, atomic::{Ordering, AtomicBool}}};
 
-use crate::{content::Content, graphic::render::RenderResult, player::player::Player, save_load::{WorldRegions, WorldSaver}, unsafe_mutex::UnsafeMutex, world::World, WORLD_EXIT};
+use crate::{content::Content, graphic::render::RenderResult, player::player::Player, save_load::{WorldSaver}, unsafe_mutex::UnsafeMutex, world::World};
 
 use self::save::SaveState;
 

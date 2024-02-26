@@ -1,4 +1,4 @@
-use std::sync::{atomic::{AtomicU32, Ordering}, Arc};
+use std::sync::{atomic::{AtomicU32, Ordering}};
 
 use crate::bytes::AsFromBytes;
 

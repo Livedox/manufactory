@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use itertools::Itertools;
+
 use crate::graphic::complex_object::ComplexObject;
-use crate::{engine::state::{load_complex_objects, Indices}, voxels::{block::{block_test::{to_block, Block, BlockBase, BlockFile}, block_type::BlockType, functions::{on_break, on_multiblock_break, player_add_item}}, live_voxels::{register, LiveVoxelRegistrator}}};
+use crate::{engine::state::{load_complex_objects, Indices}, voxels::{block::{block_test::{to_block, Block, BlockBase, BlockFile}, block_type::BlockType, functions::{on_multiblock_break}}, live_voxels::{register, LiveVoxelRegistrator}}};
 
 #[derive(Debug)]
 pub struct Content {
@@ -61,7 +61,7 @@ impl Content {
             },
         ];
         let mut id = blocks.len() as u32;
-        files.for_each(|(index, file)| {
+        files.for_each(|(_, file)| {
             let name = file.file_name().to_str().unwrap();
             let dot_index = name.rfind(".").unwrap();
             block_indexes.insert(name[0..dot_index].to_string(), id);

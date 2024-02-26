@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use image::{imageops::FilterType, DynamicImage, EncodableLayout};
+use image::{imageops::FilterType, DynamicImage};
 use itertools::Itertools;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 

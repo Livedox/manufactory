@@ -1,4 +1,4 @@
-use std::{collections::{hash_map::DefaultHasher, HashMap}, hash::{Hash, Hasher}};
+use std::{collections::{hash_map::DefaultHasher}, hash::{Hash, Hasher}};
 
 use chrono::{Utc, TimeZone};
 use egui::{vec2, Color32, RichText, Stroke, Ui};

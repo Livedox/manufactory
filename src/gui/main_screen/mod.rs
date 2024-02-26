@@ -1,13 +1,13 @@
-use std::collections::HashMap;
 
-use egui::{vec2, Align2, Frame};
-use winit::event_loop::{ControlFlow, EventLoopWindowTarget};
 
-use crate::{world::loader::{WorldData, WorldLoader}, save_load::SettingSave, setting::Setting, level::Level, engine::state::{self, Indices}};
+use egui::{vec2, Align2};
+use winit::event_loop::{EventLoopWindowTarget};
+
+use crate::{world::loader::{WorldLoader}, setting::Setting, level::Level, engine::state::{Indices}};
 
 use self::worlds::{draw_world_display, WorldCreator};
 
-use super::setting::draw_setting;
+
 
 pub mod button;
 pub mod worlds;

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::{Mutex, Arc, mpsc::Receiver}};
+use std::{collections::HashMap, sync::{Mutex, Arc}};
 
 use itertools::Itertools;
 use wgpu::util::DeviceExt;

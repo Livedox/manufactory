@@ -1,4 +1,4 @@
-use std::{marker::PhantomPinned, sync::Arc};
+use std::{sync::Arc};
 
 use itertools::iproduct;
 

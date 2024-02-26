@@ -1,6 +1,6 @@
-use std::{collections::HashMap, hash::Hash, sync::{Arc, Mutex, Weak}};
+use std::{collections::HashMap, sync::{Arc, Mutex, Weak}};
 
-use serde::{ser::SerializeStruct, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::{bytes::AsFromBytes, content::Content, direction::Direction, gui::draw::Draw, recipes::storage::Storage, world::global_coords::GlobalCoords};
 use std::fmt::Debug;

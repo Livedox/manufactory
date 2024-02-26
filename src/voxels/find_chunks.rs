@@ -1,10 +1,10 @@
-use std::{time::Instant, sync::Arc};
+use std::{sync::Arc};
 
-use itertools::iproduct;
 
-use crate::{world::chunk_coords::ChunkCoords, rev_qumark};
 
-use super::{chunks::{Chunks, WORLD_HEIGHT}, chunk::{Chunk, CHUNK_SIZE}};
+use crate::{world::chunk_coords::ChunkCoords};
+
+use super::{chunks::{Chunks, WORLD_HEIGHT}, chunk::{Chunk}};
 
 const SIDE_COORDS_OFFSET: [(i32, i32, i32); 4] = [
     (1,0,0), (-1,0,0),

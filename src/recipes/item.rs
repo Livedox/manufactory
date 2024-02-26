@@ -48,7 +48,7 @@ impl PossibleItem {
             .unwrap_or(STACK_SIZE)
     }
 
-    pub fn free_space(&self, item_id: u32) -> u32 {
+    pub fn free_space(&self, _item_id: u32) -> u32 {
         self.0.as_ref().map_or(STACK_SIZE, |_| 0)
     }
 

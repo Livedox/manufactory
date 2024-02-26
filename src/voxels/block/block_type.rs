@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::graphic::complex_object::ComplexObject;
+
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum BlockType {

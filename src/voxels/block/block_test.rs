@@ -2,9 +2,9 @@ use std::{collections::HashMap, fmt::Debug};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{direction::Direction, engine::state::Indices, player::player::Player, recipes::{item::Item, storage::Storage}, world::{coords::Coords, global_coords::GlobalCoords, World}};
+use crate::{direction::Direction, engine::state::Indices, player::player::Player, recipes::{item::Item}, world::{coords::Coords, global_coords::GlobalCoords, World}};
 
-use super::{block_type::BlockType, functions::{on_break, on_set, Function, FUNCTIONS}};
+use super::{block_type::BlockType, functions::{Function, FUNCTIONS}};
 
 fn one() -> usize {1}
 

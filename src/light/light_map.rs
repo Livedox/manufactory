@@ -1,6 +1,6 @@
-use std::{sync::atomic::{AtomicU16, Ordering, AtomicU8}, cell::UnsafeCell};
+use std::{sync::atomic::{Ordering, AtomicU8}};
 
-use crate::{voxels::chunk::{CHUNK_VOLUME, CHUNK_SIZE}, world::local_coords::LocalCoords};
+use crate::{voxels::chunk::{CHUNK_VOLUME}, world::local_coords::LocalCoords};
 
 #[derive(Debug)]
 pub struct Light(pub [AtomicU8; 4]);
