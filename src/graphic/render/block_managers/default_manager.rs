@@ -5,7 +5,7 @@ use crate::graphic::render::block::BlockFace;
 
 use super::face_managers::{manage_z, manage_y, manage_x};
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct DefaultManager {
     // nx = 0, px = 1, ny = 2, py = 3, nz = 4, pz = 5
     sides: [Vec<((f32, f32, f32), BlockFace)>; 6],
@@ -40,8 +40,4 @@ impl DefaultManager {
         self.iter_sides(4..6, |face, lrw, offset, indices| {
             manage_z(buffer, global, lrw, offset, indices, face)});
     }
-}
-
-impl Default for DefaultManager {
-    fn default() -> Self {Self {sides: Default::default()}}
 }

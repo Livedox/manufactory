@@ -33,7 +33,7 @@ pub struct Egui {
 
 impl Egui {
     pub fn new(device: &wgpu::Device, window: &Window, format: wgpu::TextureFormat, sample: u32) -> Self {
-        let renderer = egui_wgpu::Renderer::new(&device, format, None, sample);
+        let renderer = egui_wgpu::Renderer::new(device, format, None, sample);
         let egui_ctx = egui::Context::default();
         egui_ctx.set_style(Style {
             visuals: Visuals {

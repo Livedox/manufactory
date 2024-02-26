@@ -19,10 +19,10 @@ pub(crate) fn manage_x(
   indices: &[usize; 6],
   face: &BlockFace
 ) {
-    let x = global.0 as f32 + lrw.0 + offset;
-    let py = global.1 as f32 + lrw.1 + 1.0 + STITCHING;
+    let x = global.0 + lrw.0 + offset;
+    let py = global.1 + lrw.1 + 1.0 + STITCHING;
     let ny = py - face.size[1] as f32 - STITCHING;
-    let pz = global.2 as f32 + lrw.2 + 1.0 + STITCHING;
+    let pz = global.2 + lrw.2 + 1.0 + STITCHING;
     let nz = pz - face.size[0] as f32 - STITCHING;
 
     insert_vertices_into_buffer(buffer, face.size[0] as f32, face.size[1] as f32, face.layer,
@@ -57,10 +57,10 @@ pub(crate) fn manage_z(
   indices: &[usize; 6],
   face: &BlockFace
 ) {
-    let z = global.2 as f32 + lrw.0 + offset;
-    let px = global.0 as f32 + lrw.1 + 1.0 + STITCHING;
+    let z = global.2 + lrw.0 + offset;
+    let px = global.0 + lrw.1 + 1.0 + STITCHING;
     let nx = px - face.size[1] as f32 - STITCHING;
-    let py = global.1 as f32 + lrw.2 + 1.0 + STITCHING;
+    let py = global.1 + lrw.2 + 1.0 + STITCHING;
     let ny = py - face.size[0] as f32 - STITCHING;
 
     insert_vertices_into_buffer(buffer, face.size[0] as f32, face.size[1] as f32, face.layer,

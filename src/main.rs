@@ -7,11 +7,6 @@ use gui::gui_controller::GuiController;
 use input_event::KeypressState;
 use level::Level;
 
-
-
-
-use setting::Setting;
-
 use unsafe_mutex::UnsafeMutex;
 use world::{global_coords::GlobalCoords, loader::WorldLoader};
 use crate::{engine::state::{Indices}, graphic::complex_object::{test_complex_object}, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}, world::{chunk_coords::ChunkCoords}};
@@ -90,7 +85,7 @@ pub async fn main() {
     // Play the sound directly on the device
     //let _ = stream_handle.play_raw(source.convert_samples());
     let save = Save::new("./data/worlds/debug/", "./data/");
-    let mut setting = save.setting.load().unwrap_or(Setting::new());
+    let mut setting = save.setting.load().unwrap_or_default();
     save.setting.save(&setting);
 
     let mut debug_block_id = None;

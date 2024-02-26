@@ -10,11 +10,6 @@ pub struct Setting {
 }
 
 
-impl Setting {
-    pub fn new() -> Self{Self::default()}
-}
-
-
 impl Default for Setting {
     fn default() -> Self {
         Self {

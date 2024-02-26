@@ -17,7 +17,7 @@ pub struct Content {
 impl Content {
     pub fn new(indices: &Indices) -> Self {
         let mut block_indexes = HashMap::<String, u32>::new();
-        let (co_indices, complex_objects) = load_complex_objects("./res/complex_objects", &indices);
+        let (co_indices, complex_objects) = load_complex_objects("./res/complex_objects", indices);
         let files = walkdir::WalkDir::new("./res/blocks/")
             .into_iter()
             .filter_map(|f| f.ok())
@@ -63,7 +63,7 @@ impl Content {
         let mut id = blocks.len() as u32;
         files.for_each(|(_, file)| {
             let name = file.file_name().to_str().unwrap();
-            let dot_index = name.rfind(".").unwrap();
+            let dot_index = name.rfind('.').unwrap();
             block_indexes.insert(name[0..dot_index].to_string(), id);
 
             let data = std::fs::read(file.path()).unwrap();

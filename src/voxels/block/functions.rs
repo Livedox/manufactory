@@ -6,12 +6,12 @@ use super::block_test::BlockBase;
 
 pub fn player_add_item(base: &BlockBase, _world: &World, player: &mut Player, _xyz: &GlobalCoords, _dir: &Direction) -> bool {
     player.inventory().lock().unwrap().add(&Item::new(base.item_id.expect("Not have item_id"), 1), true);
-    return true;
+    true
 }
 
 pub fn on_break(_base: &BlockBase, world: &World, _player: &mut Player, xyz: &GlobalCoords, _dir: &Direction) -> bool {
     world.break_voxel(xyz);
-    return true;
+    true
 }
 
 pub fn on_set(base: &BlockBase, world: &World, _player: &mut Player, xyz: &GlobalCoords, dir: &Direction) -> bool {
@@ -29,7 +29,7 @@ pub fn on_multiblock_break(_base: &BlockBase, world: &World, _player: &mut Playe
             world.light.on_block_break(&world.chunks, c.0, c.1, c.2);
         });
     };
-    return true;
+    true
 }
 
 pub fn on_multiblock_set(base: &BlockBase, world: &World, _player: &mut Player, xyz: &GlobalCoords, dir: &Direction) -> bool {

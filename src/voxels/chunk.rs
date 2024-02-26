@@ -38,7 +38,7 @@ pub struct LiveVoxels(pub Arc<RwLock<HashMap<usize, Arc<LiveVoxelContainer>>>>);
 
 impl LiveVoxels {
     pub fn get(&self, k: &usize) -> Option<Arc<LiveVoxelContainer>> {
-        self.0.read().unwrap().get(k).map(|v| v.clone())
+        self.0.read().unwrap().get(k).cloned()
     }
 
     pub fn insert(&self, k: usize, v: Arc<LiveVoxelContainer>) -> Option<Arc<LiveVoxelContainer>> {
@@ -148,7 +148,7 @@ impl Chunk {
 
     #[inline]
     pub fn get_light_channel(&self, local_coords: LocalCoords, channel: usize) -> u8 {
-        self.lightmap.get(local_coords.into()).get_channel(channel)
+        self.lightmap.get(local_coords).get_channel(channel)
     }
 
     #[inline]

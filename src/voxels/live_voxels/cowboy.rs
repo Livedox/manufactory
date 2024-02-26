@@ -29,10 +29,10 @@ impl LiveVoxelBehavior for Cowboy {
 
 impl LiveVoxelCreation for Cowboy {
     fn create(_: &Direction) -> Box<dyn LiveVoxelBehavior> {
-        Box::new(Cowboy::default())
+        Box::<Cowboy>::default()
     }
 
     fn from_bytes(_: &[u8]) -> Box<dyn LiveVoxelBehavior> {
-        Box::new(Cowboy::default())
+        Box::<Cowboy>::default()
     }
 }

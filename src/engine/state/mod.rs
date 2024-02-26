@@ -28,7 +28,7 @@ pub fn load_complex_objects(
     let mut indices = HashMap::<String, u32>::new();
     let complex_objects: Box<[ComplexObject]> = files.map(|(index, file)| {
         let file_name = file.file_name().to_str().unwrap();
-        let dot_index = file_name.rfind(".").unwrap();
+        let dot_index = file_name.rfind('.').unwrap();
         let name = file_name[..dot_index].to_string();
         let model = load_complex_object(file.path(), tmp_indices);
         indices.insert(name, index as u32);
@@ -55,11 +55,11 @@ pub fn load_animated_models(
     let mut indices = HashMap::<String, u32>::new();
     let models: Box<[AnimatedModel]> = files.map(|(index, file)| {
         let file_name = file.file_name().to_str().unwrap();
-        let dot_index = file_name.rfind(".").unwrap();
+        let dot_index = file_name.rfind('.').unwrap();
         let name = file_name[..dot_index].to_string();
         let texture_name = name.clone() + ".png";
         let src_texture = textures_path.join(texture_name);
-        let model = load_animated_model(device, queue, texture_layout, file.path(), &src_texture, &name);
+        let model = load_animated_model(device, queue, texture_layout, file.path(), src_texture, &name);
         indices.insert(name, index as u32);
         model
     }).collect();
@@ -86,11 +86,11 @@ pub fn load_models(
     let mut indices = HashMap::<String, u32>::new();
     let models: Box<[Model]> = files.map(|(index, file)| {
         let file_name = file.file_name().to_str().unwrap();
-        let dot_index = file_name.rfind(".").unwrap();
+        let dot_index = file_name.rfind('.').unwrap();
         let name = file_name[..dot_index].to_string();
         let texture_name = name.clone() + ".png";
         let src_texture = textures_path.join(texture_name);
-        let model = load_model(device, queue, texture_layout, file.path(), &src_texture, &name);
+        let model = load_model(device, queue, texture_layout, file.path(), src_texture, &name);
         indices.insert(name, index as u32);
         model
     }).collect();
@@ -108,10 +108,10 @@ pub fn load_textures(device: &wgpu::Device, queue: &wgpu::Queue) -> (HashMap::<S
     let mut indices = HashMap::<String, u32>::new();
     let images = files.map(|(index, file)| {
         let name = file.file_name().to_str().unwrap();
-        let dot_index = name.rfind(".").unwrap();
+        let dot_index = name.rfind('.').unwrap();
         indices.insert(name[..dot_index].to_string(), index as u32);
 
-        image::open(file.path()).expect(&format!("Failed to open image on path: {:?}", file.path()))
+        image::open(file.path()).unwrap_or_else(|_| panic!("Failed to open image on path: {:?}", file.path()))
     }).collect_vec();
 
     (indices, texture::Texture::image_array_n(device, queue, &images))
@@ -510,11 +510,8 @@ impl<'a> State<'a> {
                 ref event, window_id
             } if *window_id == self.window.id() => {
                 let _ = self.egui.state().on_window_event(self.window.as_ref(), event);
-                match event {
-                    winit::event::WindowEvent::Resized(physical_size) => {
-                        self.resize(*physical_size);
-                    }
-                    _ => {}
+                if let winit::event::WindowEvent::Resized(physical_size) = event {
+                    self.resize(*physical_size);
                 }
             }
             _ => {}

@@ -86,7 +86,7 @@ impl LiveVoxelContainer {
     #[inline] 
     pub fn multiblock_coords(&self) -> Option<&[GlobalCoords]> {
         match &self.multiblock {
-            Some(MultiBlock::Master(v)) => Some(&v),
+            Some(MultiBlock::Master(v)) => Some(v),
             _ => None
         }
     }
@@ -194,6 +194,7 @@ pub trait LiveVoxelBehavior: Debug {
     fn player_unlockable(&self) -> Option<Weak<Mutex<dyn PlayerUnlockable>>> {None}
     fn rotation_index(&self) -> Option<u32> {None}
     fn storage(&self) -> Option<Arc<Mutex<dyn Storage>>> {None}
+    #[allow(unused)]
     fn update(&self, chunks: &Chunks, coord: GlobalCoords, multiblock: &[GlobalCoords]) {}
     fn transport_belt(&self) -> Option<Arc<Mutex<TransportBelt>>> {None}
     fn animation_progress(&self) -> f32 {0.0}

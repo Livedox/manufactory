@@ -107,8 +107,7 @@ impl Storage for AssemblingMachine {
     fn remove(&mut self, item: &Item) -> Option<Item> {
         let mut sub_item = Item::from(item);
         for possible_item in self.mut_storage()[0..INGREDIENT_LENGTH].iter_mut() {
-            let remainder = possible_item.try_sub_item(&sub_item);
-            let Some(remainder) = remainder else {return None};
+            let remainder = possible_item.try_sub_item(&sub_item)?;
             sub_item = remainder;
         }
         Some(sub_item)
@@ -119,8 +118,7 @@ impl Storage for AssemblingMachine {
         let Some(recipe) = self.selected_recipe else {return Some(added_item)};
         for (index, possible_item) in self.mut_storage()[0..INGREDIENT_LENGTH].iter_mut().enumerate() {
             if recipe.ingredients.get(index).map(|i| i.id()) == Some(item.id()) {
-                let remainder = possible_item.try_add_item(&added_item);
-                let Some(remainder) = remainder else {return None};
+                let remainder = possible_item.try_add_item(&added_item)?;
                 added_item = remainder;
             }
         }

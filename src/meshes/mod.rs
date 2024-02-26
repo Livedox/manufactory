@@ -33,7 +33,7 @@ pub struct Mesh {
 pub struct MeshesRenderInput<'a> {
     pub device: &'a wgpu::Device,
     pub animated_model_layout: &'a wgpu::BindGroupLayout,
-    pub all_animated_models: &'a Box<[AnimatedModel]>,
+    pub all_animated_models: &'a [AnimatedModel],
     pub render_result: RenderResult,
 }
 
@@ -196,7 +196,7 @@ impl Meshes {
 
     pub fn update_transforms_buffer(&mut self, state: &State, world: &World, indices: &[usize]) {
         indices.iter().for_each(|index| {
-            let Some(Some(chunk)) = unsafe {&*world.chunks.chunks.get()}.get(*index).map(|c| c.clone()) else { return };
+            let Some(Some(chunk)) = unsafe {&*world.chunks.chunks.get()}.get(*index).cloned() else { return };
             if chunk.live_voxels.0.read().unwrap().is_empty() {return};
             let mut transforms_buffer: Vec<u8> = vec![];
             let mut animated_models: HashMap<u32, Vec<f32>> = HashMap::new();

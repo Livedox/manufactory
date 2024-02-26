@@ -91,7 +91,7 @@ impl ComplexObjectSide {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Default, Deserialize, Serialize, Debug, Clone)]
 #[serde(default)]
 
 pub struct ComplexObject {
@@ -99,17 +99,6 @@ pub struct ComplexObject {
     pub transport_belt: [Vec<ComplexObjectSide>; 6],
     pub models: Vec<u32>,
     pub animated_models: Vec<u32>,
-}
-
-impl Default for ComplexObject {
-    fn default() -> Self {
-        Self {
-            block: Default::default(),
-            transport_belt: Default::default(),
-            models: vec![],
-            animated_models: vec![],
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

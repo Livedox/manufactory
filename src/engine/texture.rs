@@ -101,11 +101,10 @@ impl Texture {
 
         (0..mipmap_count).into_par_iter().for_each(|mipmap| {
             let img_size = BASE_SIZE / 2u32.pow(mipmap);
-            let bytes = images.iter().map(|image| {
+            let bytes = images.iter().flat_map(|image| {
                     if mipmap == 0 {return image.to_rgba8().to_vec()};
                     image.resize(img_size, img_size, FilterType::Triangle).to_rgba8().to_vec()
                 })
-                .flatten()
                 .collect_vec();
 
             queue.write_texture(
@@ -176,11 +175,10 @@ impl Texture {
         let images: Vec<DynamicImage> = srcs.iter().map(|src| image::open(src).expect(src)).collect_vec();
         (0..mipmap_count).into_par_iter().for_each(|mipmap| {
             let img_size = BASE_SIZE / 2u32.pow(mipmap);
-            let bytes = images.iter().map(|image| {
+            let bytes = images.iter().flat_map(|image| {
                     if mipmap == 0 {return image.to_rgba8().to_vec()};
                     image.resize(img_size, img_size, FilterType::Triangle).to_rgba8().to_vec()
                 })
-                .flatten()
                 .collect_vec();
 
             queue.write_texture(

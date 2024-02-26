@@ -182,7 +182,7 @@ impl WorldRegions {
 
     pub fn load_region(&mut self, coords: RegionCoords) {
         let mut region = Region::new_empty();
-        let file = fs::read(self.path.join("regions/").join(&coords.filename()));
+        let file = fs::read(self.path.join("regions/").join(coords.filename()));
         if let Ok(bytes) = file {
             let header = WorldRegionsHeader::from_bytes(&bytes[0..WorldRegionsHeader::size()]);
             let volume = header.width as usize * header.height as usize * header.width as usize;

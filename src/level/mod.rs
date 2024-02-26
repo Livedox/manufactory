@@ -108,7 +108,7 @@ impl Level {
             let world = self.world.clone();
             tokio::spawn(async move {
                 *need_translate.lock().unwrap() += 1;
-                let vec = world.chunks.translate(px as i32-render_radius as i32, pz as i32-render_radius as i32);
+                let vec = world.chunks.translate(px-render_radius as i32, pz-render_radius as i32);
                 world.chunks.set_translate(false);
                 drop(world);
                 let _ = sender.send(vec);
@@ -139,7 +139,7 @@ impl Level {
             let direction = Direction::new(front.x, front.y, front.z);
 
             if input.is_mouse(&Mouse::Left, KeypressState::AnyPress) && !is_cursor {
-                self.content.blocks[voxel_id as usize].on_block_break(&self.world, &mut player, &global, &direction);
+                self.content.blocks[voxel_id].on_block_break(&self.world, &mut player, &global, &direction);
             } else if input.is_mouse(&Mouse::Right, KeypressState::AnyJustPress) && !is_cursor {
                 let gxyz = global + norm.tuple().into();
                 let storage = self.world.chunks.master_live_voxel(global).and_then(|vd| vd.live_voxel.player_unlockable());
@@ -148,21 +148,19 @@ impl Level {
                     player.set_open_storage(storage);
                     gui_controller.set_cursor_lock(player.is_inventory);
                     state.set_ui_interaction(player.is_inventory);
+                } else if let Some(block_id) = debug_block_id {
+                    self.content.blocks[*block_id as usize].on_block_set(
+                        &self.world, &mut player, &gxyz, &direction);
                 } else {
-                    if let Some(block_id) = debug_block_id {
-                        self.content.blocks[*block_id as usize].on_block_set(
-                            &self.world, &mut player, &gxyz, &direction);
-                    } else {
-                        player.on_right_click(&self.world, &gxyz, &direction, &self.content);
-                    }
-                }                     
+                    player.on_right_click(&self.world, &gxyz, &direction, &self.content);
+                }                 
             }
         }
 
         let indices = frustum(
             &self.world.chunks,
             &player.camera().new_frustum(state.size.width as f32/state.size.height as f32));
-        self.meshes.update_transforms_buffer(&state, &self.world, &indices);
+        self.meshes.update_transforms_buffer(state, &self.world, &indices);
 
         if let Ok(indices) = self.indices_recv.try_recv() {
             self.meshes.translate(&indices);
@@ -183,7 +181,7 @@ impl Level {
             }
         }
 
-        indices.iter().filter_map(|i| self.meshes.meshes().get(*i).and_then(|c| c.as_ref().map(|m| m.clone())))
+        indices.iter().filter_map(|i| self.meshes.meshes().get(*i).and_then(|c| c.as_ref().cloned()))
             .collect::<Vec<Arc<Mesh>>>()
     }
 }

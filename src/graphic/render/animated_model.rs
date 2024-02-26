@@ -17,7 +17,7 @@ pub fn render_animated_model(animated_models: &mut AnimatedModels, chunk: &Chunk
     let mut progress = 0.0;
     let mut rotation_index = 0;
     
-    if let Some(live_voxel) = chunk.live_voxels.0.read().unwrap().get(&((ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx)).map(|d| d.clone()) {
+    if let Some(live_voxel) = chunk.live_voxels.0.read().unwrap().get(&((ly*CHUNK_SIZE+lz)*CHUNK_SIZE+lx)).cloned() {
         progress = live_voxel.animation_progress();
         if let Some(rotation) = live_voxel.rotation_index() {
             rotation_index = rotation;

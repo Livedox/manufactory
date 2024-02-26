@@ -9,11 +9,11 @@ pub(crate) fn get(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::TextureView(&color),
+                resource: wgpu::BindingResource::TextureView(color),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: wgpu::BindingResource::TextureView(&depth),
+                resource: wgpu::BindingResource::TextureView(depth),
             },
         ],
         label: Some("post_process_bg"),

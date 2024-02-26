@@ -15,8 +15,7 @@ pub trait Storage {
         let mut added_item = Item::from(item);
         for possible_item in self.mut_storage().iter_mut() {
             if smart && possible_item.0.is_none() {continue}
-            let remainder = possible_item.try_add_item(&added_item);
-            let Some(remainder) = remainder else {return None};
+            let remainder = possible_item.try_add_item(&added_item)?;
             added_item = remainder;
         }
         if smart {return self.add(&added_item, false)}
@@ -28,14 +27,12 @@ pub trait Storage {
     }
 
     fn remove_from_start(&mut self) -> Option<(Item, usize)> {
-        let position = self.storage().iter().position(|item| item.0.is_some());
-        let Some(position) = position else {return None};
+        let position = self.storage().iter().position(|item| item.0.is_some())?;
         self.mut_storage()[position].clear().map(|item| (item, position))
     }
 
     fn remove_from_end(&mut self) -> Option<(Item, usize)> {
-        let position = self.storage().iter().rev().position(|item| item.0.is_some());
-        let Some(position) = position else {return None};
+        let position = self.storage().iter().rev().position(|item| item.0.is_some())?;
         self.mut_storage()[position].clear().map(|item| (item, position))
     }
     
@@ -90,8 +87,7 @@ pub trait Storage {
     fn remove(&mut self, item: &Item) -> Option<Item> {
         let mut sub_item = Item::from(item);
         for possible_item in self.mut_storage().iter_mut() {
-            let remainder = possible_item.try_sub_item(&sub_item);
-            let Some(remainder) = remainder else {return None};
+            let remainder = possible_item.try_sub_item(&sub_item)?;
             sub_item = remainder;
         }
         Some(sub_item)

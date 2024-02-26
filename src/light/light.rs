@@ -102,7 +102,7 @@ impl LightSolvers {
         if chunks.get_sun((x, y+1, z).into()) == MAX_LIGHT || (y+1) as usize == WORLD_HEIGHT*CHUNK_SIZE {
             for i in (0..=y).rev() {
                 if chunks.voxel_global((x, i, z).into()).map_or(true, |v| v.id != 0) {break};
-                self.solver_sun.add_with_emission(chunks, x, i, z, MAX_LIGHT as u8);
+                self.solver_sun.add_with_emission(chunks, x, i, z, MAX_LIGHT);
             }
         }
         for (ax, ay, az) in SIDE_COORDS_OFFSET {

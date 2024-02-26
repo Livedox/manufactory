@@ -52,7 +52,7 @@ impl ChunkBuffer {
             Some(unsafe {&*self.1})
         } else {
             if !chunks.is_in_area(coords) {return None};
-            let Some(chunk) = (unsafe {chunks.get_unchecked_chunk(index)}) else {return None};
+            let chunk = (unsafe {chunks.get_unchecked_chunk(index)})?;
             self.0 = index;
             self.1 = chunk;
             Some(unsafe {&*self.1})
@@ -103,7 +103,7 @@ impl LightSolver {
         let Some(chunk) = chunks.chunk_ptr(global).map(|c| unsafe {&*c}) else {return};
 
         let entry = LightEntry::new(global, emission);
-        let local = LocalCoords::from(global).into();
+        let local = LocalCoords::from(global);
         chunk.lightmap.get(local).set(emission, self.channel);
         chunk.modify(true);
         
@@ -111,7 +111,7 @@ impl LightSolver {
     }
 
     pub fn add(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
-        let emission = chunks.light((x,y,z).into(), self.channel) as u8;
+        let emission = chunks.light((x,y,z).into(), self.channel);
         self.add_with_emission(chunks, x, y, z, emission);
     }
 

@@ -189,7 +189,7 @@ impl Block {
     pub fn emission(&self) -> &[u8; 3] {&self.base.emission}
     pub fn is_light_passing(&self) -> bool {self.base.is_light_passing}
     pub fn block_type(&self) -> &BlockType {&self.base.block_type}
-    pub fn live_voxel(&self) -> Option<&str> {self.base.live_voxel.as_ref().map(|x| x.as_str())}
+    pub fn live_voxel(&self) -> Option<&str> {self.base.live_voxel.as_deref()}
     pub fn is_glass(&self) -> bool {self.base.is_glass}
     
     pub fn width(&self) -> usize {1}

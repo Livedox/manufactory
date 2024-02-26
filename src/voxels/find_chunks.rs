@@ -25,7 +25,7 @@ impl Chunks {
         let callback = |cx: i32, cz: i32| {
             for cy in 0..WORLD_HEIGHT as i32 {
                 let index = ChunkCoords(cx+1, cy, cz+1).index_without_offset(self.width, self.depth);
-                if unsafe {(&mut *self.chunks.get()).get_unchecked(index)}.as_ref()
+                if unsafe {(*self.chunks.get()).get_unchecked(index)}.as_ref()
                     .map_or(true, |c| !c.modified()) {continue};
     
                 let mut around_count = 0;
@@ -40,7 +40,7 @@ impl Chunks {
         };
 
         Self::clockwise_square_spiral(self.width as usize - 2, callback)
-            .and_then(|index| (unsafe {&mut *self.chunks.get()})[index].as_ref().map(|c| c.clone()))
+            .and_then(|index| (unsafe {&mut *self.chunks.get()})[index].as_ref().cloned())
     }
 
     pub fn clockwise_square_spiral<T>(n: usize, callback: impl Fn(i32, i32) -> Option<T>) -> Option<T> {
@@ -48,7 +48,7 @@ impl Chunks {
         let mut y = 0;
         let mut dx = 0;
         let mut dy = -1;
-        let o = n as i32 % 2 ^ 1;
+        let o = (n as i32 % 2) ^ 1;
         let half = n as i32/2;
         for _ in 0..n.pow(2) {
             if x >= -half && x <= half && y >= -half && y <= half {

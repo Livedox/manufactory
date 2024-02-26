@@ -32,7 +32,7 @@ impl WorldLoader {
     pub fn new(path: &Path) -> Self {
         let mut worlds: Vec<WorldData> = vec![];
 
-        fs::create_dir_all(&path).unwrap();
+        fs::create_dir_all(path).unwrap();
         for dir in std::fs::read_dir(path).unwrap() {
             let Ok(dir) = dir else {continue};
             let mut path = dir.path().clone();
@@ -63,7 +63,7 @@ impl WorldLoader {
         let data = WorldData::new(name.to_string(), creation_time, seed);
         
         fs::create_dir(&path).unwrap();
-        fs::write(&path.join("./world.json"), serde_json::to_vec_pretty(&data).unwrap()).unwrap();
+        fs::write(path.join("./world.json"), serde_json::to_vec_pretty(&data).unwrap()).unwrap();
         
         self.worlds.push(data);
         Ok(())
