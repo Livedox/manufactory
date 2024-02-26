@@ -112,7 +112,7 @@ pub async fn main() {
         &[[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]],
         &setting.graphic).await;
     let mut gui_controller = GuiController::new(window, state.texture_atlas.clone());
-    load_complex_object("transport_belt.json", &state.indices);
+    // load_complex_object("transport_belt.json", &state.indices);
     let mut timer_16ms = Timer::new(Duration::from_millis(16));
     let mut fps = Instant::now();
     let mut fps_queue = VecDeque::from([0.0; 10]);

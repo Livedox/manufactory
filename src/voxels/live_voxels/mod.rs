@@ -4,9 +4,9 @@ use serde::{ser::SerializeStruct, Deserialize, Serialize};
 
 use crate::{bytes::AsFromBytes, content::Content, direction::Direction, gui::draw::Draw, recipes::storage::Storage, world::global_coords::GlobalCoords};
 use std::fmt::Debug;
-use self::{assembling_machine::AssemblingMachine, cowboy::Cowboy, drill::Drill, furnace::Furnace, manipulator::Manipulator, voxel_box::VoxelBox};
+use self::{assembling_machine::AssemblingMachine, cowboy::Cowboy, drill::Drill, furnace::Furnace, manipulator::Manipulator, transport_belt::TransportBelt, voxel_box::VoxelBox};
 
-use super::{chunks::Chunks, voxel_data::transport_belt::TransportBelt};
+use super::{chunks::Chunks};
 pub mod furnace;
 pub mod voxel_box;
 pub mod unit;
@@ -14,6 +14,7 @@ pub mod drill;
 pub mod assembling_machine;
 pub mod manipulator;
 pub mod cowboy;
+pub mod transport_belt;
 
 pub trait PlayerUnlockable: Draw {
     fn get_storage(&self) -> Option<&dyn Storage> {None}
@@ -179,6 +180,9 @@ pub fn register() -> LiveVoxelRegistrator {
 
     deserialize.insert(String::from("cowboy"), &Cowboy::from_bytes);
     new.insert(String::from("cowboy"), &Cowboy::create);
+
+    deserialize.insert(String::from("transport_belt"), &<Arc<Mutex<TransportBelt>>>::from_bytes);
+    new.insert(String::from("transport_belt"), &<Arc<Mutex<TransportBelt>>>::create);
 
     LiveVoxelRegistrator { 
         new,

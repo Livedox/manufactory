@@ -1,3 +1,4 @@
+#![allow(unused)]
 // I wanted to use poison from the standard library, but it's a private module.
 // Software God, forgive me for this crap.
 // This file is a copy from the standard library

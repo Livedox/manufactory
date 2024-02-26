@@ -35,21 +35,3 @@ pub fn load_model(
 
     Model::new(device, &model_vertex, texture, name)
 }
-
-
-pub fn load_models(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    texture_layout: &wgpu::BindGroupLayout,
-    models_textures_names: &[(&str, &str, &str)],
-  ) -> HashMap<String, Model> {
-    let mut models: HashMap<String, Model> = HashMap::new();
-    models_textures_names.iter().for_each(|mtn| {
-        models.insert(
-            mtn.2.to_string(), 
-            load_model(device, queue, texture_layout, mtn.0, mtn.1, mtn.2)
-        );
-    });
-
-    models
-}

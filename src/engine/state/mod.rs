@@ -4,7 +4,7 @@ use egui_winit::winit::raw_window_handle;
 use itertools::Itertools;
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
-use crate::{meshes::Mesh, my_time::Time, models::{load_model::{load_model}, model::Model, load_animated_model::{load_animated_model}, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, bind_group_layout::{Layouts, self}, pipeline::Pipelines, shaders::Shaders, texture::Texture}};
+use crate::{engine::{bind_group, bind_group_layout::{self, Layouts}, pipeline::Pipelines, shaders::Shaders, texture::Texture}, graphic::complex_object::{load_complex_object, ComplexObject}, meshes::Mesh, models::{animated_model::AnimatedModel, load_animated_model::load_animated_model, load_model::load_model, model::Model}, my_time::Time, rev_qumark};
 use crate::engine::texture::TextureAtlas;
 use super::{bind_group_buffer::BindGroupsBuffers, egui::Egui, setting::GraphicSetting, texture::{self}};
 
@@ -17,9 +17,25 @@ pub struct Indices {
 }
 
 pub fn load_complex_objects(
-    indices: Indices,
-) {
+    complex_objects_path: impl AsRef<Path>,
+    tmp_indices: &Indices
+) -> (HashMap::<String, u32>, Box<[ComplexObject]>) {
+    let files = walkdir::WalkDir::new(complex_objects_path)
+        .into_iter()
+        .filter_map(|f| f.ok())
+        .filter(|f| f.file_type().is_file())
+        .enumerate();
+    let mut indices = HashMap::<String, u32>::new();
+    let complex_objects: Box<[ComplexObject]> = files.map(|(index, file)| {
+        let file_name = file.file_name().to_str().unwrap();
+        let dot_index = file_name.rfind(".").unwrap();
+        let name = file_name[..dot_index].to_string();
+        let model = load_complex_object(file.path(), tmp_indices);
+        indices.insert(name, index as u32);
+        model
+    }).collect();
 
+    (indices, complex_objects)
 }
 
 pub fn load_animated_models(
@@ -299,12 +315,12 @@ impl<'a> State<'a> {
         let (models_indices, models) = load_models("./res/models", "./res/assets/models", &device, &queue, &layouts.model_texture);
         let (animated_models_indices, animated_models) = load_animated_models(
             "./res/animated_models", "./res/assets/models", &device, &queue, &layouts.model_texture);
-
         let indices = Indices {
             block: block_texture_id,
             models: models_indices,
             animated_models: animated_models_indices,
         };
+
 
         let multisampled_framebuffer =
             texture::Texture::create_multisampled_framebuffer(&device, &config, sample_count);

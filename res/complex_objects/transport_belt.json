@@ -137,7 +137,5 @@
   "models": [
     "astronaut"
   ],
-  "animated_models": [
-    "cowboy"
-  ]
+  "animated_models": []
 }

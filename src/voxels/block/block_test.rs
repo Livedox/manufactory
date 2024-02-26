@@ -18,7 +18,7 @@ pub enum Faces {
 #[derive(Debug, Deserialize, Serialize)]
 pub enum BlockTypeFile {
     #[serde(rename = "complex_object")]
-    ComplexObject { cp: String },
+    ComplexObject { name: String },
     #[serde(rename = "block")]
     Block { faces: Faces },
     #[serde(rename = "model")]
@@ -62,7 +62,7 @@ pub struct BlockFile {
 }
 
 
-pub fn to_block(block_file: BlockFile, indices: &Indices, id: u32) -> Block {
+pub fn to_block(block_file: BlockFile, indices: &Indices, co_indices: &HashMap<String, u32>, id: u32) -> Block {
     let block_type = match &block_file.block_type {
         BlockTypeFile::Block { faces } => {
             let faces = match faces {
@@ -78,7 +78,9 @@ pub fn to_block(block_file: BlockFile, indices: &Indices, id: u32) -> Block {
             };
             BlockType::Block { faces }
         }
-        BlockTypeFile::ComplexObject { cp } => todo!(),
+        BlockTypeFile::ComplexObject { name } => {
+            BlockType::ComplexObject { id: *co_indices.get(name).unwrap() }
+        },
         BlockTypeFile::Model { name } => {
             BlockType::Model { id: *indices.models.get(name).unwrap() }
         },

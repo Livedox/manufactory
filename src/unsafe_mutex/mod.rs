@@ -1,7 +1,8 @@
+#![allow(unused)]
+
 use std::{cell::UnsafeCell, sync::atomic::AtomicU32, ops::{Deref, DerefMut}, fmt};
 use core::sync::atomic::Ordering::{Relaxed, Release, Acquire};
 use atomic_wait::{wait, wake_one, wake_all};
-
 mod poison;
 use poison::{TryLockError, LockResult, TryLockResult};
 

@@ -1,13 +1,15 @@
 use std::collections::HashMap;
 
 use itertools::Itertools;
-
-use crate::{engine::state::Indices, voxels::{block::{block_test::{to_block, Block, BlockBase, BlockFile}, block_type::BlockType, functions::{on_break, on_multiblock_break, player_add_item}}, live_voxels::{register, LiveVoxelRegistrator}}};
+use crate::graphic::complex_object::ComplexObject;
+use crate::{engine::state::{load_complex_objects, Indices}, voxels::{block::{block_test::{to_block, Block, BlockBase, BlockFile}, block_type::BlockType, functions::{on_break, on_multiblock_break, player_add_item}}, live_voxels::{register, LiveVoxelRegistrator}}};
 
 #[derive(Debug)]
 pub struct Content {
     pub block_indexes: HashMap<String, u32>,
+    pub co_indices: HashMap<String, u32>,
     pub blocks: Vec<Block>,
+    pub complex_objects: Box<[ComplexObject]>,
 
     pub live_voxel: LiveVoxelRegistrator,
 }
@@ -15,6 +17,7 @@ pub struct Content {
 impl Content {
     pub fn new(indices: &Indices) -> Self {
         let mut block_indexes = HashMap::<String, u32>::new();
+        let (co_indices, complex_objects) = load_complex_objects("./res/complex_objects", &indices);
         let files = walkdir::WalkDir::new("./res/blocks/")
             .into_iter()
             .filter_map(|f| f.ok())
@@ -66,12 +69,12 @@ impl Content {
             let data = std::fs::read(file.path()).unwrap();
             let block_file: BlockFile = serde_json::from_slice(&data).unwrap();
 
-            blocks.push(to_block(block_file, indices, id));
+            blocks.push(to_block(block_file, indices, &co_indices, id));
             id += 1;
         });
 
         println!("{:?}", block_indexes);
 
-        Self { blocks, block_indexes, live_voxel: register() }
+        Self { blocks, block_indexes, live_voxel: register(), co_indices, complex_objects }
     }
 }

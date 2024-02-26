@@ -210,8 +210,8 @@ impl Meshes {
                     } else {
                         animated_models.insert(*id, vec![progress]);
                     }
-                } else if let BlockType::ComplexObject { cp } = block_type {
-                    cp.animated_models.iter().for_each(|id| {
+                } else if let BlockType::ComplexObject { id } = block_type {
+                    world.chunks.content.complex_objects[*id as usize].animated_models.iter().for_each(|id| {
                         if let Some(animated_model) = animated_models.get_mut(id) {
                             animated_model.push(progress);
                         } else {
@@ -243,10 +243,6 @@ impl Meshes {
 
     pub fn is_need_translate(&self) -> bool {
         *self.need_translate.lock().unwrap() != 0
-    }
-
-    pub fn add_need_translate(&mut self) {
-        *self.need_translate.lock().unwrap() += 1;
     }
 
     pub fn sub_need_translate(&mut self) {

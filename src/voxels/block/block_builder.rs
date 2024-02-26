@@ -63,10 +63,10 @@ impl BlockBuilder {
         self
     }
 
-    pub fn set_complex_object(mut self, cp: ComplexObject) -> Self {
-        self.block_type = Some(BlockType::ComplexObject { cp });
-        self
-    }
+    // pub fn set_complex_object(mut self, cp: ComplexObject) -> Self {
+    //     self.block_type = Some(BlockType::ComplexObject { cp });
+    //     self
+    // }
 
     pub fn set_glass(mut self, is_glass: bool) -> Self {
         self.is_glass = Some(is_glass);

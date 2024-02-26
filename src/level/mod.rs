@@ -5,7 +5,6 @@ use nalgebra_glm as glm;
 pub struct Level {
     pub content: Arc<Content>,
     pub sun: Sun<9>,
-    world_saver: Arc<WorldSaver>,
     pub world: Arc<World>,
     pub player: Arc<UnsafeMutex<Player>>,
     pub threads: Option<Threads>,
@@ -74,7 +73,6 @@ impl Level {
         Self {
             meshes: Meshes::new(Arc::clone(&content)),
             content,
-            world_saver,
             player,
             sun,
             threads,

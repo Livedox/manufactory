@@ -110,8 +110,9 @@ pub fn render(chunk_index: usize, chunks: &Chunks, content: &Content) -> Option<
             BlockType::AnimatedModel {id} => {
                 render_animated_model(&mut animated_models, &chunk, *id, lx, ly, lz);
             },
-            BlockType::ComplexObject {cp} => {
-                render_complex_object(cp, &mut models, &mut animated_models, &mut buffer, &mut belt_buffer, &chunk, lx, ly, lz);
+            BlockType::ComplexObject {id} => {
+                let complex_object = &chunks.content.complex_objects[*id as usize];
+                render_complex_object(complex_object, &mut models, &mut animated_models, &mut buffer, &mut belt_buffer, &chunk, lx, ly, lz);
             },
         };
     }

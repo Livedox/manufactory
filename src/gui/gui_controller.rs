@@ -18,8 +18,6 @@ pub struct GuiController {
     is_ui: bool,
     pub is_menu: bool,
     is_cursor: bool,
-    world_name: String,
-    seed: String,
     main_screen: MainScreen,
     is_setting: bool,
 }
@@ -34,8 +32,6 @@ impl GuiController {
             is_menu: false,
             is_setting: false,
             is_cursor: true,
-            world_name: String::new(),
-            seed: String::new(),
             main_screen: MainScreen::new(),
         }
     }

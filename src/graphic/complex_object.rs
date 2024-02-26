@@ -1,7 +1,9 @@
+use std::path::Path;
+
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::engine::state::Indices;
+use crate::engine::state::{Indices};
 #[derive(Deserialize, Serialize, Debug, Clone)]
 /// 0: position, 1: uv
 pub struct ComplexObjectVertex(pub [f32; 3], pub [f32; 2]);
@@ -180,8 +182,8 @@ pub fn test_complex_object() {
     std::fs::write("./co.json", serde_json::to_string_pretty(&co).unwrap()).unwrap();
 }
 
-pub fn load_complex_object(name: &str, indices: &Indices) -> ComplexObject {
-    let data = std::fs::read(format!("./res/complex_objects/{}", name)).unwrap();
+pub fn load_complex_object(path: impl AsRef<Path>, indices: &Indices) -> ComplexObject {
+    let data = std::fs::read(path).unwrap();
     let complex_object_file: ComplexObjectFile = serde_json::from_slice(&data).unwrap();
     let co = complex_object_file.to_complex_object(indices);
     println!("{:?}", co);
