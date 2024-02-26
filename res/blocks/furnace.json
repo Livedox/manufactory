@@ -3,7 +3,7 @@
   "block_type": {"model": {"name": "furnace"}},
   "live_voxel": "furnace",
   "is_light_passing": true,
-  "on_break": ["on_break"],
-  "on_set": ["on_set"],
+  "on_break": ["on_multiblock_break"],
+  "on_set": ["on_multiblock_set"],
   "height": 2
 }

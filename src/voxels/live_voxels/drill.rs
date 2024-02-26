@@ -73,7 +73,7 @@ impl LiveVoxelBehavior for Mutex<Drill> {
         Some(1)
     }
 
-    fn serialize(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         bincode::serialize(self).unwrap()
     }
 }

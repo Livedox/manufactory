@@ -14,7 +14,7 @@ use setting::Setting;
 use threads::{save::SaveState, Threads};
 use unsafe_mutex::UnsafeMutex;
 use world::{World, global_coords::GlobalCoords, sun::{Sun, Color}, loader::WorldLoader};
-use crate::{engine::state::{Indices, State}, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}, world::{chunk_coords::ChunkCoords, local_coords::LocalCoords}};
+use crate::{engine::state::{Indices, State}, graphic::complex_object::{load_complex_object, test_complex_object}, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}, world::{chunk_coords::ChunkCoords, local_coords::LocalCoords}};
 use voxels::{chunks::{Chunks, WORLD_HEIGHT}, chunk::CHUNK_SIZE};
 
 use winit::{
@@ -79,6 +79,7 @@ pub fn frustum(chunks: &Chunks, frustum: &Frustum) -> Vec<usize> {
 #[tokio::main]
 pub async fn main() {
     test_serde_block();
+    test_complex_object();
     println!("{:?}", Path::new("./data/").canonicalize());
     let mut world_loader = WorldLoader::new(Path::new("./data/worlds/"));
     //let (_stream, stream_handle) = OutputStream::try_default().unwrap();
@@ -111,7 +112,7 @@ pub async fn main() {
         &[[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]],
         &setting.graphic).await;
     let mut gui_controller = GuiController::new(window, state.texture_atlas.clone());
-    
+    load_complex_object("transport_belt.json", &state.indices);
     let mut timer_16ms = Timer::new(Duration::from_millis(16));
     let mut fps = Instant::now();
     let mut fps_queue = VecDeque::from([0.0; 10]);

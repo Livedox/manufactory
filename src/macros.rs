@@ -41,7 +41,7 @@ macro_rules! player_unlockable {
 
 /// Do this:
 /// ```rust, ignore
-/// fn deserialize(bytes: &[u8]) -> Box<dyn LiveVoxel> {
+/// fn from_bytes(bytes: &[u8]) -> Box<dyn LiveVoxel> {
 ///     Box::new(bincode::deserialize::<Self>(bytes)
 ///         .expect(concat!("Deserialization error on type: ", stringify!($type))))
 ///     }
@@ -50,7 +50,7 @@ macro_rules! player_unlockable {
 #[macro_export]
 macro_rules! live_voxel_default_deserialize {
     ( $type:ty ) => {
-        fn deserialize(bytes: &[u8]) -> Box<dyn LiveVoxelBehavior> {
+        fn from_bytes(bytes: &[u8]) -> Box<dyn LiveVoxelBehavior> {
             Box::new(bincode::deserialize::<Self>(bytes)
                 .expect(concat!("Deserialization error on type: ", stringify!($type))))
         }

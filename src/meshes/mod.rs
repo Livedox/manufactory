@@ -211,11 +211,11 @@ impl Meshes {
                         animated_models.insert(*id, vec![progress]);
                     }
                 } else if let BlockType::ComplexObject { cp } = block_type {
-                    cp.animated_models_names.iter().for_each(|id| {
-                        if let Some(animated_model) = animated_models.get_mut(&u32::MAX) {
+                    cp.animated_models.iter().for_each(|id| {
+                        if let Some(animated_model) = animated_models.get_mut(id) {
                             animated_model.push(progress);
                         } else {
-                            animated_models.insert(u32::MAX, vec![progress]);
+                            animated_models.insert(*id, vec![progress]);
                         }
                     });
                 }

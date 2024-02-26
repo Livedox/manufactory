@@ -4,13 +4,16 @@ use serde::{ser::SerializeStruct, Deserialize, Serialize};
 
 use crate::{bytes::AsFromBytes, content::Content, direction::Direction, gui::draw::Draw, recipes::storage::Storage, world::global_coords::GlobalCoords};
 use std::fmt::Debug;
-use self::{drill::Drill, furnace::Furnace, voxel_box::VoxelBox};
+use self::{assembling_machine::AssemblingMachine, cowboy::Cowboy, drill::Drill, furnace::Furnace, manipulator::Manipulator, voxel_box::VoxelBox};
 
 use super::{chunks::Chunks, voxel_data::transport_belt::TransportBelt};
 pub mod furnace;
 pub mod voxel_box;
 pub mod unit;
 pub mod drill;
+pub mod assembling_machine;
+pub mod manipulator;
+pub mod cowboy;
 
 pub trait PlayerUnlockable: Draw {
     fn get_storage(&self) -> Option<&dyn Storage> {None}
@@ -118,7 +121,7 @@ impl LiveVoxelContainer {
         let multiblock = bincode::serialize(&self.multiblock).unwrap();
         bytes.extend((multiblock.len() as u32).to_le_bytes());
         bytes.extend(multiblock);
-        bytes.extend(self.live_voxel.serialize());
+        bytes.extend(self.live_voxel.to_bytes());
         bytes
     }
 
@@ -160,13 +163,22 @@ pub fn register() -> LiveVoxelRegistrator {
     let mut deserialize = HashMap::<String, DesiarializeLiveVoxel>::new();
 
     new.insert(String::from("furnace"), &<Arc<Mutex<Furnace>>>::create);
-    deserialize.insert(String::from("furnace"), &<Arc<Mutex<Furnace>> as LiveVoxelCreation>::deserialize);
+    deserialize.insert(String::from("furnace"), &<Arc<Mutex<Furnace>>>::from_bytes);
 
     new.insert(String::from("voxel_box"), &<Arc<Mutex<VoxelBox>>>::create);
-    deserialize.insert(String::from("voxel_box"), &<Arc<Mutex<VoxelBox>> as LiveVoxelCreation>::deserialize);
+    deserialize.insert(String::from("voxel_box"), &<Arc<Mutex<VoxelBox>>>::from_bytes);
 
-    deserialize.insert(String::from("drill"), &<Mutex<Drill> as LiveVoxelCreation>::deserialize);
+    deserialize.insert(String::from("drill"), &<Mutex<Drill>>::from_bytes);
     new.insert(String::from("drill"), &<Mutex<Drill>>::create);
+
+    deserialize.insert(String::from("assembling_machine"), &<Arc<Mutex<AssemblingMachine>>>::from_bytes);
+    new.insert(String::from("assembling_machine"), &<Arc<Mutex<AssemblingMachine>>>::create);
+
+    deserialize.insert(String::from("manipulator"), &<Mutex<Manipulator>>::from_bytes);
+    new.insert(String::from("manipulator"), &<Mutex<Manipulator>>::create);
+
+    deserialize.insert(String::from("cowboy"), &Cowboy::from_bytes);
+    new.insert(String::from("cowboy"), &Cowboy::create);
 
     LiveVoxelRegistrator { 
         new,
@@ -182,11 +194,11 @@ pub trait LiveVoxelBehavior: Debug {
     fn transport_belt(&self) -> Option<Arc<Mutex<TransportBelt>>> {None}
     fn animation_progress(&self) -> f32 {0.0}
 
-    fn serialize(&self) -> Vec<u8>;
+    fn to_bytes(&self) -> Vec<u8>;
 }
 
 
 pub trait LiveVoxelCreation {
     fn create(direction: &Direction) -> Box<dyn LiveVoxelBehavior>;
-    fn deserialize(bytes: &[u8]) -> Box<dyn LiveVoxelBehavior>;
+    fn from_bytes(bytes: &[u8]) -> Box<dyn LiveVoxelBehavior>;
 }

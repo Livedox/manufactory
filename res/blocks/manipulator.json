@@ -1,0 +1,8 @@
+{
+  "id": "manipulator",
+  "block_type": {"animated_model": {"name": "manipulator"}},
+  "is_light_passing": true,
+  "live_voxel": "manipulator",
+  "on_break": ["on_break"],
+  "on_set": ["on_set"]
+}

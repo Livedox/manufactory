@@ -45,7 +45,7 @@ impl LiveVoxelBehavior for Arc<Mutex<Furnace>> {
         }
     }
 
-    fn serialize(&self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         bincode::serialize(self).unwrap()
     }
 }

@@ -7,20 +7,18 @@ const INDICES: [[usize; 6]; 2] = [[0,1,2,0,2,3], [3,2,0,2,1,0]];
 
 fn render_side(
   buffer: &mut Buffer,
-  part: &[Option<ComplexObjectSide>; 6],
+  side_index: usize,
+  sides: &[ComplexObjectSide],
   light: [f32; 4],
   xyz: (f32, f32, f32),
   rotation_index: usize
 ) {
-    part.iter().enumerate().for_each(|(i, side)| {
-        let Some(side) = side else {return};
-        side.vertex_groups.iter().for_each(|group| {
-            let vertices: [BlockVertex; 4] = [0, 1, 2, 3].map(|i| {
-                let position = group.sum_position(xyz.0, xyz.1, xyz.2, rotation_index, i);
-                BlockVertex::new(position, group.uv(i), side.texture_layer, light)
-            });
-            buffer.manage_vertices(&vertices, &INDICES[i%2]);
+    sides.iter().for_each(|side| {
+        let vertices: [BlockVertex; 4] = [0, 1, 2, 3].map(|i| {
+            let position = side.vertex_group.sum_position(xyz.0, xyz.1, xyz.2, rotation_index, i);
+            BlockVertex::new(position, side.vertex_group.uv(i), side.texture_layer, light)
         });
+        buffer.manage_vertices(&vertices, &INDICES[side_index%2]);
     });
 }
 
@@ -41,16 +39,16 @@ pub fn render_complex_object(
     let light = chunk.get_light((lx, ly, lz).into()).get_normalized();
     let global = chunk.xyz.to_global((lx, ly, lz).into()).into();
 
-    complex_object.block.iter().for_each(|part| {
-        render_side(buffer, part, light, global, rotation_index);
+    complex_object.block.iter().enumerate().for_each(|(i, sides)| {
+        render_side(buffer, i, sides, light, global, rotation_index);
     });
-    complex_object.transport_belt.iter().for_each(|part| {
-        render_side(belt_buffer, part, light, global, rotation_index);
+    complex_object.transport_belt.iter().enumerate().for_each(|(i, sides)| {
+        render_side(belt_buffer, i, sides, light, global, rotation_index);
     });
-    complex_object.model_names.iter().for_each(|name| {
-        render_model(models, chunk, u32::MAX, lx, ly, lz);
+    complex_object.models.iter().for_each(|id| {
+        render_model(models, chunk, *id, lx, ly, lz);
     });
-    complex_object.animated_models_names.iter().for_each(|name| {
-        render_animated_model(animated_models, chunk, u32::MAX, lx, ly, lz);
+    complex_object.animated_models.iter().for_each(|id| {
+        render_animated_model(animated_models, chunk, *id, lx, ly, lz);
     });
 }

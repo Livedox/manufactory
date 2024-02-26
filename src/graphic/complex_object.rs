@@ -1,4 +1,7 @@
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+
+use crate::engine::state::Indices;
 #[derive(Deserialize, Serialize, Debug, Clone)]
 /// 0: position, 1: uv
 pub struct ComplexObjectVertex(pub [f32; 3], pub [f32; 2]);
@@ -76,13 +79,13 @@ impl From<[ComplexObjectVertex; 4]> for ComplexObjectGroup {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ComplexObjectSide {
     pub texture_layer: u32,
-    pub vertex_groups: Vec<ComplexObjectGroup>,
+    pub vertex_group: ComplexObjectGroup,
 }
 
 impl ComplexObjectSide {
     #[inline]
-    pub fn new(texture_layer: u32, vertex_groups: Vec<ComplexObjectGroup>) -> Self {
-        Self { texture_layer, vertex_groups }
+    pub fn new(texture_layer: u32, vertex_group: ComplexObjectGroup) -> Self {
+        Self { texture_layer, vertex_group }
     }
 }
 
@@ -90,24 +93,97 @@ impl ComplexObjectSide {
 #[serde(default)]
 
 pub struct ComplexObject {
-    pub block: Box<[[Option<ComplexObjectSide>; 6]]>,
-    pub transport_belt: Box<[[Option<ComplexObjectSide>; 6]]>,
-    pub model_names: Box<[String]>,
-    pub animated_models_names: Box<[String]>,
+    pub block: [Vec<ComplexObjectSide>; 6],
+    pub transport_belt: [Vec<ComplexObjectSide>; 6],
+    pub models: Vec<u32>,
+    pub animated_models: Vec<u32>,
 }
 
 impl Default for ComplexObject {
     fn default() -> Self {
         Self {
-            block: Box::new([]),
-            transport_belt: Box::new([]),
-            model_names: Box::new([]),
-            animated_models_names: Box::new([]),
+            block: Default::default(),
+            transport_belt: Default::default(),
+            models: vec![],
+            animated_models: vec![],
         }
     }
 }
 
-pub fn load_complex_object(name: &str) -> ComplexObject {
-    let data = std::fs::read(format!("./complex_objects/{}", name)).unwrap();
-    serde_json::from_slice(&data).unwrap()
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ComplexObjectSideFile {
+    pub texture_layer: String,
+    pub vertex_group: ComplexObjectGroup,
+}
+
+impl ComplexObjectSideFile {
+    pub fn to_complex_object_side(self, indices: &Indices) -> ComplexObjectSide {
+        ComplexObjectSide {
+            texture_layer: *indices.block.get(&self.texture_layer).unwrap(),
+            vertex_group: self.vertex_group,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ComplexObjectFile {
+    pub block: [Vec<ComplexObjectSideFile>; 6],
+    pub transport_belt: [Vec<ComplexObjectSideFile>; 6],
+    pub models: Vec<String>,
+    pub animated_models: Vec<String>,
+}
+
+impl ComplexObjectFile {
+    pub fn to_sides(array: [Vec<ComplexObjectSideFile>; 6], indices: &Indices) -> [Vec<ComplexObjectSide>; 6] {
+        array.map(|sides| {
+            sides.into_iter()
+                .map(|side| side.to_complex_object_side(indices))
+                .collect_vec()
+        })
+    }
+
+    pub fn to_complex_object(self, indices: &Indices) -> ComplexObject {
+        ComplexObject {
+            block: Self::to_sides(self.block, indices),
+            transport_belt: Self::to_sides(self.transport_belt, indices),
+            models: self.models.into_iter()
+                .map(|s| *indices.models.get(&s).unwrap()).collect_vec(),
+            animated_models: self.animated_models.into_iter()
+                .map(|s| *indices.animated_models.get(&s).unwrap()).collect_vec()
+        }
+    }
+}
+
+pub fn test_complex_object() {
+    let co = ComplexObjectFile {
+        animated_models: vec![String::from("cowboy")],
+        models: vec![String::from("astronaut")],
+        block: [vec![ComplexObjectSideFile {
+            texture_layer: String::from("rock"),
+            vertex_group: ComplexObjectGroup([
+                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
+                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
+                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
+                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
+            ])
+        }], vec![], vec![], vec![], vec![], vec![]],
+        transport_belt: [vec![], vec![ComplexObjectSideFile {
+            texture_layer: String::from("iron"),
+            vertex_group: ComplexObjectGroup([
+                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
+                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
+                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
+                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
+            ])
+        }], vec![], vec![], vec![], vec![]],
+    };
+    std::fs::write("./co.json", serde_json::to_string_pretty(&co).unwrap()).unwrap();
+}
+
+pub fn load_complex_object(name: &str, indices: &Indices) -> ComplexObject {
+    let data = std::fs::read(format!("./res/complex_objects/{}", name)).unwrap();
+    let complex_object_file: ComplexObjectFile = serde_json::from_slice(&data).unwrap();
+    let co = complex_object_file.to_complex_object(indices);
+    println!("{:?}", co);
+    co
 }

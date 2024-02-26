@@ -1,0 +1,11 @@
+{
+  "id": "assembling_machine",
+  "block_type": {"model": {"name": "assembling_machine"}},
+  "live_voxel": "assembling_machine",
+  "is_light_passing": true,
+  "on_break": ["on_multiblock_break"],
+  "on_set": ["on_multiblock_set"],
+  "height": 2,
+  "width": 2,
+  "depth": 2
+}

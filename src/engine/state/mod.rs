@@ -4,7 +4,7 @@ use egui_winit::winit::raw_window_handle;
 use itertools::Itertools;
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
-use crate::{meshes::Mesh, my_time::Time, models::{load_model::{load_model}, model::Model, load_animated_model::{load_animated_model, load_animated_models}, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, bind_group_layout::{Layouts, self}, pipeline::Pipelines, shaders::Shaders, texture::Texture}};
+use crate::{meshes::Mesh, my_time::Time, models::{load_model::{load_model}, model::Model, load_animated_model::{load_animated_model}, animated_model::AnimatedModel}, rev_qumark, engine::{bind_group, bind_group_layout::{Layouts, self}, pipeline::Pipelines, shaders::Shaders, texture::Texture}};
 use crate::engine::texture::TextureAtlas;
 use super::{bind_group_buffer::BindGroupsBuffers, egui::Egui, setting::GraphicSetting, texture::{self}};
 
@@ -16,7 +16,13 @@ pub struct Indices {
     pub animated_models: HashMap<String, u32>,
 }
 
-pub fn load_animated_models_test(
+pub fn load_complex_objects(
+    indices: Indices,
+) {
+
+}
+
+pub fn load_animated_models(
     models_path: impl AsRef<Path>,
     textures_path: impl AsRef<Path>,
     device: &wgpu::Device,
@@ -226,10 +232,6 @@ impl<'a> State<'a> {
             println!("{:?} {:?} {:?}", i.get_info().device_type, i.get_info().name, i.get_info().backend);
         }
         
-        // # Safety
-        //
-        // The surface needs to live as long as the window that created it.
-        // State owns the window so this should be safe.
         let surface = instance.create_surface(Arc::clone(&window)).unwrap();
 
         let power_preference = wgpu::PowerPreference::HighPerformance;
@@ -295,8 +297,14 @@ impl<'a> State<'a> {
         let block_texutre_bg = bind_group::block_texture::get(&device, &layouts.block_texture, &block_texture);
 
         let (models_indices, models) = load_models("./res/models", "./res/assets/models", &device, &queue, &layouts.model_texture);
-        let (animated_models_indices, animated_models) = load_animated_models_test(
+        let (animated_models_indices, animated_models) = load_animated_models(
             "./res/animated_models", "./res/assets/models", &device, &queue, &layouts.model_texture);
+
+        let indices = Indices {
+            block: block_texture_id,
+            models: models_indices,
+            animated_models: animated_models_indices,
+        };
 
         let multisampled_framebuffer =
             texture::Texture::create_multisampled_framebuffer(&device, &config, sample_count);
@@ -317,11 +325,7 @@ impl<'a> State<'a> {
             config,
             size,
 
-            indices: Indices {
-                block: block_texture_id,
-                models: models_indices,
-                animated_models: animated_models_indices,
-            },
+            indices,
 
             block_texutre_bg,
             window,

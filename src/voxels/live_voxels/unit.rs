@@ -1,5 +1,5 @@
 use super::LiveVoxelBehavior;
 
 impl LiveVoxelBehavior for () {
-    fn serialize(&self) -> Vec<u8> {vec![]}
+    fn to_bytes(&self) -> Vec<u8> {vec![]}
 }
