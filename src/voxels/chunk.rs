@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::{Arc, atomic::{AtomicBool, Ordering}, RwLo
 use itertools::iproduct;
 use crate::{bytes::{AsFromBytes, BytesCoder}, content::{self, Content}, direction::Direction, light::light_map::{LightMap, Light}, world::{local_coords::LocalCoords, chunk_coords::ChunkCoords}};
 
-use super::{generator::Generator, live_voxels::LiveVoxelContainer, voxel::{self, Voxel, VoxelAtomic}, voxel_data::{VoxelAdditionalData, VoxelData}};
+use super::{generator::Generator, live_voxels::LiveVoxelContainer, voxel::{self, Voxel, VoxelAtomic}};
 use std::io::prelude::*;
 use flate2::{Compression, read::ZlibDecoder};
 use flate2::write::ZlibEncoder;
