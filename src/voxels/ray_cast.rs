@@ -48,9 +48,9 @@ pub fn ray_cast(
         let block = &chunks.content.blocks[id as usize];
         if block.is_voxel_size() {
             let min_p = block.min_point();
-            let min = [ix + min_p.0, iy + min_p.1, iz + min_p.2];
+            let min = [ix + min_p.x, iy + min_p.y, iz + min_p.z];
             let max_p = block.max_point();
-            let max = [ix+max_p.0, iy+max_p.1, iz+max_p.2];
+            let max = [ix+max_p.x, iy+max_p.y, iz+max_p.z];
             condition = condition && intersect_ray_rectangular_parallelepiped(origin, direction, &min, &max);
         }
         if condition {

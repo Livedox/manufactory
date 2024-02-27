@@ -1,4 +1,4 @@
-use crate::{world::{World, global_coords::GlobalCoords}, player::player::Player, direction::Direction};
+use crate::{world::{World, global_coords::GlobalCoord}, player::player::Player, direction::Direction};
 
 use super::{interaction::BlockInteraction, block_type::BlockType};
 
@@ -28,7 +28,7 @@ impl BlockInteraction for MultiBlock {
     fn height(&self) -> usize {self.height}
     fn depth(&self) -> usize {self.depth}
 
-    fn on_block_break(&self, world: &World, _: &mut Player, xyz: &GlobalCoords) {
+    fn on_block_break(&self, world: &World, _: &mut Player, xyz: &GlobalCoord) {
         if let Some(xyz) = world.chunks.remove_multiblock_structure(*xyz) {
             xyz.iter().for_each(|c| {
                 world.light.on_block_break(&world.chunks, c.0, c.1, c.2);
@@ -36,7 +36,7 @@ impl BlockInteraction for MultiBlock {
         };
     }
 
-    fn on_block_set(&self, world: &World, _: &mut Player, xyz: &GlobalCoords, dir: &Direction) -> bool {
+    fn on_block_set(&self, world: &World, _: &mut Player, xyz: &GlobalCoord, dir: &Direction) -> bool {
         // FIX THIS SHIT
         let mut width = self.width as i32;
         let mut depth = self.depth as i32;

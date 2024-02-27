@@ -2,7 +2,7 @@
 
 use itertools::iproduct;
 
-use crate::{content::Content, engine::pipeline::IS_LINE, engine::vertices::block_vertex::BlockVertex, graphic::render::block_managers::BlockManagers, voxels::{chunk::CHUNK_SIZE, chunks::Chunks, block::{block_type::BlockType}}, world::{chunk_coords::ChunkCoords}};
+use crate::{content::Content, coords::chunk_coord::ChunkCoord, engine::{pipeline::IS_LINE, vertices::block_vertex::BlockVertex}, graphic::render::block_managers::BlockManagers, voxels::{block::block_type::BlockType, chunk::CHUNK_SIZE, chunks::Chunks}};
 
 use self::{model::{Models, render_model}, animated_model::{AnimatedModels, render_animated_model}, complex_object::render_complex_object, block::{render_block}};
 
@@ -66,7 +66,7 @@ impl Buffer {
 #[derive(Debug)]
 pub struct RenderResult {
     pub chunk_index: usize,
-    pub xyz: ChunkCoords,
+    pub xyz: ChunkCoord,
     pub block_vertices: Vec<BlockVertex>,
     pub block_indices: Vec<u32>,
     pub glass_vertices: Vec<BlockVertex>,

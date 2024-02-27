@@ -1,14 +1,8 @@
 use std::{sync::{Arc}, time::Instant};
 
 
-use crate::{bytes::BytesCoder, content::Content, light::light::{LightSolvers, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP}, save_load::{WorldRegions, EncodedChunk}, voxels::{chunk::{Chunk, CHUNK_VOLUME}, chunks::{Chunks, WORLD_HEIGHT}, generator::Generator, voxel::Voxel}};
+use crate::{bytes::BytesCoder, content::Content, coords::global_coord::GlobalCoord, light::light::{LightSolvers, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP}, save_load::{EncodedChunk, WorldRegions}, voxels::{chunk::{Chunk, CHUNK_VOLUME}, chunks::{Chunks, WORLD_HEIGHT}, generator::Generator, voxel::Voxel}};
 
-use self::global_coords::GlobalCoords;
-
-pub mod global_coords;
-pub mod chunk_coords;
-pub mod local_coords;
-pub mod coords;
 pub mod sun;
 pub mod loader;
 
@@ -58,13 +52,13 @@ impl World {
     }
 
 
-    pub fn break_voxel(&self, xyz: &GlobalCoords) {
+    pub fn break_voxel(&self, xyz: &GlobalCoord) {
         Chunks::set_voxel(&self.chunks, *xyz, 0);
         // self.chunks.set(*xyz, 0, None);
-        self.player_light_solver.on_block_break(&self.chunks, xyz.0, xyz.1, xyz.2);
+        self.player_light_solver.on_block_break(&self.chunks, xyz.x, xyz.y, xyz.z);
     }
 
-    pub fn voxel(&self, xyz: &GlobalCoords) -> Option<Voxel> {
+    pub fn voxel(&self, xyz: &GlobalCoord) -> Option<Voxel> {
         self.chunks.voxel_global(*xyz)
     }
 }

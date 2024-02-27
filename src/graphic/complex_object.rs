@@ -174,7 +174,5 @@ pub fn test_complex_object() {
 pub fn load_complex_object(path: impl AsRef<Path>, indices: &Indices) -> ComplexObject {
     let data = std::fs::read(path).unwrap();
     let complex_object_file: ComplexObjectFile = serde_json::from_slice(&data).unwrap();
-    let co = complex_object_file.to_complex_object(indices);
-    println!("{:?}", co);
-    co
+    complex_object_file.to_complex_object(indices)
 }

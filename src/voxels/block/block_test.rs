@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Debug};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{direction::Direction, engine::state::Indices, player::player::Player, recipes::{item::Item}, world::{coords::Coords, global_coords::GlobalCoords, World}};
+use crate::{direction::Direction, engine::state::Indices, player::player::Player, recipes::{item::Item}, coords::{coord::Coord, global_coord::GlobalCoord}, world::World};
 
 use super::{block_type::BlockType, functions::{Function, FUNCTIONS}};
 
@@ -168,19 +168,19 @@ impl Debug for Block {
 
 impl Block {
     // #[inline]
-    // pub fn on_use(&self, world: &World, player: &mut Player, xyz: &GlobalCoords, dir: &Direction) -> bool {
+    // pub fn on_use(&self, world: &World, player: &mut Player, xyz: &GlobalCoord, dir: &Direction) -> bool {
     //     if self.on_block_break.is_empty() {return false;}
     //     self.on_block_break.iter().all(|f| f(&self.base, world, player, xyz, dir))
     // }
 
     #[inline]
-    pub fn on_block_break(&self, world: &World, player: &mut Player, xyz: &GlobalCoords, dir: &Direction) -> bool {
+    pub fn on_block_break(&self, world: &World, player: &mut Player, xyz: &GlobalCoord, dir: &Direction) -> bool {
         if self.on_block_break.is_empty() {return false;}
         self.on_block_break.iter().all(|f| f(&self.base, world, player, xyz, dir))
     }
 
     #[inline]
-    pub fn on_block_set(&self, world: &World, player: &mut Player, xyz: &GlobalCoords, dir: &Direction) -> bool {
+    pub fn on_block_set(&self, world: &World, player: &mut Player, xyz: &GlobalCoord, dir: &Direction) -> bool {
         if self.on_block_set.is_empty() {return false;}
         self.on_block_set.iter().all(|f| f(&self.base, world, player, xyz, dir))
     }
@@ -195,8 +195,8 @@ impl Block {
     pub fn width(&self) -> usize {1}
     pub fn height(&self) -> usize {1}
     pub fn depth(&self) -> usize {1}
-    pub fn min_point(&self) -> &Coords {&Coords(0.0, 0.0, 0.0)}
-    pub fn max_point(&self) -> &Coords {&Coords(1.0, 1.0, 1.0)}
+    pub fn min_point(&self) -> Coord {Coord::new(0.0, 0.0, 0.0)}
+    pub fn max_point(&self) -> Coord {Coord::new(1.0, 1.0, 1.0)}
     pub fn is_multiblock(&self) -> bool {false}
     pub fn is_voxel_size(&self) -> bool {false}
 

@@ -1,7 +1,7 @@
 use std::{sync::{Mutex}, time::{Duration, Instant}};
 use serde::{Deserialize, Serialize};
 
-use crate::{direction::Direction, live_voxel_default_deserialize, recipes::item::Item, voxels::chunks::Chunks, world::global_coords::GlobalCoords};
+use crate::{direction::Direction, live_voxel_default_deserialize, recipes::item::Item, voxels::chunks::Chunks, coords::global_coord::GlobalCoord};
 
 use super::{LiveVoxelBehavior, LiveVoxelCreation};
 
@@ -26,10 +26,10 @@ impl Manipulator {
         direction: direction.simplify_to_one_greatest(true, false, true),
     }}
 
-    pub fn update(&mut self, coords: GlobalCoords, chunks: &Chunks) {
+    pub fn update(&mut self, coords: GlobalCoord, chunks: &Chunks) {
         let return_time = self.return_time.map_or(true, |rt| rt.elapsed() >= (Self::SPEED/2));
         if self.item_id.is_none() && self.start_time.is_none() && return_time {
-            let src_coords = GlobalCoords(coords.0 - self.direction[0] as i32, coords.1, coords.2 - self.direction[2] as i32);
+            let src_coords = GlobalCoord::new(coords.x - self.direction[0] as i32, coords.y, coords.z - self.direction[2] as i32);
             let Some(storage) = chunks.master_live_voxel(src_coords).and_then(|lv| lv.storage()) else {return};
             if let Some(item) = storage.lock().unwrap().take_first_existing(1) {
                 self.item_id = Some(item.0.id());
@@ -40,7 +40,7 @@ impl Manipulator {
         
         let start_time = self.start_time.map_or(true, |rt| rt.elapsed() >= (Self::SPEED/2));
         if self.item_id.is_some() && start_time {
-            let dst_coords = GlobalCoords(coords.0 + self.direction[0] as i32, coords.1, coords.2 + self.direction[2] as i32);
+            let dst_coords = GlobalCoord::new(coords.x + self.direction[0] as i32, coords.y, coords.z + self.direction[2] as i32);
             let Some(storage) = chunks.master_live_voxel(dst_coords).and_then(|lv| lv.storage()) else {return};
             let result = storage.lock().unwrap().add(&Item::new(self.item_id.unwrap(), 1), false).is_none();
             if result {
@@ -80,7 +80,7 @@ impl LiveVoxelBehavior for Mutex<Manipulator> {
         Some(self.lock().unwrap().rotation_index())
     }
 
-    fn update(&self, chunks: &Chunks, coord: GlobalCoords, _: &[GlobalCoords]) {
+    fn update(&self, chunks: &Chunks, coord: GlobalCoord, _: &[GlobalCoord]) {
         self.lock().unwrap().update(coord, chunks);
     }
 

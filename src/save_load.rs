@@ -8,7 +8,7 @@ use crate::player::player::Player;
 use crate::setting::Setting;
 use crate::voxels::chunk::Chunk;
 use crate::voxels::chunks::WORLD_HEIGHT;
-use crate::world::chunk_coords::ChunkCoords;
+use crate::coords::chunk_coord::ChunkCoord;
 use crate::bytes::AsFromBytes;
 use crate::UnsafeMutex;
 
@@ -50,9 +50,9 @@ impl RegionCoords {
     }
 }
 
-impl From<ChunkCoords> for RegionCoords {
-    fn from(c: ChunkCoords) -> Self {
-        Self(c.0 >> REGION_BIT_SHIFT, c.2 >> REGION_BIT_SHIFT)
+impl From<ChunkCoord> for RegionCoords {
+    fn from(c: ChunkCoord) -> Self {
+        Self(c.x >> REGION_BIT_SHIFT, c.z >> REGION_BIT_SHIFT)
     }
 }
 
@@ -60,11 +60,11 @@ pub trait RegionChunkIndex {
     fn region_chunk_index(&self) -> usize;
 }
 
-impl RegionChunkIndex for ChunkCoords {
+impl RegionChunkIndex for ChunkCoord {
     fn region_chunk_index(&self) -> usize {
-        let x = self.0 as usize & REGION_SIZE_BITS;
-        let y = self.1 as usize & (WORLD_HEIGHT - 1);
-        let z = self.2 as usize & REGION_SIZE_BITS;
+        let x = self.x as usize & REGION_SIZE_BITS;
+        let y = self.y as usize & (WORLD_HEIGHT - 1);
+        let z = self.z as usize & REGION_SIZE_BITS;
 
         (x * WORLD_HEIGHT + y) * REGION_SIZE + z
     }
@@ -124,7 +124,7 @@ impl WorldRegions {
         Self { path: path.into(), regions: HashMap::new() }
     }
 
-    pub fn chunk(&mut self, coords: ChunkCoords) -> &EncodedChunk {
+    pub fn chunk(&mut self, coords: ChunkCoord) -> &EncodedChunk {
         self.get_or_create_region(coords.into())
             .chunk(coords)
     }

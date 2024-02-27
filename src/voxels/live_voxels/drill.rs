@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::live_voxel_default_deserialize;
 
-use crate::{world::global_coords::GlobalCoords, direction::Direction, voxels::{chunks::Chunks}, recipes::{item::PossibleItem, storage::Storage}};
+use crate::{coords::global_coord::GlobalCoord, direction::Direction, voxels::{chunks::Chunks}, recipes::{item::PossibleItem, storage::Storage}};
 use crate::voxels::live_voxels::LiveVoxelBehavior;
 
 use crate::voxels::live_voxels::LiveVoxelCreation;
@@ -37,9 +37,9 @@ impl LiveVoxelCreation for Mutex<Drill> {
 }
 
 impl LiveVoxelBehavior for Mutex<Drill> {
-    fn update(&self, chunks: &Chunks, xyz: GlobalCoords, multiblock: &[GlobalCoords]) {
+    fn update(&self, chunks: &Chunks, xyz: GlobalCoord, multiblock: &[GlobalCoord]) {
         let mut drill = self.lock().unwrap();
-        let global = GlobalCoords(xyz.0 - drill.dir[0] as i32, xyz.1, xyz.2-drill.dir[2] as i32);
+        let global = GlobalCoord::new(xyz.x - drill.dir[0] as i32, xyz.y, xyz.z-drill.dir[2] as i32);
         if let Some(storage) = chunks.master_live_voxel(global).and_then(|vd| vd.storage()) {
             if let Some(item) = drill.storage[0].0.take() {
                 if let Some(r_item) = storage.lock().unwrap().add(&item, false) {
@@ -53,7 +53,7 @@ impl LiveVoxelBehavior for Mutex<Drill> {
         
         let mut ores = vec![];
         multiblock.iter().for_each(|coord| {
-            let ore_coords = GlobalCoords(coord.0, coord.1-1, coord.2);
+            let ore_coords = GlobalCoord::new(coord.x, coord.y-1, coord.z);
             let voxel = chunks.voxel_global(ore_coords);
             let Some(voxel) = voxel else {return};
             if let Some(item) = chunks.content.blocks[voxel.id as usize].ore() {

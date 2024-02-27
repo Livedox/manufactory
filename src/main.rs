@@ -1,6 +1,7 @@
 use std::{time::{Duration, Instant}, sync::{Arc, atomic::{AtomicBool}}, collections::{VecDeque}, path::Path};
 use camera::frustum::Frustum;
 
+use coords::chunk_coord::ChunkCoord;
 use engine::state;
 
 use gui::gui_controller::GuiController;
@@ -8,8 +9,8 @@ use input_event::KeypressState;
 use level::Level;
 
 use unsafe_mutex::UnsafeMutex;
-use world::{global_coords::GlobalCoords, loader::WorldLoader};
-use crate::{engine::state::{Indices}, graphic::complex_object::{test_complex_object}, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}, world::{chunk_coords::ChunkCoords}};
+use world::{loader::WorldLoader};
+use crate::{engine::state::{Indices}, graphic::complex_object::{test_complex_object}, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}};
 use voxels::{chunks::{Chunks}, chunk::CHUNK_SIZE};
 
 use winit::{
@@ -22,6 +23,7 @@ use itertools::iproduct;
 use crate::{input_event::input_service::{Key}, my_time::Timer};
 use nalgebra_glm as glm;
 
+mod coords;
 mod input_event;
 mod my_time;
 mod voxels;
@@ -58,13 +60,13 @@ pub fn frustum(chunks: &Chunks, frustum: &Frustum) -> Vec<usize> {
     // This function could be much faster
     let mut indices: Vec<usize> = vec![];
     for (cy, cz, cx) in iproduct!(0..chunks.height, 0..chunks.depth, 0..chunks.width) {
-        let Some(c) = chunks.local_chunk(ChunkCoords(cx, cy, cz)) else {continue};
+        let Some(c) = chunks.local_chunk(ChunkCoord::new(cx, cy, cz)) else {continue};
 
-        let x = c.xyz.0 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
-        let y = c.xyz.1 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
-        let z = c.xyz.2 as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+        let x = c.xyz.x as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+        let y = c.xyz.y as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+        let z = c.xyz.z as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
         if frustum.is_cube_in(&glm::vec3(x, y, z), HALF_CHUNK_SIZE as f32) {
-            indices.push(ChunkCoords(cx, cy, cz).index_without_offset(chunks.width, chunks.depth));
+            indices.push(ChunkCoord::new(cx, cy, cz).index_without_offset(chunks.width, chunks.depth));
         }
     }
     indices
@@ -73,8 +75,6 @@ pub fn frustum(chunks: &Chunks, frustum: &Frustum) -> Vec<usize> {
 
 #[tokio::main]
 pub async fn main() {
-    test_serde_block();
-    test_complex_object();
     println!("{:?}", Path::new("./data/").canonicalize());
     let mut world_loader = WorldLoader::new(Path::new("./data/worlds/"));
     //let (_stream, stream_handle) = OutputStream::try_default().unwrap();

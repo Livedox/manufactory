@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::{Arc, atomic::{AtomicBool, Ordering}, RwLock}, time::{SystemTime, UNIX_EPOCH}};
 
 use itertools::iproduct;
-use crate::{bytes::{AsFromBytes, BytesCoder}, content::{Content}, light::light_map::{LightMap, Light}, world::{local_coords::LocalCoords, chunk_coords::ChunkCoords}};
+use crate::{bytes::{AsFromBytes, BytesCoder}, content::{Content}, light::light_map::{LightMap, Light}, coords::{local_coord::LocalCoord, chunk_coord::ChunkCoord}};
 
 use super::{generator::Generator, live_voxels::LiveVoxelContainer, voxel::{Voxel, VoxelAtomic}};
 use std::io::prelude::*;
@@ -54,7 +54,7 @@ pub struct Chunk {
     pub live_voxels: LiveVoxels,
     modified: AtomicBool,
     unsaved: AtomicBool,
-    pub xyz: ChunkCoords,
+    pub xyz: ChunkCoord,
 }
 
 
@@ -73,7 +73,7 @@ impl Chunk {
 
         Chunk {
             voxels,
-            xyz: ChunkCoords(pos_x, pos_y, pos_z),
+            xyz: ChunkCoord::new(pos_x, pos_y, pos_z),
             live_voxels: LiveVoxels(Arc::new(RwLock::new(HashMap::new()))),
             unsaved: AtomicBool::new(true),
             modified: AtomicBool::new(true),
@@ -86,24 +86,24 @@ impl Chunk {
     }
 
 
-    pub fn is_air(&self, coords: LocalCoords) -> bool {
+    pub fn is_air(&self, coords: LocalCoord) -> bool {
         self.voxel(coords).id == 0
     }
 
-    pub unsafe fn get_unchecked_voxel(&self, local_coords: LocalCoords) -> Voxel {
+    pub unsafe fn get_unchecked_voxel(&self, local_coords: LocalCoord) -> Voxel {
         self.voxels.get_unchecked(local_coords.index()).to_voxel()
     }
 
     #[inline]
-    pub fn voxel_id(&self, local_coords: LocalCoords) -> u32 {
+    pub fn voxel_id(&self, local_coords: LocalCoord) -> u32 {
         self.voxels[local_coords.index()].id()
     }
 
-    pub fn voxel(&self, local_coords: LocalCoords) -> Voxel {
+    pub fn voxel(&self, local_coords: LocalCoord) -> Voxel {
         self.voxels[local_coords.index()].to_voxel()
     }
 
-    pub fn set_voxel(&self, local_coords: LocalCoords, id: u32) {
+    pub fn set_voxel(&self, local_coords: LocalCoord, id: u32) {
         self.voxels[local_coords.index()].update(id);
     }
 
@@ -127,12 +127,12 @@ impl Chunk {
         self.unsaved.store(value, Ordering::Release);
     }
 
-    pub fn set_voxel_id(&self, local_coords: LocalCoords, id: u32) {
+    pub fn set_voxel_id(&self, local_coords: LocalCoord, id: u32) {
         self.live_voxels.0.write().unwrap().remove(&local_coords.index());
         self.set_voxel(local_coords, id);
     }
 
-    pub fn live_voxel(&self, local_coords: LocalCoords) -> Option<Arc<LiveVoxelContainer>> {
+    pub fn live_voxel(&self, local_coords: LocalCoord) -> Option<Arc<LiveVoxelContainer>> {
         self.live_voxels.get(&local_coords.index())
     }
 
@@ -142,17 +142,17 @@ impl Chunk {
     }
 
     #[inline]
-    pub fn get_light(&self, local_coords: LocalCoords) -> Light {
+    pub fn get_light(&self, local_coords: LocalCoord) -> Light {
         self.lightmap.get(local_coords).clone()
     }
 
     #[inline]
-    pub fn get_light_channel(&self, local_coords: LocalCoords, channel: usize) -> u8 {
+    pub fn get_light_channel(&self, local_coords: LocalCoord, channel: usize) -> u8 {
         self.lightmap.get(local_coords).get_channel(channel)
     }
 
     #[inline]
-    pub unsafe fn get_unchecked_light_channel(&self, local_coords: LocalCoords, channel: usize) -> u8 {
+    pub unsafe fn get_unchecked_light_channel(&self, local_coords: LocalCoord, channel: usize) -> u8 {
         unsafe {self.lightmap.get_unchecked(local_coords)
             .get_unchecked_channel(channel)}
     }
@@ -231,7 +231,7 @@ impl LiveVoxels {
 #[derive(Debug, Clone, Copy)]
 pub struct CompressChunk {
     pub time: u64,
-    pub xyz: ChunkCoords,
+    pub xyz: ChunkCoord,
     pub voxel_len: u32,
     pub voxel_data_len: u32,
     pub compression_type: CompressionType,

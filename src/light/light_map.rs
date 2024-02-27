@@ -1,6 +1,6 @@
 use std::{sync::atomic::{Ordering, AtomicU8}};
 
-use crate::{voxels::chunk::{CHUNK_VOLUME}, world::local_coords::LocalCoords};
+use crate::{coords::local_coord::LocalCoord, voxels::chunk::CHUNK_VOLUME};
 
 #[derive(Debug)]
 pub struct Light(pub [AtomicU8; 4]);
@@ -80,12 +80,12 @@ impl LightMap {
     pub fn new() -> Self {Self::default()}
 
     #[inline]
-    pub fn get(&self, local: LocalCoords) -> &Light { 
+    pub fn get(&self, local: LocalCoord) -> &Light { 
         &self.0[local.index()]
     }
 
     #[inline]
-    pub unsafe fn get_unchecked(&self, local: LocalCoords) -> &Light { 
+    pub unsafe fn get_unchecked(&self, local: LocalCoord) -> &Light { 
         unsafe {self.0.get_unchecked(local.index())}
     }
 }

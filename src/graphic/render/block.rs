@@ -1,4 +1,4 @@
-use crate::{content::Content, voxels::{block::{block_test::BlockBase, interaction::BlockInteraction}, chunks::Chunks, chunk::Chunk}};
+use crate::{content::Content, voxels::{block::{block_test::BlockBase}, chunks::Chunks, chunk::Chunk}};
 use crate::light::light_map::Light;
 use super::block_managers::BlockManagers;
 

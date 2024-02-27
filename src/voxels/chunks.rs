@@ -2,7 +2,7 @@ use std::{sync::{Arc, Mutex, atomic::{AtomicBool, Ordering, AtomicI32}}, cell::U
 
 use itertools::{iproduct, Itertools};
 
-use crate::{content::Content, direction::Direction, light::light_map::Light, vec_none, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
+use crate::{content::Content, direction::Direction, light::light_map::Light, vec_none, coords::{global_coord::GlobalCoord, local_coord::LocalCoord, chunk_coord::ChunkCoord}};
 
 use super::{chunk::{Chunk, LiveVoxels, CHUNK_SIZE}, live_voxels::{LiveVoxelBehavior, LiveVoxelContainer}, voxel::Voxel};
 
@@ -89,8 +89,8 @@ impl Chunks {
             let nz = cz - dz;
             if nx < 0 || nz < 0 || nx >= self.width || nz >= self.depth {continue};
 
-            let new_index = ChunkCoords(nx, cy, nz).index_without_offset(self.width, self.depth);
-            let old_index = ChunkCoords(cx, cy, cz).index_without_offset(self.width, self.depth);
+            let new_index = ChunkCoord::new(nx, cy, nz).index_without_offset(self.width, self.depth);
+            let old_index = ChunkCoord::new(cx, cy, cz).index_without_offset(self.width, self.depth);
             
             indices.push((old_index, new_index));
             new_chunks[new_index] = chunks[old_index].take();
@@ -110,70 +110,70 @@ impl Chunks {
         indices
     }
 
-    pub fn voxel(&self, chunk_coords: ChunkCoords, local_coords: LocalCoords) -> Option<Voxel> {
+    pub fn voxel(&self, chunk_coords: ChunkCoord, local_coords: LocalCoord) -> Option<Voxel> {
         let chunk = self.chunk_ptr(chunk_coords)?;
         Some(unsafe {&*chunk}.voxel(local_coords))
     }
 
-    pub fn voxel_global(&self, coords: GlobalCoords) -> Option<Voxel> {
+    pub fn voxel_global(&self, coords: GlobalCoord) -> Option<Voxel> {
         self.voxel(coords.into(), coords.into())
     }
 
-    pub fn is_air_global(&self, coords: GlobalCoords) -> bool {
+    pub fn is_air_global(&self, coords: GlobalCoord) -> bool {
         let Some(voxel) = self.voxel(coords.into(), coords.into()) else {return false};
         voxel.id == 0
     }
 
 
-    pub fn set_block(&self, global: GlobalCoords, id: u32, direction: Option<&Direction>) {
+    pub fn set_block(&self, global: GlobalCoord, id: u32, direction: Option<&Direction>) {
         self.set_voxel(global, id);
         let Some(live_voxels) = self.live_voxels(global) else {return};
         let block = &self.content.blocks[id as usize].base;
         let Some(name) = &block.live_voxel else {return};
-        let local: LocalCoords = global.into();
+        let local: LocalCoord = global.into();
         let live_voxel = self.content.live_voxel.new.get(name).unwrap()(direction.unwrap_or(&Direction::new_x()));
         live_voxels.insert(local.index(), LiveVoxelContainer::new_arc(id, global, live_voxel));
     }
 
 
-    pub fn set_voxel(&self, global: GlobalCoords, id: u32) {
-        let coords: ChunkCoords = global.into();
+    pub fn set_voxel(&self, global: GlobalCoord, id: u32) {
+        let coords: ChunkCoord = global.into();
         let Some(chunk) = self.chunk(coords) else {return};
 
-        let local: LocalCoords = global.into();
+        let local: LocalCoord = global.into();
     
-        let x_offset = (local.0 == (CHUNK_SIZE-1) as u8) as i32 - (local.0 == 0) as i32;
-        let y_offset = (local.1 == (CHUNK_SIZE-1) as u8) as i32 - (local.1 == 0) as i32;
-        let z_offset = (local.2 == (CHUNK_SIZE-1) as u8) as i32 - (local.2 == 0) as i32;
+        let x_offset = (local.x == (CHUNK_SIZE-1) as u8) as i32 - (local.x == 0) as i32;
+        let y_offset = (local.y == (CHUNK_SIZE-1) as u8) as i32 - (local.y == 0) as i32;
+        let z_offset = (local.z == (CHUNK_SIZE-1) as u8) as i32 - (local.z == 0) as i32;
         chunk.set_voxel_id(local, id);
         chunk.modify(true);
         chunk.save(true);
         
         if x_offset != 0 {
-            if let Some(chunk) = self.chunk((coords.0+x_offset, coords.1, coords.2)) {chunk.modify(true)};
+            if let Some(chunk) = self.chunk((coords.x+x_offset, coords.y, coords.z)) {chunk.modify(true)};
         }
         if y_offset != 0 {
-            if let Some(chunk) = self.chunk((coords.0, coords.1+y_offset, coords.2)) {chunk.modify(true)};
+            if let Some(chunk) = self.chunk((coords.x, coords.y+y_offset, coords.z)) {chunk.modify(true)};
         }
         if z_offset != 0 {
-            if let Some(chunk) = self.chunk((coords.0, coords.1, coords.2+z_offset)) {chunk.modify(true)};
+            if let Some(chunk) = self.chunk((coords.x, coords.y, coords.z+z_offset)) {chunk.modify(true)};
         }
     }
 
     #[inline]
-    pub fn is_in_area(&self, chunk_coords: ChunkCoords) -> bool {
-        chunk_coords.0 >= self.ox() && chunk_coords.0 < self.width_with_offset() &&
-        chunk_coords.1 >= 0 && chunk_coords.1 < self.height &&
-        chunk_coords.2 >= self.oz() && chunk_coords.2 < self.depth_with_offset()
+    pub fn is_in_area(&self, chunk_coords: ChunkCoord) -> bool {
+        chunk_coords.x >= self.ox() && chunk_coords.x < self.width_with_offset() &&
+        chunk_coords.y >= 0 && chunk_coords.y < self.height &&
+        chunk_coords.z >= self.oz() && chunk_coords.z < self.depth_with_offset()
     }
 
-    pub fn local_chunk(&self, coords: ChunkCoords) -> Option<Arc<Chunk>> {
+    pub fn local_chunk(&self, coords: ChunkCoord) -> Option<Arc<Chunk>> {
         let index = coords.index_without_offset(self.width, self.depth);
         unsafe {&mut *self.chunks.get()}.get(index).and_then(|c| c.as_ref().cloned())
     }
 
-    pub fn chunk<T: Into<ChunkCoords>>(&self, coords: T) -> Option<Arc<Chunk>> {
-        let coords: ChunkCoords = coords.into();
+    pub fn chunk<T: Into<ChunkCoord>>(&self, coords: T) -> Option<Arc<Chunk>> {
+        let coords: ChunkCoord = coords.into();
         if !self.is_in_area(coords) { return None; }
         let index = coords.nindex(self.width, self.depth, self.ox(), self.oz());
         // It's safe because we checked the coordinates
@@ -182,8 +182,8 @@ impl Chunks {
         r.cloned()
     }
 
-    pub fn chunk_ptr<T: Into<ChunkCoords>>(&self, coords: T) -> Option<*const Chunk> {
-        let coords: ChunkCoords = coords.into();
+    pub fn chunk_ptr<T: Into<ChunkCoord>>(&self, coords: T) -> Option<*const Chunk> {
+        let coords: ChunkCoord = coords.into();
         if !self.is_in_area(coords) { return None; }
         let index = coords.nindex(self.width, self.depth, self.ox(), self.oz());
         // It's safe because we checked the coordinates
@@ -198,43 +198,43 @@ impl Chunks {
             .as_ref().map(|c| c.as_ref() as *const Chunk)
     }
 
-    pub fn live_voxels<T: Into<ChunkCoords>>(&self, coords: T) -> Option<LiveVoxels> {
+    pub fn live_voxels<T: Into<ChunkCoord>>(&self, coords: T) -> Option<LiveVoxels> {
         self.chunk(coords).map(|c| c.live_voxels())
     }
 
-    pub fn master_live_voxel(&self, gc: GlobalCoords) -> Option<Arc<LiveVoxelContainer>> {
+    pub fn master_live_voxel(&self, gc: GlobalCoord) -> Option<Arc<LiveVoxelContainer>> {
         let live_voxels = self.live_voxels(gc)?;
-        let live_voxel = live_voxels.get(&LocalCoords::from(gc).index())?;
+        let live_voxel = live_voxels.get(&LocalCoord::from(gc).index())?;
 
         if let Some(master_coord) = live_voxel.master_coord() {
-            let index = LocalCoords::from(master_coord).index();
+            let index = LocalCoord::from(master_coord).index();
             return self.live_voxels(master_coord)?.get(&index);
         }
 
         Some(live_voxel)
     }
 
-    pub fn add_multiblock_structure(&self, xyz: &GlobalCoords, width: i32, height: i32, depth: i32, id: u32, dir: &Direction) -> Option<Vec<GlobalCoords>> {
-        let mut coords: Vec<GlobalCoords> = vec![];
+    pub fn add_multiblock_structure(&self, xyz: &GlobalCoord, width: i32, height: i32, depth: i32, id: u32, dir: &Direction) -> Option<Vec<GlobalCoord>> {
+        let mut coords: Vec<GlobalCoord> = vec![];
         //FIX THIS SHIT
         let width_range = if width > 0 {
-            (xyz.0)..(xyz.0+width)
+            (xyz.x)..(xyz.x+width)
         } else {
-            (xyz.0+width+1)..(xyz.0+1)
+            (xyz.x+width+1)..(xyz.x+1)
         };
         let height_range = if height > 0 {
-            (xyz.1)..(xyz.1+height)
+            (xyz.y)..(xyz.y+height)
         } else {
-            (xyz.1+height+1)..(xyz.1+1)
+            (xyz.y+height+1)..(xyz.y+1)
         };
         let depth_range = if depth > 0 {
-            (xyz.2)..(xyz.2+depth)
+            (xyz.z)..(xyz.z+depth)
         } else {
-            (xyz.2+depth+1)..(xyz.2+1)
+            (xyz.z+depth+1)..(xyz.z+1)
         };
         coords.push(*xyz);
         for (nx, nz, ny) in iproduct!(width_range, depth_range, height_range) {
-            if nx == xyz.0 && ny == xyz.1 && nz == xyz.2 {continue};
+            if nx == xyz.x && ny == xyz.y && nz == xyz.z {continue};
             if !self.is_air_global((nx, ny, nz).into()) {return None};
             coords.push((nx, ny, nz).into());
         }
@@ -245,20 +245,20 @@ impl Chunks {
         let live_voxel: Box<(dyn LiveVoxelBehavior)> = self.content.live_voxel.new.get(live_voxel_name)
             .map_or(Box::new(()), |f| { f(dir)});
 
-        voxels_data.insert(LocalCoords::from(coords[0]).index(), 
+        voxels_data.insert(LocalCoord::from(coords[0]).index(), 
             LiveVoxelContainer::new_arc_master(id, coords[0], coords.clone(), live_voxel));
         
         coords.iter().skip(1).for_each(|coord| {
             self.set_voxel(*coord, 1);
             let voxels_data = self.live_voxels(*coord).unwrap();
-            voxels_data.insert(LocalCoords::from(*coord).index(),
+            voxels_data.insert(LocalCoord::from(*coord).index(),
                 LiveVoxelContainer::new_arc_slave(*coord, coords[0]));
         });
         Some(coords)
     }
 
 
-    pub fn remove_multiblock_structure(&self, global: GlobalCoords) -> Option<Vec<GlobalCoords>> {
+    pub fn remove_multiblock_structure(&self, global: GlobalCoord) -> Option<Vec<GlobalCoord>> {
         let live_voxel = self.master_live_voxel(global)?;
         let coords = live_voxel.multiblock_coords().unwrap();
         coords.iter().for_each(|coord| {
@@ -267,17 +267,17 @@ impl Chunks {
         Some(coords.iter().copied().collect_vec())
     }
 
-    pub fn get_sun(&self, coords: GlobalCoords) -> u8 {
+    pub fn get_sun(&self, coords: GlobalCoord) -> u8 {
         self.chunk(coords)
             .map_or(0, |c| c.lightmap.get(coords.into()).get_sun())
     }
 
-    pub fn light(&self, coords: GlobalCoords, channel: usize) -> u8 {
+    pub fn light(&self, coords: GlobalCoord, channel: usize) -> u8 {
         let Some(chunk) = self.chunk_ptr(coords) else {return 0};
-        unsafe {&*chunk}.lightmap.get(LocalCoords::from(coords)).get_channel(channel)
+        unsafe {&*chunk}.lightmap.get(LocalCoord::from(coords)).get_channel(channel)
     }
 
-    pub fn get_light(&self, coords: GlobalCoords) -> Light {
+    pub fn get_light(&self, coords: GlobalCoord) -> Light {
         let Some(chunk) = self.chunk_ptr(coords) else {return Light::default()};
         unsafe {&*chunk}.lightmap.get(coords.into()).clone()
     }

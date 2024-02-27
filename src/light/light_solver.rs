@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, cell::UnsafeCell, ptr::null};
 
-use crate::{content::Content, voxels::{chunks::Chunks, chunk::Chunk}, world::{global_coords::GlobalCoords, local_coords::LocalCoords, chunk_coords::ChunkCoords}};
+use crate::{content::Content, coords::{chunk_coord::ChunkCoord, global_coord::GlobalCoord, local_coord::LocalCoord}, voxels::{chunk::Chunk, chunks::Chunks}};
 
 /// It's very unsafe, but very fast.
 /// May issue STATUS_HEAP_CORRUPTION during relocation.
@@ -28,13 +28,13 @@ impl LightQueue {
 
 #[derive(Debug, Clone, Copy)]
 pub struct LightEntry {
-    pub coords: GlobalCoords,
+    pub coords: GlobalCoord,
     pub light: u8,
 }
 
 impl LightEntry {
     #[inline]
-    pub fn new(coords: GlobalCoords, light: u8) -> LightEntry {
+    pub fn new(coords: GlobalCoord, light: u8) -> LightEntry {
         LightEntry { coords, light }
     }
 }
@@ -45,8 +45,8 @@ impl ChunkBuffer {
     pub fn new() -> Self {Self::default()}
 
     #[inline]
-    pub unsafe fn get_or_init(&mut self, chunks: &Chunks, coords: GlobalCoords) -> Option<&Chunk> {
-        let coords: ChunkCoords = coords.into();
+    pub unsafe fn get_or_init(&mut self, chunks: &Chunks, coords: GlobalCoord) -> Option<&Chunk> {
+        let coords: ChunkCoord = coords.into();
         let index = coords.nindex(chunks.width, chunks.depth, chunks.ox(), chunks.oz());
         if self.0 == index {
             Some(unsafe {&*self.1})
@@ -65,13 +65,13 @@ impl Default for ChunkBuffer {
     fn default() -> Self {Self(usize::MAX, null())}
 }
 
-const NEIGHBOURS: [GlobalCoords; 6] = [
-    GlobalCoords(1,  0, 0),
-    GlobalCoords(-2, 0, 0),
-    GlobalCoords(1, 1, 0),
-    GlobalCoords(0, -2, 0),
-    GlobalCoords(0, 1, 1),
-    GlobalCoords(0, 0, -2),
+const NEIGHBOURS: [GlobalCoord; 6] = [
+    GlobalCoord::new(1,  0, 0),
+    GlobalCoord::new(-2, 0, 0),
+    GlobalCoord::new(1, 1, 0),
+    GlobalCoord::new(0, -2, 0),
+    GlobalCoord::new(0, 1, 1),
+    GlobalCoord::new(0, 0, -2),
 ];
 
 #[derive(Debug)]
@@ -99,11 +99,11 @@ impl LightSolver {
     pub fn add_with_emission(&self, chunks: &Chunks, x: i32, y: i32, z: i32, emission: u8) {
         if emission <= 1 {return};
         
-        let global = GlobalCoords(x, y, z);
+        let global = GlobalCoord::new(x, y, z);
         let Some(chunk) = chunks.chunk_ptr(global).map(|c| unsafe {&*c}) else {return};
 
         let entry = LightEntry::new(global, emission);
-        let local = LocalCoords::from(global);
+        let local = LocalCoord::from(global);
         chunk.lightmap.get(local).set(emission, self.channel);
         chunk.modify(true);
         
@@ -117,10 +117,10 @@ impl LightSolver {
 
 
     pub fn remove(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
-        let global = GlobalCoords(x, y, z);
+        let global = GlobalCoord::new(x, y, z);
         let Some(chunk) = chunks.chunk_ptr(global).map(|c| unsafe {&*c}) else {return};
 
-        let index = LocalCoords::from(global).index();
+        let index = LocalCoord::from(global).index();
 
         let light = unsafe {chunk.lightmap.0.get_unchecked(index).get_unchecked_channel(self.channel)};
         unsafe {chunk.lightmap.0.get_unchecked(index).set_unchecked_channel(0, self.channel)};
@@ -142,7 +142,7 @@ impl LightSolver {
                 entry.coords += offsets;
 
                 let Some(chunk) = (unsafe {chunk_buffer.get_or_init(chunks, entry.coords)}) else {continue};
-                let index = LocalCoords::from(entry.coords).index();
+                let index = LocalCoord::from(entry.coords).index();
 
                 entry.light = unsafe {chunk.lightmap.0.get_unchecked(index)
                     .get_unchecked_channel(self.channel)};
@@ -169,7 +169,7 @@ impl LightSolver {
                 entry.coords += offsets;
 
                 let Some(chunk) = (unsafe {chunk_buffer.get_or_init(chunks, entry.coords)}) else {continue};
-                let index = LocalCoords::from(entry.coords).index();
+                let index = LocalCoord::from(entry.coords).index();
 
                 let light = unsafe {chunk.lightmap.0.get_unchecked(index)
                     .get_unchecked_channel(self.channel)};

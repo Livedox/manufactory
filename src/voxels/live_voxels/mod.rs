@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Arc, Mutex, Weak}};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{bytes::AsFromBytes, content::Content, direction::Direction, gui::draw::Draw, recipes::storage::Storage, world::global_coords::GlobalCoords};
+use crate::{bytes::AsFromBytes, content::Content, direction::Direction, gui::draw::Draw, recipes::storage::Storage, coords::global_coord::GlobalCoord};
 use std::fmt::Debug;
 use self::{assembling_machine::AssemblingMachine, cowboy::Cowboy, drill::Drill, furnace::Furnace, manipulator::Manipulator, transport_belt::TransportBelt, voxel_box::VoxelBox};
 
@@ -23,31 +23,31 @@ pub trait PlayerUnlockable: Draw {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MultiBlock {
-    Slave(GlobalCoords),
-    Master(Vec<GlobalCoords>)
+    Slave(GlobalCoord),
+    Master(Vec<GlobalCoord>)
 }
 
 #[derive(Debug)]
 pub struct LiveVoxelContainer {
     pub id: u32,
-    pub coord: GlobalCoords,
+    pub coord: GlobalCoord,
     pub multiblock: Option<MultiBlock>,
     pub live_voxel: Box<dyn LiveVoxelBehavior>
 }
 
 impl LiveVoxelContainer {
     #[inline]
-    pub fn new(id: u32, coord: GlobalCoords, live_voxel: Box<dyn LiveVoxelBehavior>) -> Self {
+    pub fn new(id: u32, coord: GlobalCoord, live_voxel: Box<dyn LiveVoxelBehavior>) -> Self {
         Self { id, coord, live_voxel, multiblock: None }
     }
 
     #[inline]
-    pub fn new_arc(id: u32, coord: GlobalCoords, live_voxel: Box<dyn LiveVoxelBehavior>) -> Arc<Self> {
+    pub fn new_arc(id: u32, coord: GlobalCoord, live_voxel: Box<dyn LiveVoxelBehavior>) -> Arc<Self> {
         Arc::new(Self::new(id, coord, live_voxel))
     }
 
     #[inline]
-    pub fn new_arc_master(id: u32, coord: GlobalCoords, all: Vec<GlobalCoords>, live_voxel: Box<dyn LiveVoxelBehavior>) -> Arc<Self> {
+    pub fn new_arc_master(id: u32, coord: GlobalCoord, all: Vec<GlobalCoord>, live_voxel: Box<dyn LiveVoxelBehavior>) -> Arc<Self> {
         Arc::new(Self {
             id,
             coord,
@@ -57,7 +57,7 @@ impl LiveVoxelContainer {
     }
 
     #[inline]
-    pub fn new_arc_slave(coord: GlobalCoords, master: GlobalCoords) -> Arc<Self> {
+    pub fn new_arc_slave(coord: GlobalCoord, master: GlobalCoord) -> Arc<Self> {
         Arc::new(Self {
             id: 1,
             coord,
@@ -66,7 +66,7 @@ impl LiveVoxelContainer {
         })
     }
 
-    pub fn coord(&self) -> GlobalCoords {
+    pub fn coord(&self) -> GlobalCoord {
         self.coord
     }
 
@@ -77,14 +77,14 @@ impl LiveVoxelContainer {
     }
     
     #[inline]
-    pub fn master_coord(&self) -> Option<GlobalCoords> {
+    pub fn master_coord(&self) -> Option<GlobalCoord> {
         match &self.multiblock {
             Some(MultiBlock::Slave(c)) => Some(*c),
             _ => None
         }
     }
     #[inline] 
-    pub fn multiblock_coords(&self) -> Option<&[GlobalCoords]> {
+    pub fn multiblock_coords(&self) -> Option<&[GlobalCoord]> {
         match &self.multiblock {
             Some(MultiBlock::Master(v)) => Some(v),
             _ => None
@@ -195,7 +195,7 @@ pub trait LiveVoxelBehavior: Debug {
     fn rotation_index(&self) -> Option<u32> {None}
     fn storage(&self) -> Option<Arc<Mutex<dyn Storage>>> {None}
     #[allow(unused)]
-    fn update(&self, chunks: &Chunks, coord: GlobalCoords, multiblock: &[GlobalCoords]) {}
+    fn update(&self, chunks: &Chunks, coord: GlobalCoord, multiblock: &[GlobalCoord]) {}
     fn transport_belt(&self) -> Option<Arc<Mutex<TransportBelt>>> {None}
     fn animation_progress(&self) -> f32 {0.0}
 

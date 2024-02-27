@@ -1,4 +1,4 @@
-use crate::{player::player::Player, direction::Direction, world::{World, global_coords::GlobalCoords, coords::Coords}, recipes::item::Item};
+use crate::{player::player::Player, direction::Direction, world::{World, global_coords::GlobalCoord, coords::Coords}, recipes::item::Item};
 
 use super::{block_type::BlockType};
 
@@ -21,10 +21,10 @@ pub trait BlockInteraction {
     fn ore(&self) -> Option<Item> {None}
 
 
-    fn on_block_break(&self, world: &World, _: &mut Player, xyz: &GlobalCoords) {
+    fn on_block_break(&self, world: &World, _: &mut Player, xyz: &GlobalCoord) {
         world.break_voxel(xyz);
     }
-    fn on_block_set(&self, world: &World, _: &mut Player, xyz: &GlobalCoords, _: &Direction) -> bool {
+    fn on_block_set(&self, world: &World, _: &mut Player, xyz: &GlobalCoord, _: &Direction) -> bool {
         if world.voxel(xyz).map(|v| v.id == 0).unwrap_or(true) {
             // world.set_voxel(xyz, self.id(), dir);
             return true;

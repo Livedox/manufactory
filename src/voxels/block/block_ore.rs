@@ -1,4 +1,4 @@
-use crate::{recipes::{item::Item, storage::Storage}, world::{World, global_coords::GlobalCoords}, player::player::Player};
+use crate::{recipes::{item::Item, storage::Storage}, world::{World, global_coords::GlobalCoord}, player::player::Player};
 
 use super::{interaction::{BlockInteraction, BlockItem}, block_type::BlockType};
 
@@ -18,7 +18,7 @@ impl BlockInteraction for BlockOre {
     fn block_type(&self) -> &BlockType {&self.block_type}
     fn is_additional_data(&self) -> bool {self.is_additional_data}
 
-    fn on_block_break(&self, world: &World, player: &mut Player, xyz: &GlobalCoords) {
+    fn on_block_break(&self, world: &World, player: &mut Player, xyz: &GlobalCoord) {
         world.break_voxel(xyz);
         player.inventory().lock().unwrap().add(&Item::new(self.item_id(), 1), true);
     }

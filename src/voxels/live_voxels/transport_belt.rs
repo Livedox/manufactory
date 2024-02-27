@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 
+use crate::coords::global_coord::GlobalCoord;
 use crate::direction::{Direction};
 use crate::recipes::item::PossibleItem;
 use crate::voxels::chunks::Chunks;
-use crate::{live_voxel_default_deserialize, GlobalCoords};
+use crate::{live_voxel_default_deserialize};
 
 use std::sync::{Arc, Mutex};
 
@@ -29,7 +30,7 @@ impl LiveVoxelBehavior for Arc<Mutex<TransportBelt>> {
         Some(self.clone())
     }
 
-    fn update(&self, chunks: &Chunks, coord: GlobalCoords, _: &[GlobalCoords]) {
+    fn update(&self, chunks: &Chunks, coord: GlobalCoord, _: &[GlobalCoord]) {
         self.lock().unwrap().update(coord, chunks);
     }
 
@@ -72,7 +73,7 @@ impl TransportBelt {
         2
     }
 
-    pub fn update(&mut self, coords: GlobalCoords, chunks: &Chunks) {
+    pub fn update(&mut self, coords: GlobalCoord, chunks: &Chunks) {
         if self.storage[0].0.is_some() {self.item_progress[0] += 0.1;}
         if self.storage[3].0.is_some() {self.item_progress[3] += 0.1;}
 
@@ -92,7 +93,7 @@ impl TransportBelt {
             checking_progress = *progress - 0.33;
         });
 
-        let dst_coords = GlobalCoords(coords.0+self.direction[0] as i32, coords.1, coords.2+self.direction[2] as i32);
+        let dst_coords = GlobalCoord::new(coords.x+self.direction[0] as i32, coords.y, coords.z+self.direction[2] as i32);
         let Some(dst) = chunks.master_live_voxel(dst_coords).and_then(|lv| lv.transport_belt()) else {return};
         
         if self.item_progress[0] > 1.0

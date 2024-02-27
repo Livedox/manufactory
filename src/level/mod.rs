@@ -1,5 +1,5 @@
 use std::{path::PathBuf, sync::{Arc, Mutex, Condvar, mpsc::{Sender, Receiver}}};
-use crate::{camera, content::Content, direction::Direction, engine::{state::{Indices, State}}, frustum, graphic::{render::RenderResult, render_selection::render_selection}, gui::gui_controller::{GuiController}, input_event::{input_service::{InputService, Mouse}, KeypressState}, meshes::{Meshes, MeshesRenderInput, Mesh}, my_time::Time, nalgebra_converter::Conventer, player::player::Player, recipes::{storage::Storage, item::Item}, save_load::WorldSaver, setting::Setting, threads::{Threads, save::SaveState}, unsafe_mutex::UnsafeMutex, voxels::{chunks::WORLD_HEIGHT, ray_cast::ray_cast}, world::{World, sun::{Sun, Color}, global_coords::GlobalCoords, chunk_coords::ChunkCoords}, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
+use crate::{camera, content::Content, coords::{chunk_coord::ChunkCoord, global_coord::GlobalCoord}, direction::Direction, engine::state::{Indices, State}, frustum, graphic::{render::RenderResult, render_selection::render_selection}, gui::gui_controller::GuiController, input_event::{input_service::{InputService, Mouse}, KeypressState}, meshes::{Mesh, Meshes, MeshesRenderInput}, my_time::Time, nalgebra_converter::Conventer, player::player::Player, recipes::{item::Item, storage::Storage}, save_load::WorldSaver, setting::Setting, threads::{save::SaveState, Threads}, unsafe_mutex::UnsafeMutex, voxels::{chunks::WORLD_HEIGHT, ray_cast::ray_cast}, world::{sun::{Color, Sun}, World}, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
 use nalgebra_glm as glm;
 
 pub struct Level {
@@ -17,11 +17,11 @@ pub struct Level {
 
 impl Level {
     pub fn new(world_name: &str, seed: u64, setting: &Setting, indices: &Indices) -> Self {
-        let content = Arc::new(Content::new(indices));
         let (render_sender, render_recv) = std::sync::mpsc::channel::<RenderResult>();
         let (indices_sender, indices_recv) = std::sync::mpsc::channel::<Vec<(usize, usize)>>();
         let mut path = PathBuf::from("./data/worlds/");
         path.push(world_name);
+        let content = Arc::new(Content::new(indices, path.as_path()));
         let world_saver = Arc::new(WorldSaver::new(path));
         let player = match world_saver.player.lock().unwrap().load_player() {
             Some(player) => player,
@@ -39,9 +39,9 @@ impl Level {
             }
         };
         let render_diameter = (setting.render_radius * 2 + 1) as i32;
-        let chunk_position: ChunkCoords = GlobalCoords::from(player.position().tuple()).into();
-        let ox = chunk_position.0 - setting.render_radius as i32;
-        let oz = chunk_position.2 - setting.render_radius as i32;
+        let chunk_position: ChunkCoord = GlobalCoord::from(player.position().tuple()).into();
+        let ox = chunk_position.x - setting.render_radius as i32;
+        let oz = chunk_position.z - setting.render_radius as i32;
         let world = Arc::new(
             World::new(Arc::clone(&content), seed, render_diameter, WORLD_HEIGHT as i32, render_diameter, ox, 0, oz));
         let save_condvar = Arc::new((Mutex::new(SaveState::Unsaved), Condvar::new()));
@@ -97,7 +97,7 @@ impl Level {
         player.handle_input(input, time.delta(), is_cursor);
         player.inventory().lock().unwrap().update_recipe();
 
-        let ChunkCoords(px, _, pz) = ChunkCoords::from(GlobalCoords::from(player.position().tuple()));
+        let ChunkCoord{x: px, z: pz, ..} = ChunkCoord::from(GlobalCoord::from(player.position().tuple()));
         if ((px-render_radius as i32 - self.world.chunks.ox()).abs() > 2 ||
             (pz-render_radius as i32 - self.world.chunks.oz()).abs() > 2) &&
             !self.world.chunks.is_translate()
@@ -121,12 +121,12 @@ impl Level {
 
         if let Some(result) = result {
             let (global, voxel, norm) = (result.0, result.1, result.2);
-            let global: GlobalCoords = global.into();
+            let global: GlobalCoord = global.into();
             let voxel_id = voxel.map_or(0, |v| v.id) as usize;
 
             if voxel_id != 0 {
-                let min = *self.content.blocks[voxel_id].min_point() + global.into();
-                let max = *self.content.blocks[voxel_id].max_point() + global.into();
+                let min = self.content.blocks[voxel_id].min_point() + global.into();
+                let max = self.content.blocks[voxel_id].max_point() + global.into();
                 state.selection_vertex_buffer =
                     Some(render_selection(
                         state.device(),

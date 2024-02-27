@@ -1,11 +1,3 @@
-pub mod interaction;
-pub mod block_default;
 pub mod block_type;
-pub mod block_builder;
-pub mod block_player;
-pub mod blocks;
-pub mod block_ore;
-pub mod multiblock;
-pub mod block_belt;
 pub mod block_test;
 pub mod functions;
