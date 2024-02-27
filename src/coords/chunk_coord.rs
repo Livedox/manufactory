@@ -18,7 +18,7 @@ impl ChunkCoord {
     }
 
     #[inline]
-    pub fn nindex(&self, w: i32, d: i32, ox: i32, oz: i32) -> usize {
+    pub const fn nindex(&self, w: i32, d: i32, ox: i32, oz: i32) -> usize {
         ((self.y*d + self.z-oz)*w + self.x-ox) as usize
     }
 
@@ -28,7 +28,7 @@ impl ChunkCoord {
     }
 
     #[inline]
-    pub fn index_without_offset(&self, width: i32, depth: i32) -> usize {
+    pub const fn index_without_offset(&self, width: i32, depth: i32) -> usize {
         ((self.y*depth + self.z)*width + self.x) as usize
     }
 
