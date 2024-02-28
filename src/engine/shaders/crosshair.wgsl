@@ -3,15 +3,23 @@
 @group(0) @binding(0)
 var<uniform> u_ar_scale: vec2<f32>;
 
-var<private> LINES: array<vec4<f32>, 12> = array(
-    // horizontal
+var<private> LINES: array<vec4<f32>, 18> = array(
+    // horizontal left
     vec4f(-0.05, -0.005, 0.0, 1.0),
     vec4f(-0.05, 0.005, 0.0, 1.0),
+    vec4f(-0.005, 0.005, 0.0, 1.0),
+
+    vec4f(-0.005, 0.005, 0.0, 1.0),
+    vec4f(-0.005, -0.005, 0.0, 1.0),
+    vec4f(-0.05, -0.005, 0.0, 1.0),
+    // horizontal right
+    vec4f(0.005, -0.005, 0.0, 1.0),
+    vec4f(0.005, 0.005, 0.0, 1.0),
     vec4f(0.05, 0.005, 0.0, 1.0),
 
     vec4f(0.05, 0.005, 0.0, 1.0),
     vec4f(0.05, -0.005, 0.0, 1.0),
-    vec4f(-0.05, -0.005, 0.0, 1.0),
+    vec4f(0.005, -0.005, 0.0, 1.0),
 
     // vertical
     vec4f(0.005, 0.05, 0.0, 1.0),
@@ -35,5 +43,5 @@ fn vs_main(
 
 @fragment
 fn fs_main() -> @location(0) vec4<f32> {
-    return vec4(0.8, 0.8, 0.8, 0.8);
+    return vec4(1.0, 1.0, 1.0, 1.0);
 }

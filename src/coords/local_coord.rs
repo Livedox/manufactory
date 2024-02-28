@@ -33,7 +33,7 @@ impl LocalCoord {
 
 impl From<(u8, u8, u8)> for LocalCoord {
     #[inline] fn from(xyz: (u8, u8, u8)) -> Self {
-        unsafe {std::mem::transmute(xyz)}
+        Self::new(xyz.0, xyz.1, xyz.2)
     }
 }
 
@@ -45,7 +45,7 @@ impl From<(usize, usize, usize)> for LocalCoord {
 
 impl From<LocalCoord> for (u8, u8, u8) {
     #[inline] fn from(coord: LocalCoord) -> Self {
-        unsafe {std::mem::transmute(coord)}
+        (coord.x, coord.y, coord.z)
     }
 }
 

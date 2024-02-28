@@ -60,7 +60,7 @@ impl Pipelines {
             format, wgpu::PrimitiveTopology::LineList,
             sample_count, true, "selection"),
         
-        crosshair: new(
+        crosshair: new_crosshair(
             device, &[&layouts.crosshair_aspect_scale],
             &[], &shaders.crosshair,
             format, wgpu::PrimitiveTopology::TriangleList,
@@ -214,6 +214,75 @@ pub fn new_glass(
             stencil: wgpu::StencilState::default(),
             bias: wgpu::DepthBiasState::default(),
         }),
+        multisample: wgpu::MultisampleState {
+            count: sample_count,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },
+        // If the pipeline will be used with a multiview render pass, this
+        // indicates how many array layers the attachments will have.
+        multiview: None,
+    })
+}
+
+
+pub fn new_crosshair(
+    device: &Device,
+    bind_group_layouts: &[&BindGroupLayout],
+    buffers: &[VertexBufferLayout<'_>],
+    shader: &ShaderModule,
+    format: TextureFormat,
+    topology: PrimitiveTopology,
+    sample_count: u32,
+    depth: bool,
+    label: &str,
+) -> RenderPipeline {
+    let render_pipeline_layout =
+        device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some(&format!("Render Pipeline Layout ({})", label)),
+            bind_group_layouts,
+            push_constant_ranges: &[],
+        });
+
+    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some(&format!("Render Pipeline ({})", label)),
+        layout: Some(&render_pipeline_layout),
+        vertex: wgpu::VertexState {
+            module: shader,
+            entry_point: "vs_main",
+            buffers,
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: shader,
+            entry_point: "fs_main",
+            targets: &[Some(wgpu::ColorTargetState {
+                format,
+                blend: Some(wgpu::BlendState {
+                    color: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::OneMinusDst,
+                        dst_factor: wgpu::BlendFactor::Dst,
+                        operation: wgpu::BlendOperation::Subtract,
+                    },
+                    alpha: wgpu::BlendComponent::OVER,
+                }),
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+        }),
+
+        primitive: wgpu::PrimitiveState {
+            topology,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Cw,
+            cull_mode: Some(wgpu::Face::Back),
+            // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
+            // or Features::POLYGON_MODE_POINT
+            polygon_mode: wgpu::PolygonMode::Fill,
+            // Requires Features::DEPTH_CLIP_CONTROL
+            unclipped_depth: false,
+            // Requires Features::CONSERVATIVE_RASTERIZATION
+            conservative: false,
+        },
+        depth_stencil: None,
         multisample: wgpu::MultisampleState {
             count: sample_count,
             mask: !0,

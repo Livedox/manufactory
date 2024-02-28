@@ -1,0 +1,6 @@
+{
+  "id": "15",
+  "block_type": {"block": {"faces": "15"}},
+  "on_break": ["on_break"],
+  "on_set": ["on_set"]
+}

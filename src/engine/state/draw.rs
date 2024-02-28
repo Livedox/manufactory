@@ -44,9 +44,8 @@ impl<'a> State<'a> {
         render_pass.set_bind_group(0, &self.bind_groups_buffers.sun.bind_group, &[]);
         render_pass.set_bind_group(2, &self.bind_groups_buffers.camera.bind_group, &[]);
         self.draw_glass(&mut render_pass, meshes);
-        self.draw_crosshair(&mut render_pass);
         drop(render_pass);
-
+        
 
         let texture_dst = Texture::create_copy_dst_texture(&self.device, &self.config);
         encoder.copy_texture_to_texture(output_texture.as_image_copy(),
@@ -71,6 +70,7 @@ impl<'a> State<'a> {
         });
         
         self.draw_post_process(&mut render_pass, &post_process_bg);
+        self.draw_crosshair(&mut render_pass);
     }
 
     /// set bind group = 1 (block_texutre_bg)
@@ -169,7 +169,7 @@ impl<'a> State<'a> {
         if self.is_crosshair {
             render_pass.set_pipeline(&self.pipelines.crosshair);
             render_pass.set_bind_group(0, &self.bind_groups_buffers.crosshair_aspect_scale.bind_group, &[]);
-            render_pass.draw(0..12, 0..1);
+            render_pass.draw(0..18, 0..1);
         }
     }
 

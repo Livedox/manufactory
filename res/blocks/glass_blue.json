@@ -1,0 +1,8 @@
+{
+  "id": "glass_blue",
+  "block_type": {"block": {"faces": ["glass_blue"]}},
+  "on_break": ["on_break"],
+  "on_set": ["on_set"],
+  "is_glass": true,
+  "is_light_passing": true
+}

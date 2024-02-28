@@ -14,7 +14,7 @@ pub struct GlobalCoord {
 
 impl GlobalCoord {
     #[inline]
-    pub const fn new(x: i32, z: i32, y: i32) -> Self {
+    pub const fn new(x: i32, y: i32, z: i32) -> Self {
         Self { x, y, z }
     }
 }
@@ -24,14 +24,14 @@ impl AsFromBytes for GlobalCoord {}
 impl From<(i32, i32, i32)> for GlobalCoord {
     #[inline]
     fn from(xyz: (i32, i32, i32)) -> Self {
-        unsafe {std::mem::transmute(xyz)}
+        Self::new(xyz.0, xyz.1, xyz.2)
     }
 }
 
 impl From<GlobalCoord> for (i32, i32, i32) {
     #[inline]
     fn from(coord: GlobalCoord) -> Self {
-        unsafe {std::mem::transmute(coord)}
+        (coord.x, coord.y, coord.z)
     }
 }
 

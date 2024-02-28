@@ -44,14 +44,14 @@ impl ChunkCoord {
 impl From<(i32, i32, i32)> for ChunkCoord {
     #[inline]
     fn from(xyz: (i32, i32, i32)) -> Self {
-        unsafe {std::mem::transmute(xyz)}
+        Self::new(xyz.0, xyz.1, xyz.2)
     }
 }
 
 impl From<ChunkCoord> for (i32, i32, i32) {
     #[inline]
     fn from(coord: ChunkCoord) -> Self {
-        unsafe {std::mem::transmute(coord)}
+        (coord.x, coord.y, coord.z)
     }
 }
 
