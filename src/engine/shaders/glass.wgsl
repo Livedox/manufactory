@@ -43,8 +43,12 @@ var s_diffuse: sampler;
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let ambient = vec4(0.0075, 0.0075, 0.0075, 0.0);
+    let z = in.clip_position.z;
     let color = (ambient + in.light) * textureSample(t_diffuse, s_diffuse, in.uv, in.layer);
-    let exit = vec4f(color.rgb * color.a, 1.0);
+    // let weight = max(min(1.0, max(max(color.r, color.g), color.b) * color.a), color.a) *
+    //     clamp((0.03 / (0.00001 + pow(z / 200.0, 4.0))), 0.01, 300.0);
+    let weight = 1.0;
+    let exit = vec4f(color.rgb * weight, color.a);
 
     return exit;
 }

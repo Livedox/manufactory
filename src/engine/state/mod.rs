@@ -504,6 +504,30 @@ impl<'a> State<'a> {
         }
     }
 
+    fn get_clear_rpass_color_attachment<'b>(&'b self, view: &'b wgpu::TextureView, store: wgpu::StoreOp) -> wgpu::RenderPassColorAttachment {
+        if self.sample_count == 1 {
+            wgpu::RenderPassColorAttachment {
+                view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    store: wgpu::StoreOp::Store,
+                },
+            }
+        } else {
+            wgpu::RenderPassColorAttachment {
+                view: &self.multisampled_framebuffer,
+                resolve_target: Some(view),
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    // Storing pre-resolve MSAA data is unnecessary if it isn't used later.
+                    // On tile-based GPU, avoid store can reduce your app's memory footprint.
+                    store,
+                },
+            }
+        }
+    }
+
     pub fn handle_event(&mut self, event: &winit::event::Event<()>) {
         match event {
             winit::event::Event::WindowEvent {

@@ -41,15 +41,31 @@ impl<'a> State<'a> {
         self.draw_animated_model(&mut render_pass, meshes);
         self.draw_model(&mut render_pass, meshes);
         self.draw_selection(&mut render_pass);
+        drop(render_pass);
+        let texture_dst = Texture::create_copy_dst_texture(&self.device, &self.config);
+        encoder.copy_texture_to_texture(output_texture.as_image_copy(),
+            texture_dst.as_image_copy(), Texture::get_screen_size(&self.config));
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render Pass Start"),
+            color_attachments: &[Some(self.get_clear_rpass_color_attachment(view, wgpu::StoreOp::Discard))],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.depth_texture.view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
         render_pass.set_bind_group(0, &self.bind_groups_buffers.sun.bind_group, &[]);
         render_pass.set_bind_group(2, &self.bind_groups_buffers.camera.bind_group, &[]);
         self.draw_glass(&mut render_pass, meshes);
         drop(render_pass);
-        
-
-        let texture_dst = Texture::create_copy_dst_texture(&self.device, &self.config);
+        let glass_dst = Texture::create_copy_dst_texture(&self.device, &self.config);
         encoder.copy_texture_to_texture(output_texture.as_image_copy(),
-            texture_dst.as_image_copy(), Texture::get_screen_size(&self.config));
+        glass_dst.as_image_copy(), Texture::get_screen_size(&self.config));
 
         let layout = if self.sample_count == 1 {
             &self.layouts.post_process
@@ -59,6 +75,7 @@ impl<'a> State<'a> {
         let post_process_bg = bind_group::post_process::get(
             &self.device, layout,
             &texture_dst.create_view(&wgpu::TextureViewDescriptor::default()),
+            &glass_dst.create_view(&wgpu::TextureViewDescriptor::default()),
             &self.depth_texture.view);
 
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -90,9 +107,6 @@ impl<'a> State<'a> {
     fn draw_glass<'b>(&'b self, render_pass: &mut wgpu::RenderPass<'b>, meshes: &'b [Arc<Mesh>]) {
         render_pass.set_pipeline(&self.pipelines.glass);
         render_pass.set_bind_group(1, &self.block_texutre_bg, &[]);
-        // render_pass.set_blend_constant(wgpu::Color {r: -0.9, g: -0.9, b: -0.9, a: 0.0});
-        // render_pass.set_blend_constant(wgpu::Color {r: 0.0, g: 0.0, b: 0.0, a: 0.0});
-        // render_pass.set_blend_constant(wgpu::Color {r: 0.5, g: 0.5, b: 0.5, a: 0.0});
         meshes.iter().filter(|m| m.glass_index_count > 0).for_each(|mesh| {
             render_pass.set_vertex_buffer(0, mesh.glass_vertex_buffer.slice(..));
             render_pass.set_index_buffer(mesh.glass_index_buffer.slice(..), wgpu::IndexFormat::Uint32);

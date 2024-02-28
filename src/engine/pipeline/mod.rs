@@ -184,11 +184,15 @@ pub fn new_glass(
                 format,
                 blend: Some(wgpu::BlendState {
                     color: wgpu::BlendComponent {
-                        src_factor: wgpu::BlendFactor::OneMinusDst,
+                        src_factor: wgpu::BlendFactor::OneMinusDstAlpha,
                         dst_factor: wgpu::BlendFactor::One,//OneMinusSrc
                         operation: wgpu::BlendOperation::Add,
                     },
-                    alpha: wgpu::BlendComponent::OVER,
+                    alpha: wgpu::BlendComponent {
+                        src_factor: wgpu::BlendFactor::SrcAlpha,
+                        dst_factor: wgpu::BlendFactor::DstAlpha,
+                        operation: wgpu::BlendOperation::Add
+                    },
                 }),
                 write_mask: wgpu::ColorWrites::ALL,
             })],
