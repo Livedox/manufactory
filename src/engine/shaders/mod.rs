@@ -1,7 +1,6 @@
 pub(crate) struct Shaders {
     pub(crate) block: wgpu::ShaderModule,
     pub(crate) glass: wgpu::ShaderModule,
-    pub(crate) blending: wgpu::ShaderModule,
     pub(crate) transport_belt: wgpu::ShaderModule,
     pub(crate) model: wgpu::ShaderModule,
     pub(crate) animated_model: wgpu::ShaderModule,
@@ -22,6 +21,5 @@ impl Shaders {
         post_process: device.create_shader_module(wgpu::include_wgsl!("post_process.wgsl")),
         multisampled_post_process: device.create_shader_module(wgpu::include_wgsl!("multisampled_post_process.wgsl")),
         glass: device.create_shader_module(wgpu::include_wgsl!("glass.wgsl")),
-        blending: device.create_shader_module(wgpu::include_wgsl!("blending.wgsl")),
     }}
 }
