@@ -2,6 +2,7 @@ pub mod texture;
 pub mod vertex_uniform;
 pub mod vertex_storage;
 pub mod post_process;
+pub mod blending;
 
 pub struct Layouts {
     pub block_texture: wgpu::BindGroupLayout,
@@ -15,6 +16,7 @@ pub struct Layouts {
     pub time: wgpu::BindGroupLayout,
     pub post_process: wgpu::BindGroupLayout,
     pub multisampled_post_process: wgpu::BindGroupLayout,
+    pub blending: wgpu::BindGroupLayout,
 }
 
 impl Layouts {
@@ -29,5 +31,6 @@ impl Layouts {
         sun: self::vertex_uniform::get(device, "sun_bgl"),
         camera: self::vertex_uniform::get(device, "camera_bgl"),
         time: self::vertex_uniform::get(device, "transport_belt_bgl"),
+        blending: self::blending::get(device),
     }}
 }

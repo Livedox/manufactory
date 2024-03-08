@@ -291,7 +291,8 @@ impl Texture {
 
     pub fn create_copy_dst_texture(
         device: &wgpu::Device,
-        config: &wgpu::SurfaceConfiguration
+        config: &wgpu::SurfaceConfiguration,
+        format: wgpu::TextureFormat,
     ) -> wgpu::Texture {
         let size = Self::get_screen_size(config);
 
@@ -300,8 +301,30 @@ impl Texture {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: config.format,
+            format,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            label: None,
+            view_formats: &[],
+        };
+
+        device.create_texture(descriptor)
+    }
+
+    pub fn create_copy_texture(
+        device: &wgpu::Device,
+        config: &wgpu::SurfaceConfiguration,
+        format: wgpu::TextureFormat,
+    ) -> wgpu::Texture {
+        let size = Self::get_screen_size(config);
+
+        let descriptor = &wgpu::TextureDescriptor {
+            size,
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             label: None,
             view_formats: &[],
         };

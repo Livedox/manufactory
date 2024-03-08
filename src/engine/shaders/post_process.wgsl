@@ -59,5 +59,5 @@ fn fs_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let glass = textureLoad(glass_color, vec2<i32>(pos.xy), 0);
     let color = textureLoad(texture_color, vec2<i32>(pos.xy), 0);
     let return_color = mix(color.rgb, glass.rgb, glass.a);
-    return vec4(return_color.rgb, color.a);
+    return color;
 }

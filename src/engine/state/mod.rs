@@ -510,7 +510,7 @@ impl<'a> State<'a> {
                 view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    load: wgpu::LoadOp::Load,
                     store: wgpu::StoreOp::Store,
                 },
             }
@@ -519,7 +519,7 @@ impl<'a> State<'a> {
                 view: &self.multisampled_framebuffer,
                 resolve_target: Some(view),
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    load: wgpu::LoadOp::Load,
                     // Storing pre-resolve MSAA data is unnecessary if it isn't used later.
                     // On tile-based GPU, avoid store can reduce your app's memory footprint.
                     store,

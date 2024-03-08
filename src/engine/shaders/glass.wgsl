@@ -34,6 +34,11 @@ fn vs_main(
         vec4(light, 1.0));
 }
 
+struct FragmentOutput {
+    @location(0) color: vec4<f32>,
+    @location(1) reveal: f32,
+}
+
 // Fragment shader
 @group(1) @binding(0)
 var t_diffuse: texture_2d_array<f32>;
@@ -41,14 +46,17 @@ var t_diffuse: texture_2d_array<f32>;
 var s_diffuse: sampler;
 
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexOutput) -> FragmentOutput {
     let ambient = vec4(0.0075, 0.0075, 0.0075, 0.0);
-    let z = in.clip_position.z;
     let color = (ambient + in.light) * textureSample(t_diffuse, s_diffuse, in.uv, in.layer);
-    // let weight = max(min(1.0, max(max(color.r, color.g), color.b) * color.a), color.a) *
-    //     clamp((0.03 / (0.00001 + pow(z / 200.0, 4.0))), 0.01, 300.0);
-    let weight = 1.0;
-    let exit = vec4f(color.rgb * weight, color.a);
+    let z = in.clip_position.z * 10.0;
+    let weight = max(min(1.0, max(max(color.r, color.g), color.b) * color.a), color.a) *
+        clamp((0.03 / (0.00001 + pow(z / 200.0, 4.0))), 0.01, 300.0);
+    // // let weight = pow(color.a + 0.01, 4.0) + max(1e-2, min(3.0 * 1e3, 100.0 / (1e-5 + pow(abs(z) / 10.0, 3.0) + pow(abs(z) / 200.0, 6.0))));
+    // // let weight = 1.0;
+    // let exit = vec4f(color.rgb * color.a, color.a);
+    let accum = vec4f(color.rgb * color.a, color.a) * weight;
 
-    return exit;
+
+    return FragmentOutput(accum, color.a);
 }
