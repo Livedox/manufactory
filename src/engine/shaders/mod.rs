@@ -8,6 +8,7 @@ pub(crate) struct Shaders {
     pub(crate) crosshair: wgpu::ShaderModule,
     pub(crate) post_process: wgpu::ShaderModule,
     pub(crate) multisampled_post_process: wgpu::ShaderModule,
+    pub(crate) composite: wgpu::ShaderModule,
 }
 
 impl Shaders {
@@ -21,5 +22,6 @@ impl Shaders {
         post_process: device.create_shader_module(wgpu::include_wgsl!("post_process.wgsl")),
         multisampled_post_process: device.create_shader_module(wgpu::include_wgsl!("multisampled_post_process.wgsl")),
         glass: device.create_shader_module(wgpu::include_wgsl!("glass.wgsl")),
+        composite: device.create_shader_module(wgpu::include_wgsl!("composite.wgsl")),
     }}
 }

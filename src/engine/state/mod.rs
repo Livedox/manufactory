@@ -212,6 +212,8 @@ pub struct State<'a> {
     pipelines: Pipelines,
 
     depth_texture: texture::Texture,
+    accum_texture: texture::Texture,
+    reveal_texture: texture::Texture,
     multisampled_framebuffer: wgpu::TextureView,
     sample_count: u32,
 
@@ -326,6 +328,8 @@ impl<'a> State<'a> {
             texture::Texture::create_multisampled_framebuffer(&device, &config, sample_count);
 
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture", sample_count);
+        let accum_texture = texture::Texture::create_accum_texture(&device, &config, "accum_texture", sample_count);
+        let reveal_texture = texture::Texture::create_reveal_texture(&device, &config, "reveal_texture");
         
         let transforms_storage_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Animated model storage buffer"),
@@ -347,6 +351,8 @@ impl<'a> State<'a> {
             window,
 
             depth_texture,
+            accum_texture,
+            reveal_texture,
             multisampled_framebuffer,
             sample_count,
 
@@ -383,6 +389,10 @@ impl<'a> State<'a> {
             self.surface.configure(&self.device, &self.config);
             self.depth_texture = texture::Texture::create_depth_texture(
                 &self.device, &self.config, "depth_texture", self.sample_count);
+            self.accum_texture = texture::Texture::create_accum_texture(
+                &self.device, &self.config, "accum_texture", self.sample_count);
+            self.reveal_texture = texture::Texture::create_reveal_texture(
+                &self.device, &self.config, "reveal_texture");
             
             self.multisampled_framebuffer =
                 texture::Texture::create_multisampled_framebuffer(&self.device, &self.config, self.sample_count);

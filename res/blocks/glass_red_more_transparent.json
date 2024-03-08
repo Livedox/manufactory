@@ -1,0 +1,8 @@
+{
+  "id": "glass_red_more_transparent",
+  "block_type": {"block": {"faces": ["glass_red_more_transparent"]}},
+  "on_break": ["on_break"],
+  "on_set": ["on_set"],
+  "is_glass": true,
+  "is_light_passing": true
+}
