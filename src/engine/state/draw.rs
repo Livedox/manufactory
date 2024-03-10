@@ -46,32 +46,66 @@ impl<'a> State<'a> {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass Glass"),
             color_attachments: &[
-                Some(wgpu::RenderPassColorAttachment {
-                    view: &self.accum_texture.view, 
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color { 
-                            r: 0.0, 
-                            g: 0.0, 
-                            b: 0.0, 
-                            a: 0.0, 
-                        }), 
-                        store: wgpu::StoreOp::Store,
-                    },
-                    resolve_target: None,
-                }),
                 Some(
-                    wgpu::RenderPassColorAttachment {
-                        view: &self.reveal_texture.view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color { 
-                                r: 1.0, 
-                                g: 1.0, 
-                                b: 1.0, 
-                                a: 1.0, 
-                            }),
-                            store: wgpu::StoreOp::Store,
-                        },
+                    if self.sample_count == 1 {
+                        wgpu::RenderPassColorAttachment {
+                            view: &self.accum_texture.view, 
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color { 
+                                    r: 0.0, 
+                                    g: 0.0, 
+                                    b: 0.0, 
+                                    a: 0.0, 
+                                }), 
+                                store: wgpu::StoreOp::Store,
+                            },
+                            resolve_target: None,
+                        }
+                    } else {
+                        wgpu::RenderPassColorAttachment {
+                            view: &self.multisampled_glass_framebuffer, 
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color { 
+                                    r: 0.0, 
+                                    g: 0.0, 
+                                    b: 0.0, 
+                                    a: 0.0, 
+                                }), 
+                                store: wgpu::StoreOp::Store,
+                            },
+                            resolve_target: Some(&self.accum_texture.view),
+                        }
+                    }
+                ),
+                Some(
+                    if self.sample_count == 1 {
+                        wgpu::RenderPassColorAttachment {
+                            view: &self.reveal_texture.view,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color { 
+                                    r: 1.0, 
+                                    g: 1.0, 
+                                    b: 1.0, 
+                                    a: 1.0, 
+                                }),
+                                store: wgpu::StoreOp::Store,
+                            },
+                        }
+                    } else {
+                        wgpu::RenderPassColorAttachment {
+                            view: &self.multisampled_reveal_framebuffer,
+                            resolve_target: Some(&self.reveal_texture.view),
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color { 
+                                    r: 1.0, 
+                                    g: 1.0, 
+                                    b: 1.0, 
+                                    a: 1.0, 
+                                }),
+                                store: wgpu::StoreOp::Store,
+                            },
+                        }
                     }
                 )
             ],

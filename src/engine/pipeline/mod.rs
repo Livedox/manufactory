@@ -360,7 +360,11 @@ pub fn new_glass(
                 stencil: wgpu::StencilState::default(), 
                 bias: wgpu::DepthBiasState::default(), 
             }),
-            multisample: wgpu::MultisampleState::default(), 
+            multisample: wgpu::MultisampleState {
+                count: sample_count,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            }, 
             fragment: Some(wgpu::FragmentState {
                 module: shader, 
                 entry_point: "fs_main", 

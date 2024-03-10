@@ -46,7 +46,7 @@ impl GuiController {
     }
 
     pub fn update_cursor_lock(&mut self) {
-        if !self.is_cursor {
+        if !self.is_cursor && self.window.has_focus() {
             let size = self.window.inner_size();
             let position = PhysicalPosition::new(size.width as f32/2.0, size.height as f32/2.0);
             self.window.set_cursor_position(position).unwrap();

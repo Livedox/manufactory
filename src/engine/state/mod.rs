@@ -215,6 +215,8 @@ pub struct State<'a> {
     accum_texture: texture::Texture,
     reveal_texture: texture::Texture,
     multisampled_framebuffer: wgpu::TextureView,
+    multisampled_glass_framebuffer: wgpu::TextureView,
+    multisampled_reveal_framebuffer: wgpu::TextureView,
     sample_count: u32,
 
     pub egui: Egui,
@@ -327,6 +329,12 @@ impl<'a> State<'a> {
         let multisampled_framebuffer =
             texture::Texture::create_multisampled_framebuffer(&device, &config, sample_count);
 
+        let multisampled_glass_framebuffer =
+            texture::Texture::create_multisampled_glass_framebuffer(&device, &config, sample_count);
+        
+        let multisampled_reveal_framebuffer = 
+            texture::Texture::create_multisampled_reveal_framebuffer(&device, &config, sample_count);
+
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture", sample_count);
         let accum_texture = texture::Texture::create_accum_texture(&device, &config, "accum_texture", sample_count);
         let reveal_texture = texture::Texture::create_reveal_texture(&device, &config, "reveal_texture");
@@ -354,6 +362,8 @@ impl<'a> State<'a> {
             accum_texture,
             reveal_texture,
             multisampled_framebuffer,
+            multisampled_glass_framebuffer,
+            multisampled_reveal_framebuffer,
             sample_count,
 
             egui,
@@ -396,7 +406,10 @@ impl<'a> State<'a> {
             
             self.multisampled_framebuffer =
                 texture::Texture::create_multisampled_framebuffer(&self.device, &self.config, self.sample_count);
-            
+            self.multisampled_glass_framebuffer =
+                texture::Texture::create_multisampled_glass_framebuffer(&self.device, &self.config, self.sample_count);
+            self.multisampled_reveal_framebuffer =
+                texture::Texture::create_multisampled_reveal_framebuffer(&self.device, &self.config, self.sample_count);
             self.queue.write_buffer(&self.bind_groups_buffers.crosshair_aspect_scale.buffer, 0, 
                 bytemuck::cast_slice(&[new_size.height as f32/new_size.width as f32, 600.0/new_size.height as f32]));
 
@@ -414,6 +427,7 @@ impl<'a> State<'a> {
     }
 
     pub fn render(&mut self, meshes: &[Arc<Mesh>], ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {
+        self.window.pre_present_notify();
         let output = self.surface.get_current_texture()?;
         let output_texture = &output.texture;
         let view = output_texture.create_view(&wgpu::TextureViewDescriptor::default());
