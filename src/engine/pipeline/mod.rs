@@ -1,13 +1,50 @@
 use wgpu::{Device, BindGroupLayout, VertexBufferLayout, ShaderModule, TextureFormat, PrimitiveTopology, RenderPipeline};
-
 use crate::engine::texture;
+use self::builder::{PipelineBuilder, PipelineBuilderShader};
 
 use super::{bind_group_layout::Layouts, shaders::Shaders, vertices::{block_vertex::BlockVertex, model_vertex::ModelVertex, model_instance::ModelInstance, animated_model_vertex::AnimatedModelVertex, animated_model_instance::AnimatedModelInstance, selection_vertex::SelectionVertex}};
+
+mod builder;
 
 pub const IS_LINE: bool = false;
 pub const PRIMITIVE_TOPOLOGY: wgpu::PrimitiveTopology = match IS_LINE {
     true => wgpu::PrimitiveTopology::LineList,
     false => wgpu::PrimitiveTopology::TriangleList,
+};
+
+const CROSSHAIR_BLEND_STATE: wgpu::BlendState = wgpu::BlendState {
+    color: wgpu::BlendComponent {
+        src_factor: wgpu::BlendFactor::OneMinusDst,
+        dst_factor: wgpu::BlendFactor::Dst,
+        operation: wgpu::BlendOperation::Subtract,
+    },
+    alpha: wgpu::BlendComponent::OVER,
+};
+
+const ACCUM_BLEND_STATE: wgpu::BlendState = wgpu::BlendState {
+    color: wgpu::BlendComponent {
+        src_factor: wgpu::BlendFactor::One, 
+        dst_factor: wgpu::BlendFactor::One, 
+        operation: wgpu::BlendOperation::Add, 
+    }, 
+    alpha: wgpu::BlendComponent {
+        src_factor: wgpu::BlendFactor::One, 
+        dst_factor: wgpu::BlendFactor::One, 
+        operation: wgpu::BlendOperation::Add, 
+    }, 
+};
+
+const REVEAL_BLEND_STATE: wgpu::BlendState = wgpu::BlendState {
+    color: wgpu::BlendComponent {
+        src_factor: wgpu::BlendFactor::Zero, 
+        dst_factor: wgpu::BlendFactor::OneMinusSrc, 
+        operation: wgpu::BlendOperation::Add, 
+    },
+    alpha: wgpu::BlendComponent {
+        src_factor: wgpu::BlendFactor::Zero, 
+        dst_factor: wgpu::BlendFactor::OneMinusSrc, 
+        operation: wgpu::BlendOperation::Add, 
+    }
 };
 
 pub(crate) struct Pipelines {
@@ -25,437 +62,87 @@ pub(crate) struct Pipelines {
 
 impl Pipelines {
     pub fn new(
-      device: &Device,
-      layouts: &Layouts,
-      shaders: &Shaders,
-      format: TextureFormat,
-      sample_count: u32
+        device: &Device,
+        layouts: &Layouts,
+        shaders: &Shaders,
+        format: TextureFormat,
+        sample_count: u32
     ) -> Self {Self {
-        block: new(
-            device, &[&layouts.sun, &layouts.block_texture, &layouts.camera],
-            &[BlockVertex::desc()], &shaders.block,
-            format, PRIMITIVE_TOPOLOGY,
-            sample_count, true, "block"),
+        block: PipelineBuilder::new(device, format,
+                &[&layouts.sun, &layouts.block_texture, &layouts.camera], &[BlockVertex::desc()],
+                PipelineBuilderShader::new_separated(&shaders.block_vertex, &shaders.block_fragment))
+            .sample_count(sample_count).topology(PRIMITIVE_TOPOLOGY)
+            .label("block").build(),
         
-        transport_belt: new(
-            device, &[&layouts.sun, &layouts.block_texture, &layouts.camera, &layouts.time],
-            &[BlockVertex::desc()], &shaders.transport_belt,
-            format, PRIMITIVE_TOPOLOGY,
-            sample_count, true, "transport belt"),
+        transport_belt: PipelineBuilder::new(device, format,
+                &[&layouts.sun, &layouts.block_texture, &layouts.camera, &layouts.time],
+                &[BlockVertex::desc()], PipelineBuilderShader::new(&shaders.transport_belt))
+            .sample_count(sample_count).topology(PRIMITIVE_TOPOLOGY)
+            .label("transport belt").build(),
         
-        model: new(
-            device, &[&layouts.sun, &layouts.model_texture, &layouts.camera],
-            &[ModelVertex::desc(), ModelInstance::desc()], &shaders.model,
-            format, PRIMITIVE_TOPOLOGY,
-            sample_count, true, "model"),
+        model: PipelineBuilder::new(device, format,
+                &[&layouts.sun, &layouts.model_texture, &layouts.camera],
+                &[ModelVertex::desc(), ModelInstance::desc()], PipelineBuilderShader::new(&shaders.model))
+            .sample_count(sample_count).topology(PRIMITIVE_TOPOLOGY)
+            .label("model").build(),
         
-        animated_model: new(
-            device, &[&layouts.sun, &layouts.model_texture, &layouts.camera, &layouts.transforms_storage],
-            &[AnimatedModelVertex::desc(), AnimatedModelInstance::desc()], &shaders.animated_model,
-            format, PRIMITIVE_TOPOLOGY,
-            sample_count, true, "animated_model"),
+        animated_model: PipelineBuilder::new(device, format,
+                &[&layouts.sun, &layouts.model_texture, &layouts.camera, &layouts.transforms_storage],
+                &[AnimatedModelVertex::desc(), AnimatedModelInstance::desc()],
+                PipelineBuilderShader::new(&shaders.animated_model))
+            .sample_count(sample_count).topology(PRIMITIVE_TOPOLOGY)
+            .label("animated_model").build(),
         
-        selection: new(
-            device, &[&layouts.camera],
-            &[SelectionVertex::desc()], &shaders.selection,
-            format, wgpu::PrimitiveTopology::LineList,
-            sample_count, true, "selection"),
+        selection: PipelineBuilder::new(device, format,
+                &[&layouts.camera], &[SelectionVertex::desc()],
+                PipelineBuilderShader::new(&shaders.selection))
+            .sample_count(sample_count).topology(wgpu::PrimitiveTopology::LineList)
+            .label("selection").build(),
         
-        crosshair: new_crosshair(
-            device, &[&layouts.crosshair_aspect_scale],
-            &[], &shaders.crosshair,
-            format, wgpu::PrimitiveTopology::TriangleList,
-            sample_count, true, "crosshair"),
+        crosshair: PipelineBuilder::new(device, format,
+                &[&layouts.crosshair_aspect_scale], &[],
+                PipelineBuilderShader::new(&shaders.crosshair))
+            .sample_count(sample_count)
+            .label("crosshair")
+            .is_depth(false)
+            .blend(CROSSHAIR_BLEND_STATE).build(),
         
-        post_process: new(
-            device, &[&layouts.post_process],
-            &[], &shaders.post_process,
-            format, wgpu::PrimitiveTopology::TriangleList,
-            sample_count, false, "post_process"),
+        post_process: PipelineBuilder::new(device, format,
+                &[&layouts.post_process], &[],
+                PipelineBuilderShader::new_separated(&shaders.fullscreen_vertex,
+                    &shaders.post_process_fragment))
+            .label("post_process").is_depth(false).build(),
         
-        multisampled_post_process: new(
-            device, &[&layouts.multisampled_post_process],
-            &[], &shaders.multisampled_post_process,
-            format, wgpu::PrimitiveTopology::TriangleList,
-            sample_count, false, "multisampled_post_process"),
+        multisampled_post_process: PipelineBuilder::new(device, format,
+                &[&layouts.multisampled_post_process], &[],
+                PipelineBuilderShader::new_separated(&shaders.fullscreen_vertex,
+                    &shaders.multisampled_post_process_fragment))
+            .label("multisampled_post_process").is_depth(false)
+            .sample_count(sample_count).build(),
         
-        glass: new_glass(
-            device, &shaders.glass, &[&layouts.sun, &layouts.block_texture, &layouts.camera],
-            wgpu::PrimitiveTopology::TriangleList,
-            &[BlockVertex::desc()],
-            sample_count),
-        composite: new_composite(
-            device, &shaders.composite, &[&layouts.oit],
-            format, wgpu::PrimitiveTopology::TriangleList,
-            &[],
-            sample_count),
+        glass: PipelineBuilder::new(device, format,
+                &[&layouts.sun, &layouts.block_texture, &layouts.camera], &[BlockVertex::desc()],
+                PipelineBuilderShader::new_separated(&shaders.block_vertex, &shaders.glass_fragment))
+            .label("glass").depth_write_enabled(false)
+            .sample_count(sample_count)
+            .fragment_targets(&[
+                Some(wgpu::ColorTargetState {
+                    format: wgpu::TextureFormat::Rgba16Float, 
+                    blend: Some(ACCUM_BLEND_STATE), 
+                    write_mask: wgpu::ColorWrites::ALL, 
+                }),
+                Some(wgpu::ColorTargetState {
+                    format: wgpu::TextureFormat::R8Unorm, 
+                    blend: Some(REVEAL_BLEND_STATE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                }),
+            ])
+            .build(),
+        
+        composite: PipelineBuilder::new(device, format,
+                &[&layouts.oit], &[],
+                PipelineBuilderShader::new_separated(&shaders.fullscreen_vertex, &shaders.composite_fragment))
+            .label("composite").is_depth(false)
+            .blend(wgpu::BlendState::ALPHA_BLENDING).build(),
     }}
-}
-
-pub fn new(
-    device: &Device,
-    bind_group_layouts: &[&BindGroupLayout],
-    buffers: &[VertexBufferLayout<'_>],
-    shader: &ShaderModule,
-    format: TextureFormat,
-    topology: PrimitiveTopology,
-    sample_count: u32,
-    depth: bool,
-    label: &str,
-) -> RenderPipeline {
-    let render_pipeline_layout =
-        device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some(&format!("Render Pipeline Layout ({})", label)),
-            bind_group_layouts,
-            push_constant_ranges: &[],
-        });
-
-    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some(&format!("Render Pipeline ({})", label)),
-        layout: Some(&render_pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: shader,
-            entry_point: "vs_main",
-            buffers,
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: shader,
-            entry_point: "fs_main",
-            targets: &[Some(wgpu::ColorTargetState {
-                format,
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent::REPLACE,
-                    alpha: wgpu::BlendComponent::REPLACE,
-                }),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-        }),
-
-        primitive: wgpu::PrimitiveState {
-            topology,
-            strip_index_format: None,
-            front_face: wgpu::FrontFace::Cw,
-            cull_mode: Some(wgpu::Face::Back),
-            polygon_mode: wgpu::PolygonMode::Fill,
-            unclipped_depth: false,
-            conservative: false,
-        },
-        depth_stencil: depth.then(|| wgpu::DepthStencilState {
-            format: texture::Texture::DEPTH_FORMAT,
-            depth_write_enabled: true,
-            depth_compare: wgpu::CompareFunction::Less,
-            stencil: wgpu::StencilState::default(),
-            bias: wgpu::DepthBiasState::default(),
-        }),
-        multisample: wgpu::MultisampleState {
-            count: sample_count,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        },
-        multiview: None,
-    })
-}
-
-
-// pub fn new_glass(
-//     device: &Device,
-//     bind_group_layouts: &[&BindGroupLayout],
-//     buffers: &[VertexBufferLayout<'_>],
-//     shader: &ShaderModule,
-//     format: TextureFormat,
-//     topology: PrimitiveTopology,
-//     sample_count: u32,
-//     depth: bool,
-//     label: &str,
-// ) -> RenderPipeline {
-//     let render_pipeline_layout =
-//         device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-//             label: Some(&format!("Render Pipeline Layout ({})", label)),
-//             bind_group_layouts,
-//             push_constant_ranges: &[],
-//         });
-
-//     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-//         label: Some(&format!("Render Pipeline ({})", label)),
-//         layout: Some(&render_pipeline_layout),
-//         vertex: wgpu::VertexState {
-//             module: shader,
-//             entry_point: "vs_main",
-//             buffers,
-//         },
-//         fragment: Some(wgpu::FragmentState {
-//             module: shader,
-//             entry_point: "fs_main",
-//             targets: &[Some(wgpu::ColorTargetState {
-//                 format,
-//                 blend: Some(wgpu::BlendState {
-//                     color: wgpu::BlendComponent {
-//                         src_factor: wgpu::BlendFactor::One,
-//                         dst_factor: wgpu::BlendFactor::One,//OneMinusSrc
-//                         operation: wgpu::BlendOperation::Add,
-//                     },
-//                     alpha: wgpu::BlendComponent {
-//                         src_factor: wgpu::BlendFactor::One,
-//                         dst_factor: wgpu::BlendFactor::One,
-//                         operation: wgpu::BlendOperation::Add
-//                     },
-//                 }),
-//                 write_mask: wgpu::ColorWrites::ALL,
-//             }), 
-//             Some(wgpu::ColorTargetState {
-//                 format: wgpu::TextureFormat::R8Unorm,
-//                 blend: Some(wgpu::BlendState {
-//                     color: wgpu::BlendComponent {
-//                         src_factor: wgpu::BlendFactor::Zero,
-//                         dst_factor: wgpu::BlendFactor::OneMinusSrc,
-//                         operation: wgpu::BlendOperation::Add,
-//                     },
-//                     alpha: wgpu::BlendComponent {
-//                         src_factor: wgpu::BlendFactor::Zero,
-//                         dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-//                         operation: wgpu::BlendOperation::Add
-//                     },
-//                 }),
-//                 write_mask: wgpu::ColorWrites::ALL,
-//             })],
-//         }),
-
-//         primitive: wgpu::PrimitiveState {
-//             topology,
-//             strip_index_format: None,
-//             front_face: wgpu::FrontFace::Cw,
-//             cull_mode: Some(wgpu::Face::Back),
-//             // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-//             // or Features::POLYGON_MODE_POINT
-//             polygon_mode: wgpu::PolygonMode::Fill,
-//             // Requires Features::DEPTH_CLIP_CONTROL
-//             unclipped_depth: false,
-//             // Requires Features::CONSERVATIVE_RASTERIZATION
-//             conservative: false,
-//         },
-//         depth_stencil: depth.then(|| wgpu::DepthStencilState {
-//             format: texture::Texture::DEPTH_FORMAT,
-//             depth_write_enabled: false,
-//             depth_compare: wgpu::CompareFunction::Less,
-//             stencil: wgpu::StencilState::default(),
-//             bias: wgpu::DepthBiasState::default(),
-//         }),
-//         multisample: wgpu::MultisampleState {
-//             count: sample_count,
-//             mask: !0,
-//             alpha_to_coverage_enabled: false,
-//         },
-//         // If the pipeline will be used with a multiview render pass, this
-//         // indicates how many array layers the attachments will have.
-//         multiview: None,
-//     })
-// }
-
-
-pub fn new_crosshair(
-    device: &Device,
-    bind_group_layouts: &[&BindGroupLayout],
-    buffers: &[VertexBufferLayout<'_>],
-    shader: &ShaderModule,
-    format: TextureFormat,
-    topology: PrimitiveTopology,
-    sample_count: u32,
-    depth: bool,
-    label: &str,
-) -> RenderPipeline {
-    let render_pipeline_layout =
-        device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some(&format!("Render Pipeline Layout ({})", label)),
-            bind_group_layouts,
-            push_constant_ranges: &[],
-        });
-
-    device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some(&format!("Render Pipeline ({})", label)),
-        layout: Some(&render_pipeline_layout),
-        vertex: wgpu::VertexState {
-            module: shader,
-            entry_point: "vs_main",
-            buffers,
-        },
-        fragment: Some(wgpu::FragmentState {
-            module: shader,
-            entry_point: "fs_main",
-            targets: &[Some(wgpu::ColorTargetState {
-                format,
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent {
-                        src_factor: wgpu::BlendFactor::OneMinusDst,
-                        dst_factor: wgpu::BlendFactor::Dst,
-                        operation: wgpu::BlendOperation::Subtract,
-                    },
-                    alpha: wgpu::BlendComponent::OVER,
-                }),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-        }),
-
-        primitive: wgpu::PrimitiveState {
-            topology,
-            strip_index_format: None,
-            front_face: wgpu::FrontFace::Cw,
-            cull_mode: Some(wgpu::Face::Back),
-            // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-            // or Features::POLYGON_MODE_POINT
-            polygon_mode: wgpu::PolygonMode::Fill,
-            // Requires Features::DEPTH_CLIP_CONTROL
-            unclipped_depth: false,
-            // Requires Features::CONSERVATIVE_RASTERIZATION
-            conservative: false,
-        },
-        depth_stencil: None,
-        multisample: wgpu::MultisampleState {
-            count: sample_count,
-            mask: !0,
-            alpha_to_coverage_enabled: false,
-        },
-        // If the pipeline will be used with a multiview render pass, this
-        // indicates how many array layers the attachments will have.
-        multiview: None,
-    })
-}
-
-pub fn new_glass(
-    device: &wgpu::Device,
-    shader: &wgpu::ShaderModule, 
-    bind_group_layouts: &[&wgpu::BindGroupLayout],
-    topology: PrimitiveTopology,
-    buffers: &[VertexBufferLayout<'_>],
-    sample_count: u32,
-) -> wgpu::RenderPipeline {
-    let pipeline_layout = device.create_pipeline_layout(
-        &wgpu::PipelineLayoutDescriptor {
-            label: Some("glass pipeline"), 
-            bind_group_layouts, 
-            push_constant_ranges: &[],
-        },
-    );
-
-    device.create_render_pipeline(
-        &wgpu::RenderPipelineDescriptor {
-            label: Some("Glass pipeline descriptor"), 
-            layout: Some(&pipeline_layout), 
-            primitive: wgpu::PrimitiveState {
-                topology, 
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Cw,
-                cull_mode: Some(wgpu::Face::Back), 
-                polygon_mode: wgpu::PolygonMode::Fill, 
-                ..Default::default()
-            }, 
-            vertex: wgpu::VertexState { 
-                module: shader, 
-                entry_point: "vs_main", 
-                buffers, 
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: wgpu::TextureFormat::Depth32Float, 
-                depth_compare: wgpu::CompareFunction::Less, 
-                depth_write_enabled: false, 
-                stencil: wgpu::StencilState::default(), 
-                bias: wgpu::DepthBiasState::default(), 
-            }),
-            multisample: wgpu::MultisampleState {
-                count: sample_count,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            }, 
-            fragment: Some(wgpu::FragmentState {
-                module: shader, 
-                entry_point: "fs_main", 
-                targets: &[
-                    Some(wgpu::ColorTargetState {
-                        format: wgpu::TextureFormat::Rgba16Float, 
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::One, 
-                                dst_factor: wgpu::BlendFactor::One, 
-                                operation: wgpu::BlendOperation::Add, 
-                            }, 
-                            alpha: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::One, 
-                                dst_factor: wgpu::BlendFactor::One, 
-                                operation: wgpu::BlendOperation::Add, 
-                            }, 
-                        }), 
-                        write_mask: wgpu::ColorWrites::ALL, 
-                    }),
-                    Some(wgpu::ColorTargetState {
-                        format: wgpu::TextureFormat::R8Unorm, 
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::Zero, 
-                                dst_factor: wgpu::BlendFactor::OneMinusSrc, 
-                                operation: wgpu::BlendOperation::Add, 
-                            },
-                            alpha: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::Zero, 
-                                dst_factor: wgpu::BlendFactor::OneMinusSrc, 
-                                operation: wgpu::BlendOperation::Add, 
-                            }
-                        }),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    }),
-                ],
-            }),
-            multiview: None
-        },
-    )
-}
-
-pub fn new_composite(
-    device: &wgpu::Device,
-    shader: &wgpu::ShaderModule, 
-    bind_group_layouts: &[&wgpu::BindGroupLayout],
-    format: wgpu::TextureFormat,
-    topology: PrimitiveTopology,
-    buffers: &[VertexBufferLayout<'_>],
-    sample_count: u32,
-) -> wgpu::RenderPipeline {
-    let pipeline_layout = device.create_pipeline_layout(
-        &wgpu::PipelineLayoutDescriptor {
-            label: Some("composite pipeline"), 
-            bind_group_layouts, 
-            push_constant_ranges: &[],
-        },
-    );
-
-    device.create_render_pipeline(
-        &wgpu::RenderPipelineDescriptor {
-            label: Some("composite pipeline descriptor"), 
-            layout: Some(&pipeline_layout), 
-            primitive: wgpu::PrimitiveState {
-                topology, 
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Cw,
-                cull_mode: Some(wgpu::Face::Back), 
-                polygon_mode: wgpu::PolygonMode::Fill, 
-                ..Default::default()
-            }, 
-            vertex: wgpu::VertexState { 
-                module: shader, 
-                entry_point: "vs_main", 
-                buffers, 
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState::default(), 
-            fragment: Some(wgpu::FragmentState {
-                module: shader, 
-                entry_point: "fs_main", 
-                targets: &[
-                    Some(wgpu::ColorTargetState {
-                        format, 
-                        blend: Some(wgpu::BlendState::ALPHA_BLENDING), 
-                        write_mask: wgpu::ColorWrites::ALL, 
-                    }),
-                ],
-            }),
-            multiview: None
-        },
-    )
 }

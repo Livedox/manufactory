@@ -40,7 +40,6 @@ impl<'a> State<'a> {
         self.draw_transport_belt(&mut render_pass, meshes);
         self.draw_animated_model(&mut render_pass, meshes);
         self.draw_model(&mut render_pass, meshes);
-        self.draw_selection(&mut render_pass);
         drop(render_pass);
         
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -168,6 +167,40 @@ impl<'a> State<'a> {
         
         self.draw_post_process(&mut render_pass, &post_process_bg);
         self.draw_crosshair(&mut render_pass);
+        drop(render_pass);
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Render Pass Selection"),
+            color_attachments: &[Some(if self.sample_count == 1 {
+                wgpu::RenderPassColorAttachment {
+                    view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                }
+            } else {
+                wgpu::RenderPassColorAttachment {
+                    view: &self.multisampled_framebuffer,
+                    resolve_target: Some(view),
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                }
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.depth_texture.view,
+                depth_ops: Some(wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                }),
+                stencil_ops: None,
+            }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+        self.draw_selection(&mut render_pass);
     }
 
     /// set bind group = 1 (block_texutre_bg)
