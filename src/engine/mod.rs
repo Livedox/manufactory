@@ -8,3 +8,4 @@ pub mod pipeline;
 pub mod vertices;
 pub mod egui;
 pub mod setting;
+pub mod mesh;

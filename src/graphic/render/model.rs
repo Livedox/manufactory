@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::voxels::chunk::{Chunk, CHUNK_SIZE};
+use crate::{engine::vertices::model_instance::ModelInstance, voxels::chunk::{Chunk, CHUNK_SIZE}};
 
 #[derive(Debug, Clone)]
 pub struct ModelRenderResult {
@@ -9,7 +9,7 @@ pub struct ModelRenderResult {
     pub rotation_index: u32,
 }
 
-pub type Models = HashMap::<u32, Vec<ModelRenderResult>>;
+pub type Models = HashMap::<u32, Vec<ModelInstance>>;
 
 #[inline]
 pub fn render_model(models: &mut Models, chunk: &Chunk, model_id: u32, lx: usize, ly: usize, lz: usize) {
@@ -18,7 +18,7 @@ pub fn render_model(models: &mut Models, chunk: &Chunk, model_id: u32, lx: usize
 
     let light = chunk.get_light((lx, ly, lz).into()).get_normalized();
 
-    let data = ModelRenderResult {
+    let data = ModelInstance {
         position: chunk.xyz.to_global((lx, ly, lz).into()).into(),
         light,
         rotation_index

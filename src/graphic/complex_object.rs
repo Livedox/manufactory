@@ -145,32 +145,6 @@ impl ComplexObjectFile {
     }
 }
 
-pub fn test_complex_object() {
-    let co = ComplexObjectFile {
-        animated_models: vec![String::from("cowboy")],
-        models: vec![String::from("astronaut")],
-        block: [vec![ComplexObjectSideFile {
-            texture_layer: String::from("rock"),
-            vertex_group: ComplexObjectGroup([
-                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
-                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
-                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
-                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
-            ])
-        }], vec![], vec![], vec![], vec![], vec![]],
-        transport_belt: [vec![], vec![ComplexObjectSideFile {
-            texture_layer: String::from("iron"),
-            vertex_group: ComplexObjectGroup([
-                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
-                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
-                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
-                ComplexObjectVertex([1.0, 1.0, 1.0], [1.0, 1.0]),
-            ])
-        }], vec![], vec![], vec![], vec![]],
-    };
-    std::fs::write("./co.json", serde_json::to_string_pretty(&co).unwrap()).unwrap();
-}
-
 pub fn load_complex_object(path: impl AsRef<Path>, indices: &Indices) -> ComplexObject {
     let data = std::fs::read(path).unwrap();
     let complex_object_file: ComplexObjectFile = serde_json::from_slice(&data).unwrap();

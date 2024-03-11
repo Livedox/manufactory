@@ -143,7 +143,7 @@ impl Meshes {
         
         render_result.models.iter().for_each(|(id, positions)| {
             let mut model_instances = Vec::<ModelInstance>::new();
-            positions.iter().for_each(|ModelRenderResult {position, light, rotation_index}| {
+            positions.iter().for_each(|ModelInstance {position, light, rotation_index}| {
                 model_instances.push(ModelInstance { position: *position, light: *light, rotation_index: *rotation_index })
             });
             models.insert(*id, (device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

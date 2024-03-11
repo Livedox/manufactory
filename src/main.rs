@@ -10,7 +10,7 @@ use level::Level;
 
 use unsafe_mutex::UnsafeMutex;
 use world::{loader::WorldLoader};
-use crate::{engine::state::{Indices}, graphic::complex_object::{test_complex_object}, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}};
+use crate::{engine::state::{Indices}, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}};
 use voxels::{chunks::{Chunks}, chunk::CHUNK_SIZE};
 
 use winit::{
