@@ -4,9 +4,9 @@ use std::{collections::HashMap, iter, path::Path, sync::Arc, time::Instant};
 use itertools::Itertools;
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
-use crate::{engine::{bind_group, bind_group_layout::{Layouts}, pipeline::Pipelines, shaders::Shaders, texture::Texture}, graphic::complex_object::{load_complex_object, ComplexObject}, meshes::Mesh, models::{animated_model::AnimatedModel, load_animated_model::load_animated_model, load_model::load_model, model::Model}, my_time::Time, rev_qumark};
+use crate::{engine::{bind_group, bind_group_layout::{Layouts}, pipeline::Pipelines, shaders::Shaders, texture::Texture}, graphic::complex_object::{load_complex_object, ComplexObject}, models::{animated_model::AnimatedModel, load_animated_model::load_animated_model, load_model::load_model, model::Model}, my_time::Time, rev_qumark};
 use crate::engine::texture::TextureAtlas;
-use super::{bind_group_buffer::BindGroupsBuffers, egui::Egui, setting::GraphicSetting, texture::{self}};
+use super::{bind_group_buffer::BindGroupsBuffers, egui::Egui, mesh::Mesh, setting::GraphicSetting, texture};
 
 pub mod draw;
 

@@ -2,7 +2,7 @@
 
 use itertools::iproduct;
 
-use crate::{content::Content, coords::chunk_coord::ChunkCoord, engine::{pipeline::IS_LINE, vertices::block_vertex::BlockVertex}, graphic::render::block_managers::BlockManagers, voxels::{block::block_type::BlockType, chunk::CHUNK_SIZE, chunks::Chunks}};
+use crate::{content::Content, coords::chunk_coord::ChunkCoord, engine::{mesh::MeshInput, pipeline::IS_LINE, vertices::block_vertex::BlockVertex}, graphic::render::block_managers::BlockManagers, voxels::{block::block_type::BlockType, chunk::CHUNK_SIZE, chunks::Chunks}};
 
 use self::{model::{Models, render_model}, animated_model::{AnimatedModels, render_animated_model}, complex_object::render_complex_object, block::{render_block}};
 
@@ -63,19 +63,10 @@ impl Buffer {
     }
 }
 
-#[derive(Debug)]
 pub struct RenderResult {
     pub chunk_index: usize,
-    pub xyz: ChunkCoord,
-    pub block_vertices: Vec<BlockVertex>,
-    pub block_indices: Vec<u32>,
-    pub glass_vertices: Vec<BlockVertex>,
-    pub glass_indices: Vec<u32>,
-    pub belt_vertices: Vec<BlockVertex>,
-    pub belt_indices: Vec<u32>,
-
-    pub models: Models,
-    pub animated_models: AnimatedModels,
+    pub coord: ChunkCoord,
+    pub mesh: MeshInput,
 }
 
 pub fn render(chunk_index: usize, chunks: &Chunks, content: &Content) -> Option<RenderResult> {
@@ -121,14 +112,16 @@ pub fn render(chunk_index: usize, chunks: &Chunks, content: &Content) -> Option<
     glass_manager.manage_vertices(&mut glass_buffer, global);
     Some(RenderResult {
         chunk_index,
-        xyz: chunk.xyz,
-        block_vertices: buffer.buffer,
-        block_indices: buffer.index_buffer,
-        glass_vertices: glass_buffer.buffer,
-        glass_indices: glass_buffer.index_buffer,
-        models,
-        animated_models,
-        belt_vertices: belt_buffer.buffer,
-        belt_indices: belt_buffer.index_buffer,
+        coord: chunk.xyz,
+        mesh: MeshInput {
+            block_vertices: buffer.buffer,
+            block_indices: buffer.index_buffer,
+            glass_vertices: glass_buffer.buffer,
+            glass_indices: glass_buffer.index_buffer,
+            models,
+            animated_models,
+            belt_vertices: belt_buffer.buffer,
+            belt_indices: belt_buffer.index_buffer,
+        }
     })
 }

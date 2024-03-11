@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 
 
-use crate::{meshes::Mesh, engine::{bind_group, texture::Texture}};
+use crate::engine::{bind_group, mesh::{Mesh, MeshBuffer}, texture::Texture};
 
 use super::State;
 
@@ -235,10 +235,10 @@ impl<'a> State<'a> {
     fn draw_transport_belt<'b>(&'b self, render_pass: &mut wgpu::RenderPass<'b>, meshes: &'b [Arc<Mesh>]) {
         render_pass.set_pipeline(&self.pipelines.transport_belt);
         render_pass.set_bind_group(3, &self.bind_groups_buffers.time.bind_group, &[]);
-        meshes.iter().filter(|m| m.transport_belt_index_count > 0).for_each(|mesh| {
-            render_pass.set_vertex_buffer(0, mesh.transport_belt_vertex_buffer.slice(..));
-            render_pass.set_index_buffer(mesh.transport_belt_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-            render_pass.draw_indexed(0..mesh.transport_belt_index_count, 0, 0..1);
+        meshes.iter().filter(|m| m.belt_index_count > 0).for_each(|mesh| {
+            render_pass.set_vertex_buffer(0, mesh.belt_vertex_buffer.slice(..));
+            render_pass.set_index_buffer(mesh.belt_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+            render_pass.draw_indexed(0..mesh.belt_index_count, 0, 0..1);
         });
     }
 
@@ -251,14 +251,14 @@ impl<'a> State<'a> {
             let Some(bind_group) = &mesh.transformation_matrices_bind_group else {return};
 
             render_pass.set_bind_group(3, bind_group, &[]);
-            mesh.animated_models.iter().for_each(|(id, (instance, len))| {
+            mesh.animated_models.iter().for_each(|MeshBuffer {id, size, buffer}| {
                 let Some(animated_model) = self.animated_models.get(*id as usize) else { return; };
                 if !mesh.animated_models.is_empty() {
                     render_pass.set_bind_group(1, &animated_model.texture, &[]);
                     render_pass.set_vertex_buffer(0, animated_model.vertex_buffer.slice(..));
 
-                    render_pass.set_vertex_buffer(1, instance.slice(..));
-                    render_pass.draw(0..animated_model.vertex_count as u32, 0..*len as u32);
+                    render_pass.set_vertex_buffer(1, buffer.slice(..));
+                    render_pass.draw(0..animated_model.vertex_count as u32, 0..*size as u32);
                 }
             });
         });
@@ -269,15 +269,15 @@ impl<'a> State<'a> {
     fn draw_model<'b>(&'b self, render_pass: &mut wgpu::RenderPass<'b>, meshes: &'b [Arc<Mesh>]) {
         render_pass.set_pipeline(&self.pipelines.model);
         meshes.iter().for_each(|mesh| {
-            mesh.models.iter().for_each(|(name, (instance, len))| {
-                let Some(model) = self.models.get(*name as usize) else {return};
+            mesh.models.iter().for_each(|MeshBuffer {id, size, buffer}| {
+                let Some(model) = self.models.get(*id as usize) else {return};
 
                 render_pass.set_bind_group(1, &model.texture, &[]);
 
                 render_pass.set_vertex_buffer(0, model.vertex_buffer.slice(..));
-                render_pass.set_vertex_buffer(1, instance.slice(..));
+                render_pass.set_vertex_buffer(1, buffer.slice(..));
 
-                render_pass.draw(0..model.vertex_count as u32, 0..*len as u32);
+                render_pass.draw(0..model.vertex_count as u32, 0..*size as u32);
             });
         });
     }

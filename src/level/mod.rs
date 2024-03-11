@@ -1,5 +1,5 @@
 use std::{path::PathBuf, sync::{Arc, Mutex, Condvar, mpsc::{Sender, Receiver}}};
-use crate::{camera, content::Content, coords::{chunk_coord::ChunkCoord, global_coord::GlobalCoord}, direction::Direction, engine::state::{Indices, State}, frustum, graphic::{render::RenderResult, render_selection::render_selection}, gui::gui_controller::GuiController, input_event::{input_service::{InputService, Mouse}, KeypressState}, meshes::{Mesh, Meshes, MeshesRenderInput}, my_time::Time, nalgebra_converter::Conventer, player::player::Player, recipes::{item::Item, storage::Storage}, save_load::WorldSaver, setting::Setting, threads::{save::SaveState, Threads}, unsafe_mutex::UnsafeMutex, voxels::{chunks::WORLD_HEIGHT, ray_cast::ray_cast}, world::{sun::{Color, Sun}, World}, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
+use crate::{camera, content::Content, coords::{chunk_coord::ChunkCoord, global_coord::GlobalCoord}, direction::Direction, engine::{mesh::Mesh, state::{Indices, State}}, frustum, graphic::{render::RenderResult, render_selection::render_selection}, gui::gui_controller::GuiController, input_event::{input_service::{InputService, Mouse}, KeypressState}, meshes::{Meshes, MeshesRenderInput}, my_time::Time, nalgebra_converter::Conventer, player::player::Player, recipes::{item::Item, storage::Storage}, save_load::WorldSaver, setting::Setting, threads::{save::SaveState, Threads}, unsafe_mutex::UnsafeMutex, voxels::{chunks::WORLD_HEIGHT, ray_cast::ray_cast}, world::{sun::{Color, Sun}, World}, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
 use nalgebra_glm as glm;
 
 pub struct Level {
@@ -169,12 +169,10 @@ impl Level {
 
         if !self.meshes.is_need_translate() {
             while let Ok(result) = self.render_recv.try_recv() {
-                if self.world.chunks.is_in_area(result.xyz) {
-                    let index = result.xyz.chunk_index(&self.world.chunks);
+                if self.world.chunks.is_in_area(result.coord) {
+                    let index = result.coord.chunk_index(&self.world.chunks);
                     self.meshes.render(MeshesRenderInput {
-                        device: state.device(),
-                        animated_model_layout: &state.layouts.transforms_storage,
-                        all_animated_models: &state.animated_models,
+                        state: &state,
                         render_result: result,
                     }, index);
                 }

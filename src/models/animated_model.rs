@@ -43,15 +43,7 @@ impl AnimatedModel {
     }
 
     pub fn calculate_bytes_transforms(&self, animation_name: Option<&str>, progress: f32) -> Vec<u8> {
-        let mut result = vec![];
-        self.animator
-            .calculate_transforms(animation_name, progress)
-            .iter()
-            .for_each(|transform| {
-                result.extend(bytemuck::cast_slice(transform.as_slice()));
-            });
-
-        result
+        bytemuck::cast_vec(self.animator.calculate_transforms(animation_name, progress))
     }
 }
 
