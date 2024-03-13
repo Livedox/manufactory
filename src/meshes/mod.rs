@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::{Mutex, Arc}};
 
 use itertools::Itertools;
 
-use crate::{content::Content, engine::{mesh::Mesh, vertices::{animated_model_instance::AnimatedModelInstance, model_instance::ModelInstance}}, graphic::render::{animated_model::AnimatedModelRenderResult, model::ModelRenderResult, RenderResult}, models::animated_model::AnimatedModel, state::State, voxels::block::block_type::BlockType, world::World};
+use crate::{content::Content, engine::{mesh::Mesh}, graphic::render::{animated_model::AnimatedModelRenderResult, model::ModelRenderResult, RenderResult}, state::State, voxels::block::block_type::BlockType, world::World};
 
 
 pub struct MeshesRenderInput<'a> {

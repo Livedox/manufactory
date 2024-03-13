@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::Path};
 
 use crate::engine::vertices::animated_model_vertex::AnimatedModelVertex;
 
-use super::animated_model::{BoneKeyFrames, KeyFrame, JointTransform, Animation, Animator, AnimatedModel, Joint};
+use super::{animated_model::{AnimatedModel, Animation, Animator, BoneKeyFrames, Joint, JointTransform, KeyFrame}, load_texture::load_texture};
 
 use itertools::Itertools;
 use nalgebra_glm as glm;
@@ -66,7 +66,7 @@ pub fn load_animated_model(
   src_texture: impl AsRef<Path>,
   name: &str
 ) -> AnimatedModel {
-    let texture = crate::models::load_texture::load_texture(device, queue, texture_layout, src_texture, name);
+    let texture = load_texture(device, queue, texture_layout, src_texture, name);
     let scene = Scene::from_file(src.as_ref().to_str().unwrap(),
         vec![PostProcess::FlipUVs, PostProcess::MakeLeftHanded]).unwrap();
     let root = scene.root.unwrap();

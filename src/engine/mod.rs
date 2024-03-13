@@ -9,3 +9,4 @@ pub mod vertices;
 pub mod egui;
 pub mod setting;
 pub mod mesh;
+pub mod models;

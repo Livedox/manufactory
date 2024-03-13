@@ -34,7 +34,6 @@ mod camera;
 mod gui;
 mod recipes;
 mod player;
-mod models;
 mod direction;
 mod world;
 mod macros;

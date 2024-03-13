@@ -43,7 +43,8 @@ impl AnimatedModel {
     }
 
     pub fn calculate_bytes_transforms(&self, animation_name: Option<&str>, progress: f32) -> Vec<u8> {
-        bytemuck::cast_vec(self.animator.calculate_transforms(animation_name, progress))
+        self.calculate_transforms(animation_name, progress)
+            .iter().map(|mat| bytemuck::bytes_of(mat)).flatten().cloned().collect()
     }
 }
 
