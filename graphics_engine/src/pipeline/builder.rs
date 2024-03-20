@@ -1,4 +1,4 @@
-use crate::engine::texture;
+use crate::texture;
 
 pub enum PipelineBuilderShader<'a> {
     General{shader: &'a wgpu::ShaderModule},

@@ -1,4 +1,5 @@
-use crate::{graphic::render::{Buffer, IS_GREEDY_MESHING}, engine::vertices::block_vertex::BlockVertex};
+use graphics_engine::vertices::block_vertex::BlockVertex;
+use crate::{graphic::render::{Buffer, IS_GREEDY_MESHING}};
 use crate::graphic::render::block::BlockFace;
 
 // At the moment this is almost corrected with the help of post-processing, the operative word is almost

@@ -2,8 +2,8 @@
 
 use egui::{vec2, Align2};
 use winit::event_loop::{EventLoopWindowTarget};
-
-use crate::{world::loader::{WorldLoader}, setting::Setting, level::Level, engine::state::{Indices}};
+use graphics_engine::state::{Indices};
+use crate::{world::loader::{WorldLoader}, setting::Setting, level::Level};
 
 use self::worlds::{draw_world_display, WorldCreator};
 

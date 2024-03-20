@@ -2,7 +2,7 @@ use std::{time::{Duration, Instant}, sync::{Arc, atomic::{AtomicBool}}, collecti
 use camera::frustum::Frustum;
 
 use coords::chunk_coord::ChunkCoord;
-use engine::state;
+use graphics_engine::state;
 
 use gui::gui_controller::GuiController;
 use input_event::KeypressState;
@@ -10,7 +10,8 @@ use level::Level;
 
 use unsafe_mutex::UnsafeMutex;
 use world::{loader::WorldLoader};
-use crate::{engine::state::{Indices}, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}};
+use graphics_engine::state::Indices;
+use crate::{save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}};
 use voxels::{chunks::{Chunks}, chunk::CHUNK_SIZE};
 
 use winit::{
@@ -39,7 +40,6 @@ mod world;
 mod macros;
 mod threads;
 mod unsafe_mutex;
-mod engine;
 mod save_load;
 mod bytes;
 mod setting;
@@ -155,7 +155,7 @@ pub async fn main() {
                         
                         
                         time.update();
-                        state.update_time(&time);
+                        state.update_time(time.current());
         
                         gui_controller.update_cursor_lock();
         

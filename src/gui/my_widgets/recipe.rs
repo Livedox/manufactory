@@ -1,7 +1,7 @@
 use egui::{Rect, vec2, Stroke, pos2};
 
-use crate::{gui::theme::DEFAULT_THEME, recipes::recipe::Recipe, engine::texture::TextureAtlas};
-
+use crate::{gui::theme::DEFAULT_THEME, recipes::recipe::Recipe};
+use graphics_engine::texture::TextureAtlas;
 use super::ingredients::ingredients;
 
 const WIDTH: f32 = 50.0;

@@ -2,8 +2,9 @@ use std::{borrow::BorrowMut, sync::Arc};
 
 use egui::{epaint::Shadow, vec2, Align, Align2, Color32, Context, Margin, RichText, Rounding};
 use winit::{window::Window, dpi::PhysicalPosition, event_loop::{EventLoopWindowTarget}};
+use graphics_engine::{state::Indices, texture::TextureAtlas};
 
-use crate::{engine::{state::Indices, texture::TextureAtlas}, level::Level, player::player::Player, recipes::{recipes::RECIPES, storage::{Storage}}, save_load::SettingSave, setting::Setting, world::loader::{WorldLoader}};
+use crate::{level::Level, player::player::Player, recipes::{recipes::RECIPES, storage::{Storage}}, save_load::SettingSave, setting::Setting, world::loader::{WorldLoader}};
 use super::{my_widgets::{inventory_slot::inventory_slot, category_change_button::category_change_button, container::container, recipe::recipe, hotbar_slot::hotbar_slot, active_recipe::active_recipe}, theme::DEFAULT_THEME, main_screen::{MainScreen, in_game_menu::draw_in_game_menu}, setting::draw_setting};
 
 enum Task {

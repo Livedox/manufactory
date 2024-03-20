@@ -4,8 +4,8 @@ use std::{collections::HashMap, iter, path::Path, sync::Arc, time::Instant};
 use itertools::Itertools;
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
-use crate::{engine::{bind_group, bind_group_layout::Layouts, models::load_animated_model::load_animated_model, pipeline::Pipelines, shaders::Shaders, texture::Texture}, graphic::complex_object::{load_complex_object, ComplexObject}, my_time::Time, rev_qumark};
-use crate::engine::texture::TextureAtlas;
+use crate::{bind_group, bind_group_layout::Layouts, models::load_animated_model::load_animated_model, pipeline::Pipelines, rev_qumark, shaders::Shaders, texture::Texture};
+use crate::texture::TextureAtlas;
 use super::{bind_group_buffer::BindGroupsBuffers, egui::Egui, mesh::Mesh, models::{animated_model::AnimatedModel, load_model::load_model, model::Model}, setting::GraphicSetting, texture};
 
 pub mod draw;
@@ -14,28 +14,6 @@ pub struct Indices {
     pub block: HashMap<String, u32>,
     pub models: HashMap<String, u32>,
     pub animated_models: HashMap<String, u32>,
-}
-
-pub fn load_complex_objects(
-    complex_objects_path: impl AsRef<Path>,
-    tmp_indices: &Indices
-) -> (HashMap::<String, u32>, Box<[ComplexObject]>) {
-    let files = walkdir::WalkDir::new(complex_objects_path)
-        .into_iter()
-        .filter_map(|f| f.ok())
-        .filter(|f| f.file_type().is_file())
-        .enumerate();
-    let mut indices = HashMap::<String, u32>::new();
-    let complex_objects: Box<[ComplexObject]> = files.map(|(index, file)| {
-        let file_name = file.file_name().to_str().unwrap();
-        let dot_index = file_name.rfind('.').unwrap();
-        let name = file_name[..dot_index].to_string();
-        let model = load_complex_object(file.path(), tmp_indices);
-        indices.insert(name, index as u32);
-        model
-    }).collect();
-
-    (indices, complex_objects)
 }
 
 pub fn load_animated_models(
@@ -327,13 +305,13 @@ impl<'a> State<'a> {
 
 
         let multisampled_framebuffer =
-            texture::Texture::create_multisampled_framebuffer(&device, &config, sample_count);
+            texture::Texture::create_multisampled_framebuffer(&device, &config, config.view_formats[0], sample_count);
 
         let multisampled_glass_framebuffer =
-            texture::Texture::create_multisampled_glass_framebuffer(&device, &config, sample_count);
+            texture::Texture::create_multisampled_framebuffer(&device, &config, wgpu::TextureFormat::Rgba16Float, sample_count);
         
         let multisampled_reveal_framebuffer = 
-            texture::Texture::create_multisampled_reveal_framebuffer(&device, &config, sample_count);
+            texture::Texture::create_multisampled_framebuffer(&device, &config, wgpu::TextureFormat::R8Unorm, sample_count);
 
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture", sample_count);
         let accum_texture = texture::Texture::create_accum_texture(&device, &config, "accum_texture", sample_count);
@@ -392,34 +370,34 @@ impl<'a> State<'a> {
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        if new_size.width > 0 && new_size.height > 0 {
-            self.size = new_size;
-            self.config.width = new_size.width;
-            self.config.height = new_size.height;
-            self.surface.configure(&self.device, &self.config);
-            self.depth_texture = texture::Texture::create_depth_texture(
-                &self.device, &self.config, "depth_texture", self.sample_count);
-            self.accum_texture = texture::Texture::create_accum_texture(
-                &self.device, &self.config, "accum_texture", self.sample_count);
-            self.reveal_texture = texture::Texture::create_reveal_texture(
-                &self.device, &self.config, "reveal_texture");
-            
-            self.multisampled_framebuffer =
-                texture::Texture::create_multisampled_framebuffer(&self.device, &self.config, self.sample_count);
-            self.multisampled_glass_framebuffer =
-                texture::Texture::create_multisampled_glass_framebuffer(&self.device, &self.config, self.sample_count);
-            self.multisampled_reveal_framebuffer =
-                texture::Texture::create_multisampled_reveal_framebuffer(&self.device, &self.config, self.sample_count);
-            self.queue.write_buffer(&self.bind_groups_buffers.crosshair_aspect_scale.buffer, 0, 
-                bytemuck::cast_slice(&[new_size.height as f32/new_size.width as f32, 600.0/new_size.height as f32]));
+        if new_size.width <= 0 || new_size.height <= 0 {return};
 
-            self.window.request_redraw();
-            // self.egui.resize(new_size.width, new_size.height, self.window.scale_factor() as f32);
-        }
+        self.size = new_size;
+        self.config.width = new_size.width;
+        self.config.height = new_size.height;
+        self.surface.configure(&self.device, &self.config);
+        self.depth_texture = texture::Texture::create_depth_texture(
+            &self.device, &self.config, "depth_texture", self.sample_count);
+        self.accum_texture = texture::Texture::create_accum_texture(
+            &self.device, &self.config, "accum_texture", self.sample_count);
+        self.reveal_texture = texture::Texture::create_reveal_texture(
+            &self.device, &self.config, "reveal_texture");
+        
+        self.multisampled_framebuffer =
+            texture::Texture::create_multisampled_framebuffer(&self.device, &self.config, self.config.view_formats[0], self.sample_count);
+        self.multisampled_glass_framebuffer =
+            texture::Texture::create_multisampled_framebuffer(&self.device, &self.config, wgpu::TextureFormat::Rgba16Float, self.sample_count);
+        self.multisampled_reveal_framebuffer =
+            texture::Texture::create_multisampled_framebuffer(&self.device, &self.config, wgpu::TextureFormat::R8Unorm, self.sample_count);
+        self.queue.write_buffer(&self.bind_groups_buffers.crosshair_aspect_scale.buffer, 0, 
+            bytemuck::cast_slice(&[new_size.height as f32/new_size.width as f32, 600.0/new_size.height as f32]));
+
+        self.window.request_redraw();
+        // self.egui.resize(new_size.width, new_size.height, self.window.scale_factor() as f32);
     }
 
-    pub fn update_time(&mut self, time: &Time) {
-        self.queue.write_buffer(&self.bind_groups_buffers.time.buffer, 0, &time.current().to_le_bytes());
+    pub fn update_time(&mut self, current_time: f32) {
+        self.queue.write_buffer(&self.bind_groups_buffers.time.buffer, 0, &current_time.to_le_bytes());
     }
 
     pub fn update_camera(&mut self, proj_view: &[[f32; 4]; 4]) {

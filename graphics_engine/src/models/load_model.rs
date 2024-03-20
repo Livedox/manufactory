@@ -2,7 +2,7 @@ use std::{path::Path};
 
 use russimp::scene::{Scene, PostProcess};
 
-use crate::engine::vertices::model_vertex::ModelVertex;
+use crate::vertices::model_vertex::ModelVertex;
 
 use super::{model::Model, load_texture::load_texture};
 

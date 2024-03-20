@@ -1,14 +1,16 @@
 use std::collections::HashMap;
 
+use graphics_engine::mesh::AnimatedModelRenderResult;
+
 use crate::voxels::chunk::{Chunk, CHUNK_SIZE};
 
-#[derive(Debug, Clone)]
-pub struct AnimatedModelRenderResult {
-    pub position: [f32; 3],
-    pub light: [f32; 4],
-    pub progress: f32,
-    pub rotation_index: u32,
-}
+// #[derive(Debug, Clone)]
+// pub struct AnimatedModelRenderResult {
+//     pub position: [f32; 3],
+//     pub light: [f32; 4],
+//     pub progress: f32,
+//     pub rotation_index: u32,
+// }
 
 pub type AnimatedModels = HashMap::<u32, Vec<AnimatedModelRenderResult>>;
 

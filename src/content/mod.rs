@@ -3,9 +3,31 @@ use std::path::Path;
 
 
 use serde::{Deserialize, Serialize};
+use graphics_engine::state::Indices;
+use crate::graphic::complex_object::{load_complex_object, ComplexObject};
+use crate::{voxels::{block::{block_test::{to_block, Block, BlockBase, BlockFile}, block_type::BlockType, functions::{on_multiblock_break}}, live_voxels::{register, LiveVoxelRegistrator}}};
 
-use crate::graphic::complex_object::ComplexObject;
-use crate::{engine::state::{load_complex_objects, Indices}, voxels::{block::{block_test::{to_block, Block, BlockBase, BlockFile}, block_type::BlockType, functions::{on_multiblock_break}}, live_voxels::{register, LiveVoxelRegistrator}}};
+pub fn load_complex_objects(
+    complex_objects_path: impl AsRef<Path>,
+    tmp_indices: &Indices
+) -> (HashMap::<String, u32>, Box<[ComplexObject]>) {
+    let files = walkdir::WalkDir::new(complex_objects_path)
+        .into_iter()
+        .filter_map(|f| f.ok())
+        .filter(|f| f.file_type().is_file())
+        .enumerate();
+    let mut indices = HashMap::<String, u32>::new();
+    let complex_objects: Box<[ComplexObject]> = files.map(|(index, file)| {
+        let file_name = file.file_name().to_str().unwrap();
+        let dot_index = file_name.rfind('.').unwrap();
+        let name = file_name[..dot_index].to_string();
+        let model = load_complex_object(file.path(), tmp_indices);
+        indices.insert(name, index as u32);
+        model
+    }).collect();
+
+    (indices, complex_objects)
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContentIndices {

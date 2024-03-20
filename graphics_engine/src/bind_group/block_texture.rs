@@ -1,4 +1,4 @@
-use crate::engine::texture::Texture;
+use crate::texture::Texture;
 
 pub(crate) fn get(device: &wgpu::Device, textrue_bgl: &wgpu::BindGroupLayout, texture: &Texture) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {

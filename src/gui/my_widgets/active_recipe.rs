@@ -1,5 +1,6 @@
 use egui::{Rect, vec2, Stroke, Pos2, pos2, Color32, epaint};
-use crate::{gui::theme::DEFAULT_THEME, recipes::recipe::ActiveRecipe, engine::texture::TextureAtlas};
+use graphics_engine::texture::TextureAtlas;
+use crate::{gui::theme::DEFAULT_THEME, recipes::recipe::ActiveRecipe};
 use std::f32::consts::PI;
 
 const WIDTH: f32 = 50.0;

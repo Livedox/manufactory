@@ -1,8 +1,9 @@
 use std::{collections::HashMap, sync::{Mutex, Arc}};
 
 use itertools::Itertools;
+use graphics_engine::mesh::Mesh;
 
-use crate::{content::Content, engine::{mesh::Mesh}, graphic::render::{animated_model::AnimatedModelRenderResult, model::ModelRenderResult, RenderResult}, state::State, voxels::block::block_type::BlockType, world::World};
+use crate::{content::Content, graphic::render::{model::ModelRenderResult, RenderResult}, state::State, voxels::block::block_type::BlockType, world::World};
 
 
 pub struct MeshesRenderInput<'a> {

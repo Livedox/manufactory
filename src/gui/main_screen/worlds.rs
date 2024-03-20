@@ -2,8 +2,8 @@ use std::{collections::{hash_map::DefaultHasher}, hash::{Hash, Hasher}};
 
 use chrono::{Utc, TimeZone};
 use egui::{vec2, Color32, RichText, Stroke, Ui};
-
-use crate::{engine::state::Indices, gui::theme::DEFAULT_THEME, level::Level, setting::Setting, world::loader::{WorldData, WorldLoader}};
+use graphics_engine::state::{Indices};
+use crate::{gui::theme::DEFAULT_THEME, level::Level, setting::Setting, world::loader::{WorldData, WorldLoader}};
 
 #[derive(Default, Debug, Clone)]
 pub struct WorldCreator {

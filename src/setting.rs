@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::engine::setting::GraphicSetting;
+use graphics_engine::setting::GraphicSetting;
 
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

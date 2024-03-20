@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::Path};
 
-use crate::engine::vertices::animated_model_vertex::AnimatedModelVertex;
+use crate::vertices::animated_model_vertex::AnimatedModelVertex;
 
 use super::{animated_model::{AnimatedModel, Animation, Animator, BoneKeyFrames, Joint, JointTransform, KeyFrame}, load_texture::load_texture};
 

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::engine::texture::Texture;
+use crate::texture::Texture;
 
 pub fn load_texture(
   device: &wgpu::Device,

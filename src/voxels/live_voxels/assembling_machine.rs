@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use graphics_engine::texture::TextureAtlas;
 
 use crate::coords::global_coord::GlobalCoord;
 use crate::direction::Direction;
@@ -8,7 +9,7 @@ use crate::{live_voxel_default_deserialize, player_unlockable};
 use crate::recipes::recipe::{ActiveRecipe, Recipe};
 use std::sync::{Arc, Mutex};
 use std::sync::Weak;
-use crate::{recipes::{item::{Item}, storage::Storage, recipes::RECIPES}, gui::{draw::Draw, my_widgets::{assembling_machine_slot::assembling_machine_slot, recipe::recipe}}, player::inventory::PlayerInventory, engine::texture::TextureAtlas};
+use crate::{recipes::{item::{Item}, storage::Storage, recipes::RECIPES}, gui::{draw::Draw, my_widgets::{assembling_machine_slot::assembling_machine_slot, recipe::recipe}}, player::inventory::PlayerInventory};
 use crate::gui::my_widgets::container::container;
 
 use super::{LiveVoxelBehavior, LiveVoxelCreation, PlayerUnlockable};

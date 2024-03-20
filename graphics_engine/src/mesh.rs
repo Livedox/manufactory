@@ -4,7 +4,6 @@ use bytemuck::NoUninit;
 use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
-use crate::graphic::render::{animated_model::{AnimatedModelRenderResult, AnimatedModels}, model::{ModelRenderResult, Models}};
 use super::{state::{self, State}, vertices::{animated_model_instance::AnimatedModelInstance, block_vertex::BlockVertex, model_instance::ModelInstance}};
 const INDEX: wgpu::BufferUsages = wgpu::BufferUsages::INDEX;
 const VERTEX: wgpu::BufferUsages = wgpu::BufferUsages::VERTEX;
@@ -36,6 +35,17 @@ impl MeshBuffer {
         Self {id, size, buffer}
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct AnimatedModelRenderResult {
+    pub position: [f32; 3],
+    pub light: [f32; 4],
+    pub progress: f32,
+    pub rotation_index: u32,
+}
+
+pub type Models = HashMap<u32, Vec<ModelInstance>>;
+pub type AnimatedModels = HashMap<u32, Vec<AnimatedModelRenderResult>>;
 
 pub struct MeshInput {
     pub block_vertices: Vec<BlockVertex>,

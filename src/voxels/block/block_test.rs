@@ -1,8 +1,8 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use serde::{Deserialize, Serialize};
-
-use crate::{direction::Direction, engine::state::Indices, player::player::Player, recipes::{item::Item}, coords::{coord::Coord, global_coord::GlobalCoord}, world::World};
+use graphics_engine::state::Indices;
+use crate::{direction::Direction, player::player::Player, recipes::{item::Item}, coords::{coord::Coord, global_coord::GlobalCoord}, world::World};
 
 use super::{block_type::BlockType, functions::{Function, FUNCTIONS}};
 

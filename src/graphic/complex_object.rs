@@ -3,7 +3,7 @@ use std::path::Path;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::engine::state::{Indices};
+use graphics_engine::state::{Indices};
 #[derive(Deserialize, Serialize, Debug, Clone)]
 /// 0: position, 1: uv
 pub struct ComplexObjectVertex(pub [f32; 3], pub [f32; 2]);

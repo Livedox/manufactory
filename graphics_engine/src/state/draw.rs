@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 
 
-use crate::engine::{bind_group, mesh::{Mesh, MeshBuffer}, texture::Texture};
+use crate::{bind_group, mesh::{Mesh, MeshBuffer}, texture::Texture};
 
 use super::State;
 

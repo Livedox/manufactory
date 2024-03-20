@@ -1,6 +1,5 @@
-
-
-use crate::{engine::vertices::block_vertex::BlockVertex, graphic::complex_object::{ComplexObjectSide, ComplexObject}, voxels::chunk::Chunk};
+use graphics_engine::vertices::block_vertex::BlockVertex;
+use crate::{graphic::complex_object::{ComplexObjectSide, ComplexObject}, voxels::chunk::Chunk};
 use super::{animated_model::{render_animated_model, AnimatedModels}, model::{render_model, Models}, Buffer};
 
 const INDICES: [[usize; 6]; 2] = [[0,1,2,0,2,3], [3,2,0,2,1,0]];

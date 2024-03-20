@@ -1,8 +1,8 @@
 
 
 use itertools::iproduct;
-
-use crate::{content::Content, coords::chunk_coord::ChunkCoord, engine::{mesh::MeshInput, pipeline::IS_LINE, vertices::block_vertex::BlockVertex}, graphic::render::block_managers::BlockManagers, voxels::{block::block_type::BlockType, chunk::CHUNK_SIZE, chunks::Chunks}};
+use graphics_engine::{mesh::MeshInput, pipeline::IS_LINE, vertices::block_vertex::BlockVertex};
+use crate::{content::Content, coords::chunk_coord::ChunkCoord, graphic::render::block_managers::BlockManagers, voxels::{block::block_type::BlockType, chunk::CHUNK_SIZE, chunks::Chunks}};
 
 use self::{model::{Models, render_model}, animated_model::{AnimatedModels, render_animated_model}, complex_object::render_complex_object, block::{render_block}};
 
