@@ -1,9 +1,11 @@
 use std::{collections::HashMap, iter, path::Path, sync::Arc, time::Instant};
 
 
+use image::imageops::FilterType;
 use itertools::Itertools;
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
+use crate::constants::{BLOCK_MIPMAP_COUNT, BLOCK_TEXTURE_SIZE};
 use crate::{bind_group, bind_group_layout::Layouts, models::load_animated_model::load_animated_model, pipeline::Pipelines, rev_qumark, shaders::Shaders, texture::Texture};
 use crate::texture::TextureAtlas;
 use super::{bind_group_buffer::BindGroupsBuffers, egui::Egui, mesh::Mesh, models::{animated_model::AnimatedModel, load_model::load_model, model::Model}, setting::GraphicSetting, texture};
@@ -92,7 +94,16 @@ pub fn load_textures(device: &wgpu::Device, queue: &wgpu::Queue) -> (HashMap::<S
         image::open(file.path()).unwrap_or_else(|_| panic!("Failed to open image on path: {:?}", file.path()))
     }).collect_vec();
 
-    (indices, texture::Texture::image_array_n(device, queue, &images))
+    let data = (0..BLOCK_MIPMAP_COUNT).map(|mipmap| {
+        let size = BLOCK_TEXTURE_SIZE / 2u32.pow(mipmap as u32);
+        images.iter().flat_map(|image| {
+            if mipmap == 0 {return image.to_rgba8().to_vec()};
+            image.resize(size, size, FilterType::Triangle).to_rgba8().to_vec()
+        }).collect_vec()
+    }).collect_vec();
+    let imgs = data.iter().map(Vec::as_slice).collect_vec();
+
+    (indices, texture::Texture::block_array(device, queue, &imgs, images.len() as u32))
 }
 
 pub trait Priority {
@@ -163,7 +174,7 @@ async fn request_device(adapter: &Adapter) -> Result<(wgpu::Device, wgpu::Queue)
     adapter.request_device(
         &wgpu::DeviceDescriptor {
             label: None,
-            required_features: wgpu::Features::empty().union(wgpu::Features::DUAL_SOURCE_BLENDING),
+            required_features: wgpu::Features::empty(),
             // WebGL doesn't support all of wgpu's features, so if
             // we're building for the web we'll have to disable some.
             required_limits: if cfg!(target_arch = "wasm32") {
@@ -201,8 +212,6 @@ pub struct State<'a> {
 
     models: Box<[Model]>,
     pub animated_models: Box<[AnimatedModel]>,
-
-    pub animated_model_buffer: wgpu::Buffer,
 
     bind_groups_buffers: BindGroupsBuffers,
     pub layouts: Layouts,
@@ -281,16 +290,17 @@ impl<'a> State<'a> {
         // let mut egui = Egui::new(&device, surface_format, size.width, size.height, window.scale_factor());
         let mut egui = Egui::new(&device, &window, surface_format, sample_count);
         // TODO: Make texture atlas from files not one file.
-        let texture_atlas = TextureAtlas::new(egui.renderer(), &device, &queue, "./res/assets/items/items.png", 4);
+        let img = image::open("./res/assets/items/items.png").expect("./res/assets/items/items.png");
+        let (width, height) = (img.width(), img.height());
+        if width != height { panic!("Use square textures") }
+        let texture_atlas = TextureAtlas::new(egui.renderer(), &device, &queue, width, img.as_bytes(), 4);
        
         let shaders = Shaders::new(&device);
         let layouts = Layouts::new(&device);
         let bind_groups_buffers = BindGroupsBuffers::new(&device, &layouts, proj_view);
         let pipelines = Pipelines::new(&device, &layouts, &shaders, config.format, sample_count);
 
-        let start = Instant::now();
         let (block_texture_id, block_texture) = load_textures(&device, &queue);
-        println!("Load time: {:?}", start.elapsed().as_secs_f32());
 
         let block_texutre_bg = bind_group::block_texture::get(&device, &layouts.block_texture, &block_texture);
 
@@ -316,12 +326,6 @@ impl<'a> State<'a> {
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture", sample_count);
         let accum_texture = texture::Texture::create_accum_texture(&device, &config, "accum_texture", sample_count);
         let reveal_texture = texture::Texture::create_reveal_texture(&device, &config, "reveal_texture");
-        
-        let transforms_storage_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Animated model storage buffer"),
-            contents: &[],
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        });
 
 
         Self {
@@ -350,8 +354,6 @@ impl<'a> State<'a> {
 
             models,
             animated_models,
-
-            animated_model_buffer: transforms_storage_buffer,
 
             texture_atlas: Arc::new(texture_atlas),
             selection_vertex_buffer: None,

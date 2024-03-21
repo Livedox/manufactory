@@ -1,4 +1,4 @@
-use crate::texture;
+use crate::constants::DEPTH_FORMAT;
 
 pub enum PipelineBuilderShader<'a> {
     General{shader: &'a wgpu::ShaderModule},
@@ -137,7 +137,7 @@ impl<'a> PipelineBuilder<'a> {
                 conservative: false,
             },
             depth_stencil: self.is_depth.then(|| wgpu::DepthStencilState {
-                format: texture::Texture::DEPTH_FORMAT,
+                format: DEPTH_FORMAT,
                 depth_write_enabled: self.depth_write_enabled,
                 depth_compare: wgpu::CompareFunction::Less,
                 stencil: wgpu::StencilState::default(),

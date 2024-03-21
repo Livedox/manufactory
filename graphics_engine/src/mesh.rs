@@ -4,7 +4,7 @@ use bytemuck::NoUninit;
 use itertools::Itertools;
 use wgpu::util::DeviceExt;
 
-use super::{state::{self, State}, vertices::{animated_model_instance::AnimatedModelInstance, block_vertex::BlockVertex, model_instance::ModelInstance}};
+use super::{state::State, vertices::{animated_model_instance::AnimatedModelInstance, block_vertex::BlockVertex, model_instance::ModelInstance}};
 const INDEX: wgpu::BufferUsages = wgpu::BufferUsages::INDEX;
 const VERTEX: wgpu::BufferUsages = wgpu::BufferUsages::VERTEX;
 const STORAGE: wgpu::BufferUsages = wgpu::BufferUsages::STORAGE;
@@ -161,5 +161,18 @@ impl Mesh {
             belt_vertex_buffer,
             belt_vertex_count: input.belt_vertices.len() as u32,
         }
+    }
+
+
+    pub fn update_transforms_buffer(&self, state: &State, progress: &[(u32, Vec<f32>)]) {
+        let Some(buffer) = &self.transformation_matrices_buffer else {return};
+
+        let transforms = progress.iter().flat_map(|(id, p)| {
+            let model = state.animated_models.get(*id as usize).unwrap();
+            p.iter().flat_map(|progress| {model.calculate_bytes_transforms(None, *progress)})
+        }).collect_vec();
+
+        if buffer.size() < transforms.len() as u64 {return};
+        state.queue().write_buffer(buffer, 0, transforms.as_slice());
     }
 }

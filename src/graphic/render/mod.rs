@@ -1,7 +1,7 @@
 
 
 use itertools::iproduct;
-use graphics_engine::{mesh::MeshInput, pipeline::IS_LINE, vertices::block_vertex::BlockVertex};
+use graphics_engine::{constants::IS_LINE_TOPOLOGY, mesh::MeshInput, vertices::block_vertex::BlockVertex};
 use crate::{content::Content, coords::chunk_coord::ChunkCoord, graphic::render::block_managers::BlockManagers, voxels::{block::block_type::BlockType, chunk::CHUNK_SIZE, chunks::Chunks}};
 
 use self::{model::{Models, render_model}, animated_model::{AnimatedModels, render_animated_model}, complex_object::render_complex_object, block::{render_block}};
@@ -40,7 +40,7 @@ impl Buffer {
     }
 
     pub fn manage_vertices(&mut self, vertices: &[BlockVertex; 4], indices: &[usize; 6]) {
-        if !IS_LINE {
+        if !IS_LINE_TOPOLOGY {
             self.push_triangles(vertices, indices);
         } else {
             self.push_line(vertices, indices);

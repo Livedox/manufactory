@@ -1,5 +1,5 @@
 [workspace]
-members = ["graphics_engine"]
+members = ["graphics_engine", "models"]
 
 [package]
 name = "manufactory"
@@ -10,6 +10,7 @@ edition = "2021"
 
 [dependencies]
 graphics_engine = { path = "./graphics_engine" }
+
 wgpu-core = "0.19.0"
 wgpu-types = { version = "0.19", features = ["serde", "trace", "replay"]}
 wgpu = "0.19"

@@ -44,6 +44,10 @@ impl LiveVoxels {
     pub fn insert(&self, k: usize, v: Arc<LiveVoxelContainer>) -> Option<Arc<LiveVoxelContainer>> {
         self.0.write().unwrap().insert(k, v)
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.read().unwrap().is_empty()
+    }
 }
 
 #[derive(Debug)]

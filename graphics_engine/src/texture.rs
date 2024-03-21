@@ -1,9 +1,4 @@
-use std::path::Path;
-
-use image::{imageops::FilterType, DynamicImage};
-use itertools::Itertools;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
-
+use crate::constants::{BLOCK_MIPMAP_COUNT, BLOCK_TEXTURE_FORMAT, BLOCK_TEXTURE_SIZE, DEPTH_FORMAT};
 
 #[derive(Debug)]
 pub struct Texture {
@@ -13,14 +8,14 @@ pub struct Texture {
 }
 
 impl Texture {
+    /// Panics if the height != width
     pub fn image(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        src: impl AsRef<Path>,
-    ) -> Result<Self, ()> {
-        let img = image::open(src).expect("Failed to open file!");
-        let (width, height) = (img.width(), img.height());
-        
+        width: u32,
+        height: u32,
+        data: &[u8],
+    ) -> Self {
         if width != height { panic!("Use square textures") }
 
         let size = wgpu::Extent3d {
@@ -47,7 +42,7 @@ impl Texture {
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
             },
-            img.as_flat_samples_u8().unwrap().samples,
+            data,
             wgpu::ImageDataLayout {
                 offset: 0,
                 bytes_per_row: Some(4 * width),
@@ -67,63 +62,59 @@ impl Texture {
             ..Default::default()
         });
 
-        Ok(Self {
+        Self {
             texture,
             view,
             sampler,
-        })
+        }
     }
 
-
-    pub fn image_array_n(
+    /// texture sizes \[\[32x32\], \[16x16\], \[8x8\], \[4x4\], \[2x2\]\]
+    /// textures \[\[miplevel 0, miplevel 0, ...\], \[miplevel 1, ...\], ...\]
+    /// Panics if the textures.len() != BLOCK_MIPMAP_COUNT
+    pub fn block_array(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        images: &[DynamicImage]
+        textures: &[&[u8]],
+        block_count: u32,
     ) -> Self {
-        const BASE_SIZE: u32 = 32;
-        //Maximum mipmap_count is BASE_SIZE.ilog2() + 1 (img size 1px) but it's too small
-        let mipmap_count = BASE_SIZE.ilog2();
-        let format = wgpu::TextureFormat::Rgba8UnormSrgb;
+        if textures.len() != BLOCK_MIPMAP_COUNT { panic!("Invalid mip map") }
+        let mipmap = BLOCK_MIPMAP_COUNT as u32;
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("image texture array"),
             size: wgpu::Extent3d {
-                width: BASE_SIZE,
-                height: BASE_SIZE,
-                depth_or_array_layers: images.len() as u32,
+                width: BLOCK_TEXTURE_SIZE,
+                height: BLOCK_TEXTURE_SIZE,
+                depth_or_array_layers: block_count,
             },
-            mip_level_count: mipmap_count,
+            mip_level_count: mipmap,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format,
+            format: BLOCK_TEXTURE_FORMAT,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
         });
 
-        (0..mipmap_count).into_par_iter().for_each(|mipmap| {
-            let img_size = BASE_SIZE / 2u32.pow(mipmap);
-            let bytes = images.iter().flat_map(|image| {
-                    if mipmap == 0 {return image.to_rgba8().to_vec()};
-                    image.resize(img_size, img_size, FilterType::Triangle).to_rgba8().to_vec()
-                })
-                .collect_vec();
 
+        textures.into_iter().enumerate().for_each(|(level, bytes)| {
+            let size = BLOCK_TEXTURE_SIZE / 2u32.pow(level as u32);
             queue.write_texture(
                 wgpu::ImageCopyTexture {
                     aspect: wgpu::TextureAspect::All,
                     texture: &texture,
-                    mip_level: mipmap,
+                    mip_level: level as u32,
                     origin: wgpu::Origin3d::ZERO,
                 },
-                &bytes,
+                *bytes,
                 wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(4 * img_size),
-                    rows_per_image: Some(img_size),
+                    bytes_per_row: Some(4 * size),
+                    rows_per_image: Some(size),
                 },
                 wgpu::Extent3d {
-                    width: img_size,
-                    height: img_size,
-                    depth_or_array_layers: images.len() as u32,
+                    width: size,
+                    height: size,
+                    depth_or_array_layers: block_count,
                 }
             );
         });
@@ -145,83 +136,6 @@ impl Texture {
             sampler,
         }
     }
-
-
-    pub fn image_array(
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        srcs: &[&str],
-        label: Option<&str>
-    ) -> Result<Self, ()> {
-        const BASE_SIZE: u32 = 32;
-        //Maximum mipmap_count is BASE_SIZE.ilog2() + 1 (img size 1px) but it's too small
-        let mipmap_count = BASE_SIZE.ilog2();
-        let format = wgpu::TextureFormat::Rgba8UnormSrgb;
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label,
-            size: wgpu::Extent3d {
-                width: BASE_SIZE,
-                height: BASE_SIZE,
-                depth_or_array_layers: srcs.len() as u32,
-            },
-            mip_level_count: mipmap_count,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            view_formats: &[],
-        });
-
-        let images: Vec<DynamicImage> = srcs.iter().map(|src| image::open(src).expect(src)).collect_vec();
-        (0..mipmap_count).into_par_iter().for_each(|mipmap| {
-            let img_size = BASE_SIZE / 2u32.pow(mipmap);
-            let bytes = images.iter().flat_map(|image| {
-                    if mipmap == 0 {return image.to_rgba8().to_vec()};
-                    image.resize(img_size, img_size, FilterType::Triangle).to_rgba8().to_vec()
-                })
-                .collect_vec();
-
-            queue.write_texture(
-                wgpu::ImageCopyTexture {
-                    aspect: wgpu::TextureAspect::All,
-                    texture: &texture,
-                    mip_level: mipmap,
-                    origin: wgpu::Origin3d::ZERO,
-                },
-                &bytes,
-                wgpu::ImageDataLayout {
-                    offset: 0,
-                    bytes_per_row: Some(4 * img_size),
-                    rows_per_image: Some(img_size),
-                },
-                wgpu::Extent3d {
-                    width: img_size,
-                    height: img_size,
-                    depth_or_array_layers: srcs.len() as u32,
-                }
-            );
-        });
-
-        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::Repeat,
-            address_mode_v: wgpu::AddressMode::Repeat,
-            address_mode_w: wgpu::AddressMode::Repeat,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Linear,
-            ..Default::default()
-        });
-
-        Ok(Self {
-            texture,
-            view,
-            sampler,
-        })
-    }
-
-
-    pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
     
     pub fn create_depth_texture(device: &wgpu::Device, config: &wgpu::SurfaceConfiguration, label: &str, sample_count: u32) -> Self {
         let size = wgpu::Extent3d {
@@ -235,7 +149,7 @@ impl Texture {
             mip_level_count: 1,
             sample_count,
             dimension: wgpu::TextureDimension::D2,
-            format: Self::DEPTH_FORMAT,
+            format: DEPTH_FORMAT,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::COPY_SRC,
@@ -246,9 +160,6 @@ impl Texture {
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(
             &wgpu::SamplerDescriptor {
-                address_mode_u: wgpu::AddressMode::ClampToEdge,
-                address_mode_v: wgpu::AddressMode::ClampToEdge,
-                address_mode_w: wgpu::AddressMode::ClampToEdge,
                 mag_filter: wgpu::FilterMode::Linear,
                 min_filter: wgpu::FilterMode::Linear,
                 mipmap_filter: wgpu::FilterMode::Nearest,
@@ -285,9 +196,6 @@ impl Texture {
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(
             &wgpu::SamplerDescriptor {
-                address_mode_u: wgpu::AddressMode::ClampToEdge,
-                address_mode_v: wgpu::AddressMode::ClampToEdge,
-                address_mode_w: wgpu::AddressMode::ClampToEdge,
                 mag_filter: wgpu::FilterMode::Linear,
                 min_filter: wgpu::FilterMode::Linear,
                 mipmap_filter: wgpu::FilterMode::Nearest,
@@ -324,9 +232,6 @@ impl Texture {
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(
             &wgpu::SamplerDescriptor {
-                address_mode_u: wgpu::AddressMode::ClampToEdge,
-                address_mode_v: wgpu::AddressMode::ClampToEdge,
-                address_mode_w: wgpu::AddressMode::ClampToEdge,
                 mag_filter: wgpu::FilterMode::Linear,
                 min_filter: wgpu::FilterMode::Linear,
                 mipmap_filter: wgpu::FilterMode::Nearest,
@@ -340,71 +245,16 @@ impl Texture {
         Self { texture, view, sampler }
     }
 
-    pub fn create_multisampled_glass_framebuffer(
-        device: &wgpu::Device,
-        config: &wgpu::SurfaceConfiguration,
-        sample_count: u32,
-    ) -> wgpu::TextureView {
-        let multisampled_texture_extent = wgpu::Extent3d {
-            width: config.width,
-            height: config.height,
-            depth_or_array_layers: 1,
-        };
-        let multisampled_frame_descriptor = &wgpu::TextureDescriptor {
-            size: multisampled_texture_extent,
-            mip_level_count: 1,
-            sample_count,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba16Float,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            label: None,
-            view_formats: &[],
-        };
-
-        device
-            .create_texture(multisampled_frame_descriptor)
-            .create_view(&wgpu::TextureViewDescriptor::default())
-    }
-
-    pub fn create_multisampled_reveal_framebuffer(
-        device: &wgpu::Device,
-        config: &wgpu::SurfaceConfiguration,
-        sample_count: u32,
-    ) -> wgpu::TextureView {
-        let multisampled_texture_extent = wgpu::Extent3d {
-            width: config.width,
-            height: config.height,
-            depth_or_array_layers: 1,
-        };
-        let multisampled_frame_descriptor = &wgpu::TextureDescriptor {
-            size: multisampled_texture_extent,
-            mip_level_count: 1,
-            sample_count,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::R8Unorm,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            label: None,
-            view_formats: &[],
-        };
-
-        device
-            .create_texture(multisampled_frame_descriptor)
-            .create_view(&wgpu::TextureViewDescriptor::default())
-    }
-
     pub fn create_multisampled_framebuffer(
         device: &wgpu::Device,
         config: &wgpu::SurfaceConfiguration,
         format: wgpu::TextureFormat,
         sample_count: u32,
     ) -> wgpu::TextureView {
-        let multisampled_texture_extent = wgpu::Extent3d {
-            width: config.width,
-            height: config.height,
-            depth_or_array_layers: 1,
-        };
+        let size = Self::get_screen_size(config);
+
         let multisampled_frame_descriptor = &wgpu::TextureDescriptor {
-            size: multisampled_texture_extent,
+            size,
             mip_level_count: 1,
             sample_count,
             dimension: wgpu::TextureDimension::D2,
@@ -461,24 +311,21 @@ impl TextureAtlas {
         render_pass: &mut egui_wgpu::Renderer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        src: &str,
+        size: u32,
+        data: &[u8],
         row_count: u32
     ) -> Self {
-        let img = image::open(src).expect(src);
-        let (width, height) = (img.width(), img.height());
-        
-        if width != height { panic!("Use square textures") }
-        if width & (width-1) != 0 { panic!("Image resolution must be a multiple of a power of two")}
+        if size & (size-1) != 0 { panic!("Image resolution must be a multiple of a power of two")}
 
-        let size = wgpu::Extent3d {
-            width,
-            height,
+        let extend = wgpu::Extent3d {
+            width: size,
+            height: size,
             depth_or_array_layers: 1,
         };
         let format = wgpu::TextureFormat::Rgba8UnormSrgb;
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("Texture atlas"),
-            size,
+            size: extend,
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -495,13 +342,13 @@ impl TextureAtlas {
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
             },
-            img.as_flat_samples_u8().unwrap().samples,
+            data,
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(4 * width),
-                rows_per_image: Some(height),
+                bytes_per_row: Some(4 * size),
+                rows_per_image: Some(size),
             },
-            size,
+            extend,
         );
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());

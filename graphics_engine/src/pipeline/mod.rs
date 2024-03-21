@@ -1,16 +1,10 @@
 use wgpu::{Device, BindGroupLayout, VertexBufferLayout, ShaderModule, TextureFormat, PrimitiveTopology, RenderPipeline};
-use crate::texture;
+use crate::{constants::PRIMITIVE_TOPOLOGY, texture};
 use self::builder::{PipelineBuilder, PipelineBuilderShader};
 
 use super::{bind_group_layout::Layouts, shaders::Shaders, vertices::{block_vertex::BlockVertex, model_vertex::ModelVertex, model_instance::ModelInstance, animated_model_vertex::AnimatedModelVertex, animated_model_instance::AnimatedModelInstance, selection_vertex::SelectionVertex}};
 
 mod builder;
-
-pub const IS_LINE: bool = false;
-pub const PRIMITIVE_TOPOLOGY: wgpu::PrimitiveTopology = match IS_LINE {
-    true => wgpu::PrimitiveTopology::LineList,
-    false => wgpu::PrimitiveTopology::TriangleList,
-};
 
 const CROSSHAIR_BLEND_STATE: wgpu::BlendState = wgpu::BlendState {
     color: wgpu::BlendComponent {

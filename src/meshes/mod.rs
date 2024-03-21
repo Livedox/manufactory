@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::{Mutex, Arc}};
+use std::{collections::{BTreeMap, HashMap}, sync::{Arc, Mutex}};
 
 use itertools::Itertools;
 use graphics_engine::mesh::Mesh;
@@ -53,43 +53,28 @@ impl Meshes {
     pub fn update_transforms_buffer(&mut self, state: &State, world: &World, indices: &[usize]) {
         indices.iter().for_each(|index| {
             let Some(Some(chunk)) = unsafe {&*world.chunks.chunks.get()}.get(*index).cloned() else { return };
-            if chunk.live_voxels.0.read().unwrap().is_empty() {return};
-            let mut transforms_buffer: Vec<u8> = vec![];
-            let mut animated_models: HashMap<u32, Vec<f32>> = HashMap::new();
+            let Some(Some(mesh)) = self.meshes().get(*index) else {return};
+            if chunk.live_voxels.is_empty() {return};
+
+            let mut animated_models: BTreeMap<u32, Vec<f32>> = BTreeMap::new();
     
             chunk.live_voxels.0.read().unwrap().iter().sorted_by_key(|data| {data.0}).for_each(|data| {
                 let progress = data.1.live_voxel.animation_progress();
                 let block_type = &self.content.blocks[data.1.id as usize].block_type();
                 if let BlockType::AnimatedModel {id} = block_type {
-                    if let Some(animated_model) = animated_models.get_mut(id) {
-                        animated_model.push(progress);
-                    } else {
-                        animated_models.insert(*id, vec![progress]);
-                    }
+                    animated_models.entry(*id)
+                        .and_modify(|models| models.push(progress))
+                        .or_insert(vec![progress]);
                 } else if let BlockType::ComplexObject { id } = block_type {
                     world.chunks.content.complex_objects[*id as usize].animated_models.iter().for_each(|id| {
-                        if let Some(animated_model) = animated_models.get_mut(id) {
-                            animated_model.push(progress);
-                        } else {
-                            animated_models.insert(*id, vec![progress]);
-                        }
+                        animated_models.entry(*id)
+                            .and_modify(|models| models.push(progress))
+                            .or_insert(vec![progress]);
                     });
                 }
             });
     
-            animated_models.iter().sorted_by_key(|(id, _)| *id).for_each(|(id, progress_vec)| {
-                let model = state.animated_models.get(*id as usize).unwrap();
-                progress_vec.iter().for_each(|progress| {
-                    transforms_buffer.extend(model.calculate_bytes_transforms(None, *progress));
-                });
-            });
-    
-            if let Some(Some(mesh)) = &mut self.meshes().get(*index) {
-                let Some(buffer) = &mesh.transformation_matrices_buffer else {return};
-                if buffer.size() >= transforms_buffer.len() as u64 {
-                    state.queue().write_buffer(buffer, 0, transforms_buffer.as_slice());
-                }
-            }
+            mesh.update_transforms_buffer(state, &Vec::from_iter(animated_models.into_iter()));
         });
     }
 
