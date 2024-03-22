@@ -1,0 +1,14 @@
+[package]
+name = "resources"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+walkdir = "2"
+nalgebra-glm = { version = "0.18.0", features = ["convert-bytemuck"] }
+russimp = { version = "=2.0.5", features = ["prebuilt"] }
+image = "0.24.6"
+bytemuck = { version = "1.14", features = ["derive"] }
+itertools = "0.11.0"

@@ -1,5 +1,5 @@
 [workspace]
-members = ["graphics_engine", "models"]
+members = ["graphics_engine", "resources"]
 
 [package]
 name = "manufactory"
