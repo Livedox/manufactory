@@ -35,13 +35,14 @@ impl From<RussimpError> for ModelLoadingError {
 }
 
 #[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, PartialEq)]
 pub struct ModelVertex {
     pub position: [f32; 3],
     pub uv: [f32; 2],
 }
 pub struct Model {
-    vertices: Vec<ModelVertex>,
-    texture: ModelTexture
+    pub vertices: Vec<ModelVertex>,
+    pub texture: ModelTexture
 }
 
 pub fn load_model(

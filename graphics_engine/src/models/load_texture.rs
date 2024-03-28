@@ -6,11 +6,12 @@ pub fn load_texture(
   device: &wgpu::Device,
   queue: &wgpu::Queue,
   texture_layout: &wgpu::BindGroupLayout,
-  src: impl AsRef<Path>,
+  data: &[u8],
+  width: u32,
+  height: u32,
   name: &str
 ) -> wgpu::BindGroup {
-    let img = image::open(src).expect("Failed to open file!");
-    let texture = Texture::image(device, queue, img.width(), img.height(), img.as_bytes());
+    let texture = Texture::image(device, queue, width, height, data);
     device.create_bind_group(&wgpu::BindGroupDescriptor {
         layout: texture_layout,
         entries: &[

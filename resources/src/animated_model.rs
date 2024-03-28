@@ -3,8 +3,10 @@ use itertools::Itertools;
 use nalgebra_glm as glm;
 use russimp::{bone::Bone, node::Node, scene::{PostProcess, Scene}};
 
+use crate::texture::{self, load_texture, ModelTexture};
+
 #[repr(C)]
-#[derive(Debug, Clone)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable, PartialEq)]
 pub struct AnimatedModelVertex {
     pub position: [f32; 3],
     pub uv: [f32; 2],
@@ -15,6 +17,7 @@ pub struct AnimatedModelVertex {
 #[derive(Debug, Clone)]
 pub struct AnimatedModel {
     pub vertices: Vec<AnimatedModelVertex>,
+    pub texture: ModelTexture,
     pub animator: Animator,
     pub joint_count: usize,
 }
@@ -23,10 +26,11 @@ pub struct AnimatedModel {
 impl AnimatedModel {
     pub fn new(
         vertices: Vec<AnimatedModelVertex>,
+        texture: ModelTexture,
         animator: Animator,
-        joint_count: usize
+        joint_count: usize,
     ) -> Self {
-        Self { vertices, animator, joint_count }
+        Self { vertices, animator, joint_count, texture }
     }
 
     pub fn joint_count(&self) -> usize {self.joint_count}
@@ -95,7 +99,11 @@ impl Animator {
         Self { length, joint_count, joint, animations, correction }
     }
 
-    fn calculate_transforms(&self, animation_name: Option<&str>, progress: f32) -> Vec<glm::Mat4> {
+    pub fn joint_count(&self) -> usize {
+        self.joint_count
+    }
+
+    pub fn calculate_transforms(&self, animation_name: Option<&str>, progress: f32) -> Vec<glm::Mat4> {
         let mut transforms: Vec<glm::Mat4> = Vec::with_capacity(self.joint_count);
         self.animations
             .get(animation_name.unwrap_or("default"))
@@ -210,14 +218,15 @@ impl JointTransform {
     }
 }
 
-pub fn load_animated_model(src: impl AsRef<Path>) -> AnimatedModel {
+pub fn load_animated_model(src: impl AsRef<Path>, src_texture: impl AsRef<Path>) -> AnimatedModel {
+    let texture = load_texture(src_texture).unwrap();
     let scene = Scene::from_file(src.as_ref().to_str().unwrap(),
         vec![PostProcess::FlipUVs, PostProcess::MakeLeftHanded]).unwrap();
     let root = scene.root.unwrap();
     let mesh = &scene.meshes[0];
     let bones = &mesh.bones;
     let texture_coords = &mesh.texture_coords;
-    let armature_name = get_armature_name(&mesh.name);
+    let armature_name = get_armature_name(&scene.animations[0].name);
     let channels = &scene.animations[0].channels;
 
     let correction_vec = &glm::vec3(0.5, 0.0, 0.5);
@@ -271,7 +280,7 @@ pub fn load_animated_model(src: impl AsRef<Path>) -> AnimatedModel {
     });
 
     let joint = create_joint(&root, bones, &armature_name)
-        .unwrap_or_else(|_| panic!("Model loading error (unknown)")); 
+        .unwrap(); 
     
     
     let mut bones_with_keyframes: Vec<BoneKeyFrames> = vec![];
@@ -302,6 +311,7 @@ pub fn load_animated_model(src: impl AsRef<Path>) -> AnimatedModel {
         animator,
         vertices,
         joint_count: bones.len(),
+        texture,
     }
 }
 

@@ -18,3 +18,9 @@ impl ModelVertex {
         }
     }
 }
+
+impl From<resources::model::ModelVertex> for ModelVertex {
+    fn from(value: resources::model::ModelVertex) -> Self {
+        Self { position: value.position, uv: value.uv }
+    }
+}

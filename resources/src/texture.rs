@@ -2,6 +2,7 @@ use std::path::Path;
 
 use image::ImageError;
 
+#[derive(Debug, Clone)]
 pub struct ModelTexture {
     pub width: u32,
     pub height: u32,

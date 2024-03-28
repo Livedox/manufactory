@@ -1,111 +1,15 @@
 use std::{collections::HashMap, iter, path::Path, sync::Arc, time::Instant};
-
-
-use image::imageops::FilterType;
 use itertools::Itertools;
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
+use crate::bind_group::block_texture;
 use crate::constants::{BLOCK_MIPMAP_COUNT, BLOCK_TEXTURE_SIZE};
+use crate::models::load_model::load_models;
 use crate::{bind_group, bind_group_layout::Layouts, models::load_animated_model::load_animated_model, pipeline::Pipelines, rev_qumark, shaders::Shaders, texture::Texture};
 use crate::texture::TextureAtlas;
-use super::{bind_group_buffer::BindGroupsBuffers, egui::Egui, mesh::Mesh, models::{animated_model::AnimatedModel, load_model::load_model, model::Model}, setting::GraphicSetting, texture};
+use super::{bind_group_buffer::BindGroupsBuffers, egui::Egui, mesh::Mesh, models::{animated_model::AnimatedModel, model::Model}, setting::GraphicSetting, texture};
 
 pub mod draw;
-
-pub struct Indices {
-    pub block: HashMap<String, u32>,
-    pub models: HashMap<String, u32>,
-    pub animated_models: HashMap<String, u32>,
-}
-
-pub fn load_animated_models(
-    models_path: impl AsRef<Path>,
-    textures_path: impl AsRef<Path>,
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    texture_layout: &wgpu::BindGroupLayout
-) -> (HashMap::<String, u32>, Box<[AnimatedModel]>) {
-    let files = walkdir::WalkDir::new(models_path)
-        .into_iter()
-        .filter_map(|f| f.ok())
-        .filter(|f| f.file_type().is_file())
-        .enumerate();
-    let textures_path = textures_path.as_ref();
-
-    let mut indices = HashMap::<String, u32>::new();
-    let models: Box<[AnimatedModel]> = files.map(|(index, file)| {
-        let file_name = file.file_name().to_str().unwrap();
-        let dot_index = file_name.rfind('.').unwrap();
-        let name = file_name[..dot_index].to_string();
-        let texture_name = name.clone() + ".png";
-        let src_texture = textures_path.join(texture_name);
-        let model = load_animated_model(device, queue, texture_layout, file.path(), src_texture, &name);
-        indices.insert(name, index as u32);
-        model
-    }).collect();
-
-    println!("{:?}", indices);
-
-    (indices, models)
-  }
-
-pub fn load_models(
-    models_path: impl AsRef<Path>,
-    textures_path: impl AsRef<Path>,
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    texture_layout: &wgpu::BindGroupLayout
-) -> (HashMap::<String, u32>, Box<[Model]>) {
-    let files = walkdir::WalkDir::new(models_path)
-        .into_iter()
-        .filter_map(|f| f.ok())
-        .filter(|f| f.file_type().is_file())
-        .enumerate();
-    let textures_path = textures_path.as_ref();
-
-    let mut indices = HashMap::<String, u32>::new();
-    let models: Box<[Model]> = files.map(|(index, file)| {
-        let file_name = file.file_name().to_str().unwrap();
-        let dot_index = file_name.rfind('.').unwrap();
-        let name = file_name[..dot_index].to_string();
-        let texture_name = name.clone() + ".png";
-        let src_texture = textures_path.join(texture_name);
-        let model = load_model(device, queue, texture_layout, file.path(), src_texture, &name);
-        indices.insert(name, index as u32);
-        model
-    }).collect();
-
-    (indices, models)
-}
-
-pub fn load_textures(device: &wgpu::Device, queue: &wgpu::Queue) -> (HashMap::<String, u32>, Texture) {
-    let files = walkdir::WalkDir::new("./res/assets/blocks/")
-        .into_iter()
-        .filter_map(|f| f.ok())
-        .filter(|f| f.file_type().is_file())
-        .enumerate();
-
-    let mut indices = HashMap::<String, u32>::new();
-    let images = files.map(|(index, file)| {
-        let name = file.file_name().to_str().unwrap();
-        let dot_index = name.rfind('.').unwrap();
-        indices.insert(name[..dot_index].to_string(), index as u32);
-
-        image::open(file.path()).unwrap_or_else(|_| panic!("Failed to open image on path: {:?}", file.path()))
-    }).collect_vec();
-
-    let data = (0..BLOCK_MIPMAP_COUNT).map(|mipmap| {
-        let size = BLOCK_TEXTURE_SIZE / 2u32.pow(mipmap as u32);
-        images.iter().flat_map(|image| {
-            if mipmap == 0 {return image.to_rgba8().to_vec()};
-            image.resize(size, size, FilterType::Triangle).to_rgba8().to_vec()
-        }).collect_vec()
-    }).collect_vec();
-    let imgs = data.iter().map(Vec::as_slice).collect_vec();
-
-    (indices, texture::Texture::block_array(device, queue, &imgs, images.len() as u32))
-}
-
 pub trait Priority {
     fn to_priority(&self) -> u8;
 }
@@ -194,7 +98,6 @@ pub struct State<'a> {
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
 
-    pub indices: Indices,
     block_texutre_bg: wgpu::BindGroup,
     window: Arc<Window>,
 
@@ -226,7 +129,17 @@ pub struct State<'a> {
 }
 
 impl<'a> State<'a> {
-    pub async fn new(window: Arc<Window>, proj_view: &[[f32; 4]; 4], setting: &GraphicSetting) -> Self {
+    pub async fn new(
+        window: Arc<Window>,
+        setting: &GraphicSetting,
+        blocks: Vec<Vec<u8>>,
+        blocks_len: u32,
+        models: Vec<resources::model::Model>,
+        animated_models: Vec<resources::animated_model::AnimatedModel>,
+        atlas: &[u8],
+        atlas_size: u32,
+        proj_view: &[[f32; 4]; 4],
+    ) -> Self {
         let size = window.inner_size();
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
@@ -290,29 +203,22 @@ impl<'a> State<'a> {
         // let mut egui = Egui::new(&device, surface_format, size.width, size.height, window.scale_factor());
         let mut egui = Egui::new(&device, &window, surface_format, sample_count);
         // TODO: Make texture atlas from files not one file.
-        let img = image::open("./res/assets/items/items.png").expect("./res/assets/items/items.png");
-        let (width, height) = (img.width(), img.height());
-        if width != height { panic!("Use square textures") }
-        let texture_atlas = TextureAtlas::new(egui.renderer(), &device, &queue, width, img.as_bytes(), 4);
+        
+        let texture_atlas = TextureAtlas::new(egui.renderer(), &device, &queue, atlas_size, atlas, 4);
        
         let shaders = Shaders::new(&device);
         let layouts = Layouts::new(&device);
         let bind_groups_buffers = BindGroupsBuffers::new(&device, &layouts, proj_view);
         let pipelines = Pipelines::new(&device, &layouts, &shaders, config.format, sample_count);
 
-        let (block_texture_id, block_texture) = load_textures(&device, &queue);
+        let bb: Vec<&[u8]> = blocks.iter().map(Vec::as_slice).collect();
+        let block_texture = texture::Texture::block_array(&device, &queue, &bb, blocks_len);
 
         let block_texutre_bg = bind_group::block_texture::get(&device, &layouts.block_texture, &block_texture);
 
-        let (models_indices, models) = load_models("./res/models", "./res/assets/models", &device, &queue, &layouts.model_texture);
-        let (animated_models_indices, animated_models) = load_animated_models(
-            "./res/animated_models", "./res/assets/models", &device, &queue, &layouts.model_texture);
-        let indices = Indices {
-            block: block_texture_id,
-            models: models_indices,
-            animated_models: animated_models_indices,
-        };
-
+        let models = load_models(&device, &queue, &layouts.model_texture, models, "models");
+        let animated_models = load_animated_model(&device, &queue,
+            &layouts.model_texture, animated_models, "animated_models");
 
         let multisampled_framebuffer =
             texture::Texture::create_multisampled_framebuffer(&device, &config, config.view_formats[0], sample_count);
@@ -334,8 +240,6 @@ impl<'a> State<'a> {
             queue,
             config,
             size,
-
-            indices,
 
             block_texutre_bg,
             window,
