@@ -170,7 +170,7 @@ pub extern "C" fn run() {
         .build()
         .unwrap();
 
-    rt.block_on(async { run_async().await });
+    rt.block_on(run_async());
 }
 
 pub async fn run_async() {
@@ -183,11 +183,11 @@ pub async fn run_async() {
     //let source = Decoder::new(file).unwrap();
     // Play the sound directly on the device
     //let _ = stream_handle.play_raw(source.convert_samples());
-    let (blocks_indices, blocks, blocks_len) = load_blocks_textures("./res/assets/blocks/");
-    let (models_indices, models) = load_models("./res/models", "./res/assets/models");
-    let (animated_models_indices, animated_models) = load_animated_models("./res/animated_models", "./res/assets/models");
+    let (blocks_indices, blocks, blocks_len) = load_blocks_textures("./res/game/assets/blocks/");
+    let (models_indices, models) = load_models("./res/game/models", "./res/game/assets/models");
+    let (animated_models_indices, animated_models) = load_animated_models("./res/game/animated_models", "./res/game/assets/models");
 
-    let img = image::open("./res/assets/items/items.png").expect("./res/assets/items/items.png");
+    let img = image::open("./res/game/assets/items/items.png").expect("./res/game/assets/items/items.png");
     let (width, height) = (img.width(), img.height());
     if width != height { panic!("Use square textures") }
 

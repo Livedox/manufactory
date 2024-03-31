@@ -33,9 +33,7 @@ impl Draw for TrashCan {
     }
 }
 
-impl PlayerUnlockable for TrashCan {
-
-}
+impl PlayerUnlockable for TrashCan {}
 
 
 #[derive(Debug, Clone)]

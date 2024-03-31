@@ -20,7 +20,7 @@ pub fn main() {
         )
     }
     app::run();
-
+    println!("Exit!");
     lib.close().unwrap();
 }
 

@@ -53,8 +53,8 @@ impl Content {
             None
         };
         let mut block_indexes = HashMap::<String, u32>::new();
-        let (co_indices, complex_objects) = load_complex_objects("./res/complex_objects", indices);
-        let files = walkdir::WalkDir::new("./res/blocks/")
+        let (co_indices, complex_objects) = load_complex_objects("./res/game/complex_objects", indices);
+        let files = walkdir::WalkDir::new("./res/game/blocks/")
             .into_iter()
             .filter_map(|f| f.ok())
             .filter(|f| f.file_type().is_file());
