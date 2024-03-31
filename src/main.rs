@@ -2,6 +2,7 @@ extern crate app;
 use std::collections::HashMap;
 
 use app::{coords::global_coord::GlobalCoord, direction::{self, Direction}, voxels::live_voxels::{DesiarializeLiveVoxel, LiveVoxelBehavior, LiveVoxelCreation, LiveVoxelRegistrator, NewLiveVoxel, LIVE_VOXEL_REGISTER}, Registrator};
+use libloading::Library;
 
 
 pub fn main() {
@@ -9,31 +10,26 @@ pub fn main() {
         c: HashMap::new(),
         from_bytes: HashMap::new(),
     };
+    let lib = load_library(&mut registrator).unwrap();
     unsafe {
-        let lib = libloading::Library::new("./mod.dll").unwrap();
-        let init: libloading::Symbol<unsafe extern fn (registrator: &mut Registrator) -> ()> = 
-            lib.get(b"init").unwrap();
-        init(&mut registrator);
-        LIVE_VOXEL_REGISTER = Some(LiveVoxelRegistrator {
-            new: registrator.c.into_iter().map(|(key, val)| {
-                let a: NewLiveVoxel = Box::leak(val);
-                (key, a)
-            }).collect(),
-            deserialize: registrator.from_bytes.into_iter().map(|(key, val)| {
-                let a: DesiarializeLiveVoxel = Box::leak(val);
-                (key, a)
-            }).collect()
-        });
-        app::run()
-    };    
+        LIVE_VOXEL_REGISTER = Some(
+            LiveVoxelRegistrator {
+                deserialize: registrator.from_bytes,
+                new: registrator.c
+            }
+        )
+    }
+    app::run();
+
+    lib.close().unwrap();
 }
 
-fn call_dynamic(registrator: &mut Registrator) -> Result<(), Box<dyn std::error::Error>> {
+fn load_library(registrator: &mut Registrator) -> Result<Library, Box<dyn std::error::Error>> {
     unsafe {
-        let lib = libloading::Library::new("./mod.dll")?;
+        let lib = libloading::Library::new("./a/testmod.dll")?;
         let init: libloading::Symbol<unsafe extern fn (registrator: &mut Registrator) -> ()> = 
             lib.get(b"init")?;
-        init(registrator)
-    };
-    Ok(())
+        init(registrator);
+        Ok(lib)
+    }
 }

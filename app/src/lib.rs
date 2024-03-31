@@ -51,8 +51,8 @@ static WORLD_EXIT: AtomicBool = AtomicBool::new(false);
 const _GAME_VERSION: u32 = 1;
 
 pub struct Registrator {
-    pub c: HashMap<String, BoxNewLiveVoxel>,
-    pub from_bytes: HashMap<String, BoxDesiarializeLiveVoxel>,
+    pub c: HashMap<String, NewLiveVoxel>,
+    pub from_bytes: HashMap<String, DesiarializeLiveVoxel>,
 }
 
 const CAMERA_FOV: f32 = 1.2;

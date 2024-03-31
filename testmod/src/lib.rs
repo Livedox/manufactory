@@ -10,8 +10,8 @@ pub fn super_ultra_test() -> app::coords::global_coord::GlobalCoord {
 
 #[no_mangle]
 pub fn init(registrator: &mut Registrator) {
-    registrator.c.insert(String::from("trashcan"), Box::new(create));
-    registrator.from_bytes.insert(String::from("trashcan"), Box::new(from_bytes));
+    registrator.c.insert(String::from("trashcan"), &create);
+    registrator.from_bytes.insert(String::from("trashcan"), &from_bytes);
 }
 
 #[no_mangle]
