@@ -131,6 +131,7 @@ impl Chunks {
         let block = &self.content.blocks[id as usize].base;
         let Some(name) = &block.live_voxel else {return};
         let local: LocalCoord = global.into();
+        println!("{:?}", name);
         let live_voxel = self.content.live_voxel.new.get(name).unwrap()(direction.unwrap_or(&Direction::new_x()));
         live_voxels.insert(local.index(), LiveVoxelContainer::new_arc(id, global, live_voxel));
     }

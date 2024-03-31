@@ -1,0 +1,7 @@
+{
+    "id": "trashcan",
+    "block_type": {"block": {"faces": ["box"]}},
+    "live_voxel": "trashcan",
+    "on_break": ["on_break"],
+    "on_set": ["on_set"]
+}

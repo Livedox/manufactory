@@ -146,7 +146,9 @@ impl LiveVoxelContainer {
 }
 
 pub type NewLiveVoxel = &'static (dyn Fn(&Direction) -> Box<dyn LiveVoxelBehavior> + Send + Sync);
+pub type BoxNewLiveVoxel = Box<(dyn Fn(&Direction) -> Box<dyn LiveVoxelBehavior> + Send + Sync)>;
 pub type DesiarializeLiveVoxel = &'static (dyn Fn(&[u8]) -> Box<dyn LiveVoxelBehavior> + Send + Sync);
+pub type BoxDesiarializeLiveVoxel = Box<(dyn Fn(&[u8]) -> Box<dyn LiveVoxelBehavior> + Send + Sync)>;
 
 pub struct LiveVoxelRegistrator {
     pub new: HashMap<String, NewLiveVoxel>,
@@ -159,9 +161,22 @@ impl Debug for LiveVoxelRegistrator {
     }
 }
 
+pub static mut LIVE_VOXEL_REGISTER: Option<LiveVoxelRegistrator> = None;
+
 pub fn register() -> LiveVoxelRegistrator {
     let mut new = HashMap::<String, NewLiveVoxel>::new();
     let mut deserialize = HashMap::<String, DesiarializeLiveVoxel>::new();
+    unsafe {
+        if let Some(l) = LIVE_VOXEL_REGISTER.take() {
+            l.new.into_iter().for_each(|(name, f)| {
+                println!("name: {:?}", name);
+                new.insert(name, f);
+            });
+            l.deserialize.into_iter().for_each(|(name, f)| {
+                deserialize.insert(name, f);
+            });
+        }
+    }
 
     new.insert(String::from("furnace"), &<Arc<Mutex<Furnace>>>::create);
     deserialize.insert(String::from("furnace"), &<Arc<Mutex<Furnace>>>::from_bytes);

@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 app = { path = "../app" }
-egui = 0.26
+egui = "0.26"
 
 [lib]
 name = "testmod"

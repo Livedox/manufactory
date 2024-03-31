@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, VecDeque}, future::IntoFuture, path::Path, sync::{atomic::AtomicBool, Arc}, time::{Duration, Instant}};
+use std::{collections::{HashMap, VecDeque}, future::IntoFuture, hash::Hash, path::Path, sync::{atomic::AtomicBool, Arc}, time::{Duration, Instant}};
 use camera::frustum::Frustum;
 
 use coords::chunk_coord::ChunkCoord;
@@ -12,7 +12,7 @@ use level::Level;
 use unsafe_mutex::UnsafeMutex;
 use world::{loader::WorldLoader};
 use crate::{save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}};
-use voxels::{chunks::{Chunks}, chunk::CHUNK_SIZE};
+use voxels::{chunk::CHUNK_SIZE, chunks::Chunks, live_voxels::{BoxDesiarializeLiveVoxel, BoxNewLiveVoxel, DesiarializeLiveVoxel, NewLiveVoxel}};
 
 use winit::{
     event::*,
@@ -23,7 +23,7 @@ use itertools::{iproduct, Itertools};
 
 use crate::{input_event::input_service::{Key}, my_time::Timer};
 use nalgebra_glm as glm;
-
+pub use graphics_engine;
 pub mod coords;
 pub mod input_event;
 pub mod my_time;
@@ -49,6 +49,11 @@ pub mod content;
 
 static WORLD_EXIT: AtomicBool = AtomicBool::new(false);
 const _GAME_VERSION: u32 = 1;
+
+pub struct Registrator {
+    pub c: HashMap<String, BoxNewLiveVoxel>,
+    pub from_bytes: HashMap<String, BoxDesiarializeLiveVoxel>,
+}
 
 const CAMERA_FOV: f32 = 1.2;
 const CAMERA_NEAR: f32 = 0.1;
