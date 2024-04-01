@@ -26,7 +26,7 @@ pub fn main() {
 
 fn load_library(registrator: &mut Registrator) -> Result<Library, Box<dyn std::error::Error>> {
     unsafe {
-        let lib = libloading::Library::new("./a/testmod.dll")?;
+        let lib = libloading::Library::new("./testmod.dll")?;
         let init: libloading::Symbol<unsafe extern fn (registrator: &mut Registrator) -> ()> = 
             lib.get(b"init")?;
         init(registrator);

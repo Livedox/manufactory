@@ -11,7 +11,7 @@ use level::Level;
 
 use unsafe_mutex::UnsafeMutex;
 use world::{loader::WorldLoader};
-use crate::{save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}};
+use crate::{content_loader::ContentLoader, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}};
 use voxels::{chunk::CHUNK_SIZE, chunks::Chunks, live_voxels::{BoxDesiarializeLiveVoxel, BoxNewLiveVoxel, DesiarializeLiveVoxel, NewLiveVoxel}};
 
 use winit::{
@@ -24,6 +24,8 @@ use itertools::{iproduct, Itertools};
 use crate::{input_event::input_service::{Key}, my_time::Timer};
 use nalgebra_glm as glm;
 pub use graphics_engine;
+
+mod content_loader;
 pub mod coords;
 pub mod input_event;
 pub mod my_time;
@@ -175,7 +177,9 @@ pub extern "C" fn run() {
 
 pub async fn run_async() {
     println!("{:?}", Path::new("./data/").canonicalize());
+    let content_loader = ContentLoader::new("./res/content/");
     let mut world_loader = WorldLoader::new(Path::new("./data/worlds/"));
+    
     //let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     // Load a sound from a file, using a path relative to Cargo.toml
     //let file = BufReader::new(File::open("./audio/music/Kyle Gabler - Years of Work.mp3").unwrap());
