@@ -4,6 +4,16 @@ use std::{collections::HashMap, ffi::OsStr, path::Path};
 use app::{content_loader::ContentLoader, coords::global_coord::GlobalCoord, direction::{self, Direction}, voxels::live_voxels::{DesiarializeLiveVoxel, LiveVoxelBehavior, LiveVoxelCreation, LiveVoxelRegistrator, NewLiveVoxel, LIVE_VOXEL_REGISTER}, Registrator};
 use libloading::Library;
 
+const LIB_FORMAT: &'static str = if cfg!(target_os = "windows") {
+    "dll"
+} else if cfg!(target_os = "linux") {
+    "so"
+} else if cfg!(target_os = "macos") {
+    "dylib"
+} else {
+    "module"
+};
+
 
 pub fn main() {
     let content_loader = ContentLoader::new("./res/content/");
@@ -13,7 +23,7 @@ pub fn main() {
     };
     let libs: Vec<Library> = content_loader.details().values().filter(|d| d.active())
         .map(|d| {
-            let path = d.path().join(concat!("mod.", "dll"));
+            let path = d.path().join(&format!("mod.{}", LIB_FORMAT));
             load_library(path, &mut registrator).unwrap()
         }).collect();
 
