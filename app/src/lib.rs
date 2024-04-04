@@ -25,7 +25,7 @@ use crate::{input_event::input_service::{Key}, my_time::Timer};
 use nalgebra_glm as glm;
 pub use graphics_engine;
 
-mod content_loader;
+pub mod content_loader;
 pub mod coords;
 pub mod input_event;
 pub mod my_time;
@@ -177,7 +177,6 @@ pub extern "C" fn run() {
 
 pub async fn run_async() {
     println!("{:?}", Path::new("./data/").canonicalize());
-    let content_loader = ContentLoader::new("./res/content/");
     let mut world_loader = WorldLoader::new(Path::new("./data/worlds/"));
     
     //let (_stream, stream_handle) = OutputStream::try_default().unwrap();

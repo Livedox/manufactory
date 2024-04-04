@@ -1,16 +1,24 @@
 extern crate app;
-use std::collections::HashMap;
+use std::{collections::HashMap, ffi::OsStr, path::Path};
 
-use app::{coords::global_coord::GlobalCoord, direction::{self, Direction}, voxels::live_voxels::{DesiarializeLiveVoxel, LiveVoxelBehavior, LiveVoxelCreation, LiveVoxelRegistrator, NewLiveVoxel, LIVE_VOXEL_REGISTER}, Registrator};
+use app::{content_loader::ContentLoader, coords::global_coord::GlobalCoord, direction::{self, Direction}, voxels::live_voxels::{DesiarializeLiveVoxel, LiveVoxelBehavior, LiveVoxelCreation, LiveVoxelRegistrator, NewLiveVoxel, LIVE_VOXEL_REGISTER}, Registrator};
 use libloading::Library;
 
 
 pub fn main() {
+    let content_loader = ContentLoader::new("./res/content/");
     let mut registrator = Registrator {
         c: HashMap::new(),
         from_bytes: HashMap::new(),
     };
-    let lib = load_library(&mut registrator).unwrap();
+    let libs: Vec<Library> = content_loader.details().values().filter(|d| d.active())
+        .map(|d| {
+            let path = d.path().join(concat!("mod.", "dll"));
+            load_library(path, &mut registrator).unwrap()
+        }).collect();
+
+    println!("{:?}", content_loader.details());
+
     unsafe {
         LIVE_VOXEL_REGISTER = Some(
             LiveVoxelRegistrator {
@@ -21,12 +29,13 @@ pub fn main() {
     }
     app::run();
     println!("Exit!");
-    lib.close().unwrap();
+
+    libs.into_iter().for_each(|lib| lib.close().unwrap());
 }
 
-fn load_library(registrator: &mut Registrator) -> Result<Library, Box<dyn std::error::Error>> {
+fn load_library(path: impl AsRef<OsStr>, registrator: &mut Registrator) -> Result<Library, Box<dyn std::error::Error>> {
     unsafe {
-        let lib = libloading::Library::new("./testmod.dll")?;
+        let lib = libloading::Library::new(path)?;
         let init: libloading::Symbol<unsafe extern fn (registrator: &mut Registrator) -> ()> = 
             lib.get(b"init")?;
         init(registrator);

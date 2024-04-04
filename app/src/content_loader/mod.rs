@@ -1,4 +1,4 @@
-use std::{fs::DirEntry, path::Path};
+use std::{collections::{HashMap, HashSet}, fs::DirEntry, path::{Path, PathBuf}};
 
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +15,31 @@ pub struct ContentInfo {
     category: Option<String>,
 }
 
+impl ContentInfo {
+    pub fn name(&self) -> &str { &self.name }
+    pub fn version(&self) -> &str { &self.name }
+}
+
+#[derive(Debug, Clone)]
+pub struct ContentDetails {
+    active: bool,
+    path: PathBuf,
+    info: ContentInfo,
+}
+
+impl ContentDetails {
+    pub fn new(active: bool, path: PathBuf, info: ContentInfo) -> Self {
+        Self {
+            active,
+            info,
+            path
+        }
+    }
+
+    pub fn active(&self) -> bool {self.active}
+    pub fn path(&self) -> &Path {&self.path}
+}
+
 pub fn load_info(entry: &DirEntry) -> Option<ContentInfo> {
     let mut path = entry.path();
     path.push("info.toml");
@@ -29,32 +54,39 @@ pub enum Content {
 }
 
 pub struct ContentLoader {
-    contents: Vec<Content>,
+    details: HashMap::<String, ContentDetails>,
+    active: HashSet<String>,
 }
 
 impl ContentLoader {
-    pub fn new(root: impl AsRef<Path>) -> Self {
-        let mut names = vec![];
-        let mut infos: Vec<ContentInfo> = vec![];
-        for folder in std::fs::read_dir(root).unwrap().flatten() {
+    pub fn new(content: impl AsRef<Path>) -> Self {
+        let active_content_packs: HashSet<String> = std::fs::read("./data/content_packs.json")
+            .ok().and_then(|data| serde_json::from_slice(&data).ok())
+            .unwrap_or_default();
+        let mut details = HashMap::<String, ContentDetails>::new();
+        for folder in std::fs::read_dir(content).unwrap().flatten() {
             if !folder.file_type().unwrap().is_dir() {continue};
-            let file_name = folder.file_name();
-            let name = file_name.to_str().unwrap();
-            if name.ends_with("_pack") {
-                for folder in std::fs::read_dir(folder.path()).unwrap().flatten() {
-                    if !folder.file_type().unwrap().is_dir() {continue};
-                    let file_name = folder.file_name();
-                    let name = file_name.to_str().unwrap();
-                    names.push(name.to_string());
-                    infos.push(load_info(&folder).unwrap());
+            let Some(info) = load_info(&folder) else {continue};
+            if let Some(old_detail) = details.get(info.name()) {
+                let old_info = &old_detail.info;
+                eprintln!("This content pack \"{}:{}\" in the directory \"{}\" will be ignored!",
+                    info.name(), info.version(), folder.path().to_str().unwrap_or("unknown"));
+                if old_info.version() == info.version() {
+                    eprintln!("Reason: duplicate");
+                } else {
+                    eprintln!("Reason: content pack found with a different version \"{}\"", 
+                        old_info.version());
                 }
             } else {
-                names.push(name.to_string());
-                infos.push(load_info(&folder).unwrap());
+                let detail = ContentDetails::new(active_content_packs.contains(info.name()),
+                    folder.path(), info);
+                details.insert(detail.info.name().to_string(), detail);
             }
         }
-        println!("{:?} {:?}", names, infos);
+        Self { details, active: active_content_packs }
+    }
 
-        Self { contents: vec![] }
+    pub fn details(&self) -> &HashMap<String, ContentDetails> {
+        &self.details
     }
 }
