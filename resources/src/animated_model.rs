@@ -218,8 +218,7 @@ impl JointTransform {
     }
 }
 
-pub fn load_animated_model(src: impl AsRef<Path>, src_texture: impl AsRef<Path>) -> AnimatedModel {
-    let texture = load_texture(src_texture).unwrap();
+pub fn load_animated_model(src: impl AsRef<Path>, texture: ModelTexture) -> AnimatedModel {
     let scene = Scene::from_file(src.as_ref().to_str().unwrap(),
         vec![PostProcess::FlipUVs, PostProcess::MakeLeftHanded]).unwrap();
     let root = scene.root.unwrap();

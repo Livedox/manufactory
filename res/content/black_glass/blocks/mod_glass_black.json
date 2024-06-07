@@ -1,6 +1,6 @@
 {
   "id": "glass_black",
-  "block_type": {"block": {"faces": ["glass_black"]}},
+  "block_type": {"block": {"faces": ["@glass_black:glass_black"]}},
   "on_break": ["on_break"],
   "on_set": ["on_set"],
   "is_glass": true,

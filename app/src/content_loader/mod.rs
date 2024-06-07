@@ -2,6 +2,12 @@ use std::{collections::{HashMap, HashSet}, fs::DirEntry, path::{Path, PathBuf}};
 
 use serde::{Deserialize, Serialize};
 
+use crate::content_loader::indices::{load_blocks_textures, GamePath};
+
+use self::indices::Indices;
+
+pub mod indices;
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ContentInfo {
     name: String,
@@ -48,14 +54,8 @@ pub fn load_info(entry: &DirEntry) -> Option<ContentInfo> {
     toml::from_str(s).ok()
 }
 
-pub enum Content {
-    Pack(Vec<String>),
-    Content(String)
-}
-
 pub struct ContentLoader {
     details: HashMap::<String, ContentDetails>,
-    active: HashSet<String>,
 }
 
 impl ContentLoader {
@@ -83,7 +83,29 @@ impl ContentLoader {
                 details.insert(detail.info.name().to_string(), detail);
             }
         }
-        Self { details, active: active_content_packs }
+
+
+        Self { details }
+    }
+
+    pub fn load_indices(&self, game: impl AsRef<Path>) -> Indices {
+        println!("{:?}", game.as_ref());
+        let block_paths: Vec<GamePath<PathBuf>> = self.details().values().filter(|d| d.active)
+            .map(|d| {
+                GamePath {
+                    path: d.path.join("assets/blocks/"),
+                    prefix: Some(format!("@{}:", d.info.name)),
+                }
+            })
+            .chain(std::iter::once(GamePath {
+                path: game.as_ref().join("assets/blocks/"),
+                prefix: None,
+            }))
+            .collect();
+
+        let (indices, blocks, count) = load_blocks_textures(&block_paths);
+        println!("{:?} {:?}", indices, block_paths);
+        todo!();
     }
 
     pub fn details(&self) -> &HashMap<String, ContentDetails> {

@@ -1,7 +1,6 @@
 extern crate app;
-use std::{collections::HashMap, ffi::OsStr, path::Path};
-
-use app::{content_loader::ContentLoader, coords::global_coord::GlobalCoord, direction::{self, Direction}, voxels::live_voxels::{DesiarializeLiveVoxel, LiveVoxelBehavior, LiveVoxelCreation, LiveVoxelRegistrator, NewLiveVoxel, LIVE_VOXEL_REGISTER}, Registrator};
+use std::{collections::HashMap, ffi::OsStr};
+use app::{content_loader::ContentLoader, voxels::live_voxels::{LiveVoxelRegistrator, LIVE_VOXEL_REGISTER}, Registrator};
 use libloading::Library;
 
 const LIB_FORMAT: &'static str = if cfg!(target_os = "windows") {
@@ -24,10 +23,10 @@ pub fn main() {
     let libs: Vec<Library> = content_loader.details().values().filter(|d| d.active())
         .map(|d| {
             let path = d.path().join(&format!("mod.{}", LIB_FORMAT));
-            load_library(path, &mut registrator).unwrap()
-        }).collect();
+            load_library(path, &mut registrator).ok()
+        }).flatten().collect();
 
-    println!("{:?}", content_loader.details());
+    println!("{:?} {}", content_loader.load_indices("./res/game/"), libs.len());
 
     unsafe {
         LIVE_VOXEL_REGISTER = Some(

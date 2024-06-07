@@ -11,7 +11,7 @@ use level::Level;
 
 use unsafe_mutex::UnsafeMutex;
 use world::{loader::WorldLoader};
-use crate::{content_loader::ContentLoader, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}};
+use crate::{content_loader::{indices::{load_animated_models, load_blocks_textures, load_models, GamePath, Indices}, ContentLoader}, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}};
 use voxels::{chunk::CHUNK_SIZE, chunks::Chunks, live_voxels::{BoxDesiarializeLiveVoxel, BoxNewLiveVoxel, DesiarializeLiveVoxel, NewLiveVoxel}};
 
 use winit::{
@@ -61,87 +61,6 @@ const CAMERA_FOV: f32 = 1.2;
 const CAMERA_NEAR: f32 = 0.1;
 const CAMERA_FAR: f32 = 1000.0;
 
-pub fn load_blocks_textures(path: impl AsRef<Path>) -> (HashMap::<String, u32>, Vec<Vec<u8>>, u32) {
-    let files = walkdir::WalkDir::new(path)
-        .into_iter()
-        .filter_map(|f| f.ok())
-        .filter(|f| f.file_type().is_file())
-        .enumerate();
-
-    let mut indices = HashMap::<String, u32>::new();
-    let images = files.map(|(index, file)| {
-        let name = file.file_name().to_str().unwrap();
-        let dot_index = name.rfind('.').unwrap();
-        indices.insert(name[..dot_index].to_string(), index as u32);
-
-        image::open(file.path()).unwrap_or_else(|_| panic!("Failed to open image on path: {:?}", file.path()))
-    }).collect_vec();
-
-    let data = (0..BLOCK_MIPMAP_COUNT).map(|mipmap| {
-        let size = BLOCK_TEXTURE_SIZE / 2u32.pow(mipmap as u32);
-        images.iter().flat_map(|image| {
-            if mipmap == 0 {return image.to_rgba8().to_vec()};
-            image.resize(size, size, FilterType::Triangle).to_rgba8().to_vec()
-        }).collect_vec()
-    }).collect_vec();
-
-    (indices, data, images.len() as u32)
-}
-
-pub fn load_animated_models(
-    models_path: impl AsRef<Path>,
-    textures_path: impl AsRef<Path>
-) -> (HashMap::<String, u32>, Vec<resources::animated_model::AnimatedModel>) {
-    let files = walkdir::WalkDir::new(models_path.as_ref())
-        .into_iter()
-        .filter_map(|f| f.ok())
-        .filter(|f| f.file_type().is_file())
-        .enumerate();
-    let textures_path = textures_path.as_ref();
-
-    let mut indices = HashMap::<String, u32>::new();
-    let models: Vec<resources::animated_model::AnimatedModel> = files.map(|(index, file)| {
-        let file_name = file.file_name().to_str().unwrap();
-        let dot_index = file_name.rfind('.').unwrap();
-        let name = file_name[..dot_index].to_string();
-        let texture_name = name.clone() + ".png";
-        let src_texture = textures_path.join(texture_name);
-        let model = resources::animated_model::load_animated_model(file.path(), src_texture);
-        indices.insert(name, index as u32);
-        model
-    }).collect();
-
-    println!("{:?}", indices);
-
-    (indices, models)
-  }
-
-pub fn load_models(
-    models_path: impl AsRef<Path>,
-    textures_path: impl AsRef<Path>,
-) -> (HashMap::<String, u32>, Vec<resources::model::Model>) {
-    let files = walkdir::WalkDir::new(models_path.as_ref())
-        .into_iter()
-        .filter_map(|f| f.ok())
-        .filter(|f| f.file_type().is_file())
-        .enumerate();
-    let textures_path = textures_path.as_ref();
-
-    let mut indices = HashMap::<String, u32>::new();
-    let models: Vec<resources::model::Model> = files.map(|(index, file)| {
-        let file_name = file.file_name().to_str().unwrap();
-        let dot_index = file_name.rfind('.').unwrap();
-        let name = file_name[..dot_index].to_string();
-        let texture_name = name.clone() + ".png";
-        let src_texture = textures_path.join(texture_name);
-        let model = resources::model::load_model(file.path(), src_texture).unwrap();
-        indices.insert(name, index as u32);
-        model
-    }).collect();
-
-    (indices, models)
-}
-
 pub fn frustum(chunks: &Chunks, frustum: &Frustum) -> Vec<usize> {
     // UPDATE
     // This function could be much faster
@@ -157,12 +76,6 @@ pub fn frustum(chunks: &Chunks, frustum: &Frustum) -> Vec<usize> {
         }
     }
     indices
-}
-
-pub struct Indices {
-    pub block: HashMap<String, u32>,
-    pub models: HashMap<String, u32>,
-    pub animated_models: HashMap<String, u32>,
 }
 
 #[no_mangle]
@@ -186,9 +99,13 @@ pub async fn run_async() {
     //let source = Decoder::new(file).unwrap();
     // Play the sound directly on the device
     //let _ = stream_handle.play_raw(source.convert_samples());
-    let (blocks_indices, blocks, blocks_len) = load_blocks_textures("./res/game/assets/blocks/");
-    let (models_indices, models) = load_models("./res/game/models", "./res/game/assets/models");
-    let (animated_models_indices, animated_models) = load_animated_models("./res/game/animated_models", "./res/game/assets/models");
+    let (blocks_indices, blocks, blocks_len) = load_blocks_textures(&[GamePath {
+        path: "./res/game/assets/blocks/".into(),
+        prefix: None
+    }]);
+    let (models_indices, models) = load_models(&["./res/game/models"], &["./res/game/assets/models"]);
+    let (animated_models_indices, animated_models) = load_animated_models(&["./res/game/animated_models"],
+        &["./res/game/assets/models"]);
 
     let img = image::open("./res/game/assets/items/items.png").expect("./res/game/assets/items/items.png");
     let (width, height) = (img.width(), img.height());

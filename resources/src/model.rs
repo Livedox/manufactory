@@ -47,9 +47,8 @@ pub struct Model {
 
 pub fn load_model(
     src_model: impl AsRef<Path>,
-    src_texture: impl AsRef<Path>
+    texture: ModelTexture,
 ) -> Result<Model, ModelLoadingError> {
-    let texture = load_texture(src_texture)?;
     let scene = Scene::from_file(src_model.as_ref().to_str().unwrap(),
         vec![PostProcess::FlipUVs, PostProcess::MakeLeftHanded])?;
 
