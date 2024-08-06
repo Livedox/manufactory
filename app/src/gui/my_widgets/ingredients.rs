@@ -11,7 +11,7 @@ const BOTTOM_PADDING: f32 = 3.0;
 
 
 pub fn ingredients(ui: &mut egui::Ui, texture_atlas: &TextureAtlas, recipe: &Recipe) {
-    egui::Area::new("Recipe")
+    egui::Area::new("Recipe".into())
         .fixed_pos(ui.next_widget_position())
         .order(egui::Order::Tooltip)
         .show(ui.ctx(), |ui| {ui.add(container(|ui| {

@@ -93,7 +93,7 @@ impl GuiController {
         let mut task: Option<Task> = None;
         let inventory = player.inventory();
         let storage = player.open_storage.as_mut().and_then(|op| op.upgrade());
-        egui::Area::new("hotbar_area")
+        egui::Area::new("hotbar_area".into())
             .anchor(Align2::CENTER_BOTTOM, vec2(1.0, -1.0))
             .show(ctx, |ui| {
                 ui.set_visible(self.is_ui);
@@ -112,7 +112,7 @@ impl GuiController {
                 });
             });
         if !player.is_inventory {return self};
-        egui::Area::new("inventory_area")
+        egui::Area::new("inventory_area".into())
             .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))
             .show(ctx, |ui| {
                 ui.set_visible(self.is_ui & player.is_inventory);
@@ -198,8 +198,9 @@ impl GuiController {
                 egui::Frame::none()
                     .fill(DEFAULT_THEME.background)
                     .shadow(Shadow {
-                        extrusion: 8.0,
+                        blur: 1.0,
                         color: Color32::from_black_alpha(125),
+                        ..Default::default()
                     })
                     .rounding(Rounding::same(5.0))
                     .inner_margin(Margin::same(10.0)),
@@ -230,7 +231,7 @@ impl GuiController {
         let mut inventory = binding.lock().unwrap();
         let active = inventory.active_recipe();
         let mut cancel_index: Option<usize> = None;
-        egui::Area::new("active_recieps_area")
+        egui::Area::new("active_recieps_area".into())
             .anchor(Align2::LEFT_BOTTOM, vec2(0.0, 0.0))
             .show(ctx, |ui| {
                 ui.set_visible(self.is_ui);

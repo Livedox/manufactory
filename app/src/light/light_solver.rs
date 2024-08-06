@@ -173,7 +173,7 @@ impl LightSolver {
 
                 let light = unsafe {chunk.lightmap.0.get_unchecked(index)
                     .get_unchecked_channel(self.channel)};
-                let id = unsafe {chunk.voxels.get_unchecked(index).id()};
+                let id = unsafe {chunk.voxels.0.get_unchecked(index).id()};
 
                 if content.blocks[id as usize].is_light_passing() && (light+2) <= prev_light {
                     self.add_queue.push(entry);

@@ -4,7 +4,7 @@ use crate::gui::main_screen::button;
 
 pub fn draw_in_game_menu(ctx: &Context, exit_level: &mut bool, is_setting: &mut bool, is_menu: &mut bool) {
     if !*is_menu {return};
-    egui::Area::new("InGameMenu")
+    egui::Area::new("InGameMenu".into())
         .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
         .show(ctx, |ui| {
             ui.visuals_mut().widgets.hovered = ui.visuals().widgets.inactive;
