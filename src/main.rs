@@ -15,31 +15,31 @@ const LIB_FORMAT: &'static str = if cfg!(target_os = "windows") {
 
 
 pub fn main() {
-    let content_loader = ContentLoader::new("./res/content/");
-    let mut registrator = Registrator {
-        c: HashMap::new(),
-        from_bytes: HashMap::new(),
-    };
-    let libs: Vec<Library> = content_loader.details().values().filter(|d| d.active())
-        .map(|d| {
-            let path = d.path().join(&format!("mod.{}", LIB_FORMAT));
-            load_library(path, &mut registrator).ok()
-        }).flatten().collect();
+    // let content_loader = ContentLoader::new("./res/content/");
+    // let mut registrator = Registrator {
+    //     c: HashMap::new(),
+    //     from_bytes: HashMap::new(),
+    // };
+    // let libs: Vec<Library> = content_loader.details().values().filter(|d| d.active())
+    //     .map(|d| {
+    //         let path = d.path().join(&format!("mod.{}", LIB_FORMAT));
+    //         load_library(path, &mut registrator).ok()
+    //     }).flatten().collect();
 
-    println!("{:?} {}", content_loader.load_indices("./res/game/"), libs.len());
+    // // println!("{:?} {}", content_loader.load_indices("./res/game/"), libs.len());
 
-    unsafe {
-        LIVE_VOXEL_REGISTER = Some(
-            LiveVoxelRegistrator {
-                deserialize: registrator.from_bytes,
-                new: registrator.c
-            }
-        )
-    }
+    // unsafe {
+    //     LIVE_VOXEL_REGISTER = Some(
+    //         LiveVoxelRegistrator {
+    //             deserialize: registrator.from_bytes,
+    //             new: registrator.c
+    //         }
+    //     )
+    // }
     app::run();
     println!("Exit!");
 
-    libs.into_iter().for_each(|lib| lib.close().unwrap());
+    // libs.into_iter().for_each(|lib| lib.close().unwrap());
 }
 
 fn load_library(path: impl AsRef<OsStr>, registrator: &mut Registrator) -> Result<Library, Box<dyn std::error::Error>> {
