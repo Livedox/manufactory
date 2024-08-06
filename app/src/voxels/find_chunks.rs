@@ -2,6 +2,8 @@ use std::{sync::Arc};
 
 
 
+use arc_swap::access::Access;
+
 use crate::{coords::chunk_coord::ChunkCoord};
 
 use super::{chunks::{Chunks, WORLD_HEIGHT}, chunk::{Chunk}};
@@ -15,7 +17,7 @@ impl Chunks {
     pub fn find_unloaded(&self) -> Option<(i32, i32)> {
         let callback = |cx: i32, cz: i32| {
             let index = ChunkCoord::new(cx, 0, cz).index_without_offset(self.width, self.depth);
-            unsafe {(&mut *self.chunks.get()).get_unchecked(index)}.is_none().then_some((cx + self.ox(), cz + self.oz()))
+            unsafe {(&mut *self.chunks.get()).get_unchecked(index)}.load().is_none().then_some((cx + self.ox(), cz + self.oz()))
         };
  
         Self::clockwise_square_spiral(self.width as usize, callback)
@@ -25,14 +27,14 @@ impl Chunks {
         let callback = |cx: i32, cz: i32| {
             for cy in 0..WORLD_HEIGHT as i32 {
                 let index = ChunkCoord::new(cx+1, cy, cz+1).index_without_offset(self.width, self.depth);
-                if unsafe {(*self.chunks.get()).get_unchecked(index)}.as_ref()
+                if unsafe {(*self.chunks.get()).get_unchecked(index)}.load().as_ref()
                     .map_or(true, |c| !c.modified()) {continue};
     
                 let mut around_count = 0;
                 for (ox, oy, oz) in SIDE_COORDS_OFFSET.into_iter() {
                     let index = ChunkCoord::new(cx + ox + 1, cy + oy, cz + oz + 1)
                         .index_without_offset(self.width, self.depth);
-                    if (unsafe {&mut *self.chunks.get()})[index].is_some() {around_count += 1}
+                    if (unsafe {&mut *self.chunks.get()})[index].load().is_some() {around_count += 1}
                 }
                 if around_count == 4 {return Some(index)}
             }
@@ -40,7 +42,7 @@ impl Chunks {
         };
 
         Self::clockwise_square_spiral(self.width as usize - 2, callback)
-            .and_then(|index| (unsafe {&mut *self.chunks.get()})[index].as_ref().cloned())
+            .and_then(|index| (unsafe {&mut *self.chunks.get()})[index].load_full())
     }
 
     pub fn clockwise_square_spiral<T>(n: usize, callback: impl Fn(i32, i32) -> Option<T>) -> Option<T> {

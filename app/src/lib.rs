@@ -1,4 +1,5 @@
 use std::{collections::{HashMap, VecDeque}, future::IntoFuture, hash::Hash, path::Path, sync::{atomic::AtomicBool, Arc}, time::{Duration, Instant}};
+use arc_swap::ArcSwap;
 use camera::frustum::Frustum;
 
 use coords::chunk_coord::ChunkCoord;
@@ -88,6 +89,14 @@ pub extern "C" fn run() {
 pub async fn run_async() {
     println!("{:?}", Path::new("./data/").canonicalize());
     let mut world_loader = WorldLoader::new(Path::new("./data/worlds/"));
+
+    let a = ArcSwap::from(Arc::new(String::from("dsdc")));
+    let b = a.load_full();
+    a.store(Arc::new(String::from("dcsdc12345678")));
+    let e = ArcSwap::from(Arc::new(vec![1, 2]));
+
+    println!("Test {}", a.load());
+    println!("Test {}", b);
     
     //let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     // Load a sound from a file, using a path relative to Cargo.toml
