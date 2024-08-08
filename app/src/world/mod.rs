@@ -39,7 +39,7 @@ impl World {
             
             let index = chunk.xyz.chunk_index(&self.chunks);
             let chunks = unsafe {&mut *self.chunks.chunks.get()};
-            chunks[index].store(Some(Arc::new(chunk)));
+            chunks[index] = Some(Arc::new(chunk));
             self.build_chunk(cx, cy, cz);
         }
         self.solve_rgbs();

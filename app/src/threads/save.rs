@@ -30,9 +30,9 @@ pub fn spawn(
             drop(chunks_awaiting_deletion);
 
             unsafe {&*world.chunks.chunks.get()}.iter().for_each(|chunk| {
-                let Some(chunk) = chunk.load_full() else {return};
+                let Some(chunk) = chunk else {return};
                 if !chunk.unsaved() {return};
-                world_regions.save_chunk(&chunk);
+                world_regions.save_chunk(chunk);
                 chunk.save(false);
             });
             world_regions.save_all_regions();

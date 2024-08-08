@@ -13,8 +13,6 @@ crate-type = ["dylib", "rlib"]
 graphics_engine = { path = "../graphics_engine" }
 resources = { path = "../resources" }
 
-arc-swap = "1.7.1"
-
 wgpu-core = "0.19.0"
 wgpu-types = { version = "0.19", features = ["serde", "trace", "replay"]}
 wgpu = "0.19"

@@ -1,6 +1,5 @@
 use std::{sync::{Arc, Mutex, atomic::{AtomicBool, Ordering, AtomicI32}}, cell::UnsafeCell};
 
-use arc_swap::ArcSwapOption;
 use itertools::{iproduct, Itertools};
 
 use crate::{content::Content, direction::Direction, light::light_map::Light, vec_none, coords::{global_coord::GlobalCoord, local_coord::LocalCoord, chunk_coord::ChunkCoord}};
@@ -14,7 +13,8 @@ pub const WORLD_HEIGHT: usize = WORLD_BLOCK_HEIGHT / CHUNK_SIZE; // In chunks
 pub struct Chunks {
     pub content: Arc<Content>,
     is_translate: AtomicBool,
-    pub chunks: UnsafeCell<Vec<ArcSwapOption<Chunk>>>,
+    // I tried to do this using safe code, but it kills performance by about 2 times
+    pub chunks: UnsafeCell<Vec<Option<Arc<Chunk>>>>,
     pub chunks_awaiting_deletion: Arc<Mutex<Vec<Arc<Chunk>>>>,
 
     pub volume: i32,
@@ -32,8 +32,8 @@ pub struct Chunks {
 impl Chunks {
     pub fn new(content: Arc<Content>, width: i32, height: i32, depth: i32, ox: i32, _oy: i32, oz: i32) -> Chunks {
         let volume = width*height*depth;
-        let mut chunks: Vec<ArcSwapOption<Chunk>> = vec![];
-        for _ in 0..volume { chunks.push(ArcSwapOption::empty()); }
+        let mut chunks: Vec<Option<Arc<Chunk>>> = vec![];
+        for _ in 0..volume { chunks.push(None); }
 
         Chunks {
             content,
@@ -80,8 +80,7 @@ impl Chunks {
     pub fn translate(&self, ox: i32, oz: i32) -> Vec<(usize, usize)> {
         let mut indices = Vec::<(usize, usize)>::new();
         let chunks = unsafe {&mut *self.chunks.get()};
-        let mut new_chunks: Vec<ArcSwapOption<Chunk>> = vec![];
-        for _ in 0..chunks.len() { chunks.push(ArcSwapOption::empty()); }
+        let mut new_chunks: Vec<Option<Arc<Chunk>>> = vec_none!(chunks.len());
 
         let dx = ox - self.ox();
         let dz = oz - self.oz();
@@ -94,11 +93,11 @@ impl Chunks {
             let old_index = ChunkCoord::new(cx, cy, cz).index_without_offset(self.width, self.depth);
             
             indices.push((old_index, new_index));
-            new_chunks[new_index] = ArcSwapOption::from(chunks[old_index].load_full());
+            new_chunks[new_index] = chunks[old_index].take();
         }
 
         for chunk in chunks.iter_mut() {
-            let Some(chunk) = chunk.load_full() else {continue};
+            let Some(chunk) = chunk.take() else {continue};
             if chunk.unsaved() {self.chunks_awaiting_deletion.lock().unwrap().push(chunk)}
         }
 
@@ -171,7 +170,7 @@ impl Chunks {
 
     pub fn local_chunk(&self, coords: ChunkCoord) -> Option<Arc<Chunk>> {
         let index = coords.index_without_offset(self.width, self.depth);
-        unsafe {&mut *self.chunks.get()}.get(index).and_then(|c| c.load_full())
+        unsafe {&mut *self.chunks.get()}.get(index).and_then(|c| c.as_ref().cloned())
     }
 
     pub fn chunk<T: Into<ChunkCoord>>(&self, coords: T) -> Option<Arc<Chunk>> {
@@ -180,7 +179,8 @@ impl Chunks {
         let index = coords.nindex(self.width, self.depth, self.ox(), self.oz());
         // It's safe because we checked the coordinates
         let lock = unsafe {&mut *self.chunks.get()};
-        unsafe {lock.get_unchecked(index)}.load_full()
+        let r = unsafe {lock.get_unchecked(index)}.as_ref();
+        r.cloned()
     }
 
     pub fn chunk_ptr<T: Into<ChunkCoord>>(&self, coords: T) -> Option<*const Chunk> {
@@ -189,14 +189,14 @@ impl Chunks {
         let index = coords.nindex(self.width, self.depth, self.ox(), self.oz());
         // It's safe because we checked the coordinates
         let lock = unsafe {&mut *self.chunks.get()};
-        let r = unsafe {lock.get_unchecked(index)}.load_full();
+        let r = unsafe {lock.get_unchecked(index)}.as_ref();
         r.map(|c| c.as_ref() as *const Chunk)
     }
 
     #[inline]
     pub unsafe fn get_unchecked_chunk(&self, index: usize) -> Option<*const Chunk> {
         unsafe {(*self.chunks.get()).get_unchecked(index)}
-            .load_full().map(|c| c.as_ref() as *const Chunk)
+            .as_ref().map(|c| c.as_ref() as *const Chunk)
     }
 
     pub fn live_voxels<T: Into<ChunkCoord>>(&self, coords: T) -> Option<LiveVoxels> {

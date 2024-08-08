@@ -52,7 +52,7 @@ impl Meshes {
 
     pub fn update_transforms_buffer(&mut self, state: &State, world: &World, indices: &[usize]) {
         indices.iter().for_each(|index| {
-            let Some(Some(chunk)) = unsafe {&*world.chunks.chunks.get()}.get(*index).map(|c| c.load_full()) else { return };
+            let Some(Some(chunk)) = unsafe {&*world.chunks.chunks.get()}.get(*index).cloned() else { return };
             let Some(Some(mesh)) = self.meshes().get(*index) else {return};
             if chunk.live_voxels.is_empty() {return};
 
