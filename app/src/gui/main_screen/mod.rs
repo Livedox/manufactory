@@ -37,7 +37,7 @@ impl MainScreen {
 
     fn draw_main_screen(&mut self, ctx: &egui::Context, window_target: &EventLoopWindowTarget<()>, is_setting: &mut bool) {
         if self.is_worlds || *is_setting {return};
-        egui::Area::new("MainScreen")
+        egui::Area::new("MainScreen".into())
             .anchor(Align2::CENTER_CENTER, [0.0, 0.0])
             .show(ctx, |ui| {
                 ui.visuals_mut().widgets.hovered = ui.visuals().widgets.inactive;

@@ -15,6 +15,10 @@ const LIB_FORMAT: &'static str = if cfg!(target_os = "windows") {
 
 
 pub fn main() {
+<<<<<<< HEAD
+=======
+    println!("{}", cfg!(target_endian = "little"));
+>>>>>>> arc_swap-test
     // let content_loader = ContentLoader::new("./res/content/");
     // let mut registrator = Registrator {
     //     c: HashMap::new(),
@@ -26,7 +30,11 @@ pub fn main() {
     //         load_library(path, &mut registrator).ok()
     //     }).flatten().collect();
 
+<<<<<<< HEAD
     // // println!("{:?} {}", content_loader.load_indices("./res/game/"), libs.len());
+=======
+    // println!("{:?} {}", content_loader.load_indices("./res/game/"), libs.len());
+>>>>>>> arc_swap-test
 
     // unsafe {
     //     LIVE_VOXEL_REGISTER = Some(

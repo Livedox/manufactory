@@ -1,6 +1,7 @@
 use std::{collections::HashMap, sync::{Arc, atomic::{AtomicBool, Ordering}, RwLock}, time::{SystemTime, UNIX_EPOCH}};
 
 use itertools::iproduct;
+use serde::{de::Visitor, ser::{SerializeStruct, SerializeTuple, SerializeTupleStruct}, Deserialize, Serialize};
 use crate::{bytes::{AsFromBytes, BytesCoder}, content::{Content}, light::light_map::{LightMap, Light}, coords::{local_coord::LocalCoord, chunk_coord::ChunkCoord}};
 
 use super::{generator::Generator, live_voxels::LiveVoxelContainer, voxel::{Voxel, VoxelAtomic}};
@@ -15,6 +16,7 @@ pub const CHUNK_VOLUME: usize = CHUNK_SIZE.pow(3);
 pub const CHUNK_BIT_SHIFT: usize = CHUNK_SIZE.ilog2() as usize;
 pub const CHUNK_BITS: usize = CHUNK_SIZE - 1_usize;
 pub const COMPRESSION_TYPE: CompressionType = CompressionType::Zlib;
+pub const IS_LITTLE_ENDIAN: bool = cfg!(target_endian = "little");
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u8)]
@@ -51,8 +53,18 @@ impl LiveVoxels {
 }
 
 #[derive(Debug)]
+#[repr(transparent)]
+pub struct Voxels(pub [VoxelAtomic; CHUNK_VOLUME]);
+
+impl Default for Voxels {
+    fn default() -> Self {
+        unsafe {std::mem::zeroed()}
+    }
+}
+
+#[derive(Debug)]
 pub struct Chunk {
-    pub voxels: [VoxelAtomic; CHUNK_VOLUME],
+    pub voxels: Voxels,
     pub lightmap: LightMap,
     
     pub live_voxels: LiveVoxels,
@@ -64,7 +76,7 @@ pub struct Chunk {
 
 impl Chunk {
     pub fn new(generator: &Generator, pos_x: i32, pos_y: i32, pos_z: i32) -> Chunk {
-        let voxels: [VoxelAtomic; CHUNK_VOLUME] = unsafe {std::mem::zeroed()};
+        let voxels = Voxels::default();
 
         for (y, z, x) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
             let real_x = x as i32 + pos_x*CHUNK_SIZE as i32;
@@ -72,7 +84,7 @@ impl Chunk {
             let real_z = z as i32 + pos_z*CHUNK_SIZE as i32;
 
             let id = generator.generate(real_x, real_y, real_z);
-            voxels[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].update(id);
+            voxels.0[(y*CHUNK_SIZE+z)*CHUNK_SIZE+x].update(id);
         }
 
         Chunk {
@@ -86,7 +98,7 @@ impl Chunk {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.voxels.iter().all(|voxel| { voxel.id() == 0 })
+        self.voxels.0.iter().all(|voxel| { voxel.id() == 0 })
     }
 
 
@@ -95,20 +107,20 @@ impl Chunk {
     }
 
     pub unsafe fn get_unchecked_voxel(&self, local_coords: LocalCoord) -> Voxel {
-        self.voxels.get_unchecked(local_coords.index()).to_voxel()
+        self.voxels.0.get_unchecked(local_coords.index()).to_voxel()
     }
 
     #[inline]
     pub fn voxel_id(&self, local_coords: LocalCoord) -> u32 {
-        self.voxels[local_coords.index()].id()
+        self.voxels.0[local_coords.index()].id()
     }
 
     pub fn voxel(&self, local_coords: LocalCoord) -> Voxel {
-        self.voxels[local_coords.index()].to_voxel()
+        self.voxels.0[local_coords.index()].to_voxel()
     }
 
     pub fn set_voxel(&self, local_coords: LocalCoord, id: u32) {
-        self.voxels[local_coords.index()].update(id);
+        self.voxels.0[local_coords.index()].update(id);
     }
 
     #[inline]
@@ -198,6 +210,59 @@ impl BytesCoder for [VoxelAtomic; CHUNK_VOLUME] {
     }
 }
 
+impl Serialize for Voxels {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer
+    {
+        let mut voxels = serializer.serialize_tuple(2)?;
+        voxels.serialize_element(&IS_LITTLE_ENDIAN)?;
+        let size = std::mem::size_of::<Self>();
+        let ptr: *const Self = self;
+        let slice = unsafe { std::slice::from_raw_parts(ptr.cast::<u8>(), size) };
+        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(slice).unwrap();
+        let v = encoder.finish().unwrap();
+        voxels.serialize_element(&v)?;
+        voxels.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for Voxels {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>
+    {
+        struct V;
+        impl<'de> Visitor<'de> for V {
+            type Value = (bool, Vec<u8>);
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                where
+                    A: serde::de::SeqAccess<'de>,
+            {
+                let is_le = seq.next_element::<bool>()?.unwrap();
+                let bytes = seq.next_element::<Vec<u8>>()?.unwrap();
+
+                Ok((is_le, bytes))
+            }
+            
+            
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                todo!()
+            }
+        }
+
+        let tuple = deserializer.deserialize_tuple(2, V)?;
+
+        let mut decoder = ZlibDecoder::new(&tuple.1[..]);
+        let mut buf = Vec::new();
+        decoder.read_to_end(&mut buf).unwrap();
+        let voxels = <[VoxelAtomic; CHUNK_VOLUME]>::from_bytes(buf.into());
+
+        Ok(Voxels(voxels))
+    }
+}
+
 impl LiveVoxels {
     fn encode_bytes(&self) -> Box<[u8]> {
         let mut bytes = Vec::new();
@@ -244,7 +309,7 @@ impl AsFromBytes for CompressChunk {}
 
 impl Chunk {
     pub fn encode_bytes(&self) -> Box<[u8]> {
-        let voxels = self.voxels.encode_bytes();
+        let voxels = bincode::serialize(&self.voxels).unwrap();
         let voxel_data = self.live_voxels.encode_bytes();
         let compress = CompressChunk {
             time: SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0),
@@ -256,7 +321,7 @@ impl Chunk {
         
         let mut bytes = Vec::new();
         bytes.extend(compress.as_bytes());
-        bytes.extend(voxels.as_ref());
+        bytes.extend(voxels);
         bytes.extend(voxel_data.as_ref());
         bytes.into()
     }
@@ -266,7 +331,7 @@ impl Chunk {
         let compress = CompressChunk::from_bytes(&data[0..CompressChunk::size()]);
         let voxel_end = CompressChunk::size() + compress.voxel_len as usize;
         let voxel_data_end = voxel_end + compress.voxel_data_len as usize;
-        let voxels = <[VoxelAtomic; CHUNK_VOLUME]>::decode_bytes(&data[CompressChunk::size()..voxel_end]);
+        let voxels: Voxels = bincode::deserialize(&data[CompressChunk::size()..voxel_end]).unwrap();
         let live_voxels = LiveVoxels::decode_bytes(content, &data[voxel_end..voxel_data_end]);
 
         Self {
