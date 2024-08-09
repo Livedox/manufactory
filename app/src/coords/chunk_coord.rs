@@ -2,7 +2,7 @@ use crate::{voxels::{chunk::{CHUNK_BIT_SHIFT, CHUNK_SIZE}, chunks::Chunks}, byte
 use super::{global_coord::GlobalCoord, local_coord::LocalCoord};
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct ChunkCoord {
     pub x: i32,
     pub y: i32,

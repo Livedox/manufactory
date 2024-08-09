@@ -46,6 +46,7 @@ pub mod setting;
 pub mod level;
 pub mod nalgebra_converter;
 pub mod content;
+pub mod server;
 
 const _GAME_VERSION: u32 = 1;
 

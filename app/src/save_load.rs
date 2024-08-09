@@ -1,7 +1,12 @@
 use std::collections::HashMap;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool};
+use std::sync::{Mutex};
+
+use serde::{Deserialize, Serialize};
 
 use crate::bytes::{BytesCoder, cast_vec_from_bytes};
 use crate::player::player::Player;
@@ -22,10 +27,8 @@ const REGION_VOLUME: usize = REGION_SQUARE*WORLD_HEIGHT;
 const REGION_MAGIC_NUMBER: u64 = 0x4474_304E_7AD7_835A;
 const REGION_FORMAT_VERSION: u32 = 2;
 
-const NONE_ENCODED_CHUNK: EncodedChunk = EncodedChunk::None;
-
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum RegionFormatType {
     Region = 0,
     Blueprint = 1,
@@ -70,39 +73,58 @@ impl RegionChunkIndex for ChunkCoord {
     }
 }
 
-#[derive(Debug, Default)]
+impl RegionChunkIndex for usize {
+    fn region_chunk_index(&self) -> usize {
+        *self
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub enum EncodedChunk{
     // Fields for special chunks can be added
-    #[default]
-    None,
-    Some(Box<[u8]>),
+    Some(Arc<[u8]>),
 }
 
-#[derive(Debug)]
-pub struct Region {
-    unsaved: bool,
-    chunks: Box<[EncodedChunk; REGION_VOLUME]>
-}
-
-impl Region {
-    pub fn new_empty() -> Self {
-        Self { chunks: Box::new([NONE_ENCODED_CHUNK; REGION_VOLUME]), unsaved: false }
-    }
-
-    pub fn chunk(&self, coords: impl RegionChunkIndex) -> &EncodedChunk {
-        &self.chunks[coords.region_chunk_index()]
-    }
-
-    pub fn save_chunk(&mut self, coords: impl RegionChunkIndex, data: Box<[u8]>) {
-        if let Some(chunk) = self.chunks.get_mut(coords.region_chunk_index()) {
-            *chunk = EncodedChunk::Some(data);
-            self.unsaved = true;
+impl Clone for EncodedChunk {
+    fn clone(&self) -> Self {
+        match self {
+            EncodedChunk::Some(d) => EncodedChunk::Some(Arc::clone(d)),
         }
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Region {
+    unsaved: AtomicBool,
+    chunks: Mutex<HashMap<usize, EncodedChunk>>,
+}
+
+impl Region {
+    pub fn new_empty() -> Self {
+        Self { chunks: Mutex::new(HashMap::new()), unsaved: AtomicBool::new(false) }
+    }
+
+    pub fn chunk(&self, coords: impl RegionChunkIndex) -> Option<EncodedChunk> {
+        self.chunks.lock().unwrap().get(&coords.region_chunk_index()).cloned()
+    }
+
+    pub fn save_chunk(&self, coords: impl RegionChunkIndex, encoded_chunk: EncodedChunk) {
+        let index = coords.region_chunk_index();
+        if index >= REGION_VOLUME {
+            eprintln!("Incorrect coordinates!");
+            return;
+        };
+        self.chunks.lock().unwrap().insert(index, encoded_chunk);
+        self.set_unsaved(true);
+    }
+
+    pub fn unsaved(&self) -> bool {self.unsaved.load(Ordering::Acquire)}
+    pub fn set_unsaved(&self, val: bool) {self.unsaved.store(val, Ordering::Release);}
+}
+
+
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorldRegionsHeader {
     magic_number: u64,
     format_version: u32,
@@ -110,48 +132,46 @@ pub struct WorldRegionsHeader {
     width: u8,
     height: u8,
     depth: u8,
+    region: Arc<Region>,
 }
-impl AsFromBytes for WorldRegionsHeader {}
 
 #[derive(Debug)]
 pub struct WorldRegions {
     path: PathBuf,
-    pub regions: HashMap<RegionCoords, Region>
+    pub regions: Mutex<HashMap<RegionCoords, Arc<Region>>>
 }
 
 impl WorldRegions {
     pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self { path: path.into(), regions: HashMap::new() }
+        Self { path: path.into(), regions: Mutex::new(HashMap::new()) }
     }
 
-    pub fn chunk(&mut self, coords: ChunkCoord) -> &EncodedChunk {
+    pub fn chunk(&self, coords: ChunkCoord) -> Option<EncodedChunk> {
         self.get_or_create_region(coords.into())
             .chunk(coords)
     }
 
 
-    pub fn save_chunk(&mut self, chunk: &Chunk) {
+    pub fn save_chunk(&self, chunk: &Chunk) {
         self.get_or_create_region(chunk.xyz.into())
-            .save_chunk(chunk.xyz, chunk.encode_bytes());
+            .save_chunk(chunk.xyz, EncodedChunk::Some(chunk.encode_bytes().into()));
     }
 
-    pub fn get_or_create_region(&mut self, coords: RegionCoords) -> &mut Region {
-        let self_ptr = self as *mut Self;
-        if let Some(region) = self.regions.get_mut(&coords) {
-            return region;
-        }
-        unsafe { self_ptr.as_mut().unwrap() }.load_region(coords);
-        unsafe { self_ptr.as_mut().unwrap() }.regions.get_mut(&coords).unwrap()
+    pub fn get_or_create_region(&self, coords: RegionCoords) -> Arc<Region> {
+        let region = self.regions.lock().unwrap().get(&coords).cloned();
+        if let Some(region) = region {return region};
+
+        self.load_region(coords)
     }
 
-    pub fn save_all_regions(&mut self) {
-        let self_ptr = self as *mut Self;
-        self.regions.keys().for_each(|key| unsafe { self_ptr.as_mut().unwrap() }.save_region(*key));
+    pub fn save_all_regions(&self) {
+        let keys: Vec<RegionCoords> = self.regions.lock().unwrap().keys().cloned().collect();
+        keys.iter().for_each(|key| self.save_region(*key));
     }
 
-    pub fn save_region(&mut self, coords: RegionCoords) {
-        let Some(region) = self.regions.get_mut(&coords) else {return};
-        if !region.unsaved {return};
+    pub fn save_region(&self, coords: RegionCoords) {
+        let Some(region) = self.regions.lock().unwrap().get(&coords).cloned() else {return};
+        if !region.unsaved() {return};
         let header = WorldRegionsHeader {
             magic_number: REGION_MAGIC_NUMBER,
             format_version: REGION_FORMAT_VERSION,
@@ -159,50 +179,31 @@ impl WorldRegions {
             width: REGION_SIZE as u8,
             height: WORLD_HEIGHT as u8,
             depth: REGION_SIZE as u8,
+            region: Arc::clone(&region)
         };
 
-
-        let mut bytes = Vec::<u8>::new();
-        bytes.extend(header.as_bytes());
-        region.chunks.iter()
-            .map(|chunk| if let EncodedChunk::Some(b) = chunk {b.len() as u32} else {0})
-            .for_each(|b| bytes.extend(b.as_bytes()));
-        region.chunks.iter()
-            .filter_map(|chunk| if let EncodedChunk::Some(b) = chunk {Some(b)} else {None})
-            .for_each(|b| bytes.extend(b.as_ref()));
-
         let _ = fs::create_dir_all(self.path.join("regions/"));
-        if let Err(err) = fs::write(self.path.join("regions/").join(coords.filename()), bytes) {
+        if let Err(err) = fs::write(self.path.join("regions/")
+            .join(coords.filename()), bincode::serialize(&header).unwrap())
+        {
             eprintln!("Region write error: {}", err);
         } else {
-            region.unsaved = false;
+            region.set_unsaved(false);
         }
     }
 
 
-    pub fn load_region(&mut self, coords: RegionCoords) {
-        let mut region = Region::new_empty();
+    pub fn load_region(&self, coords: RegionCoords) -> Arc<Region> {
         let file = fs::read(self.path.join("regions/").join(coords.filename()));
-        if let Ok(bytes) = file {
-            let header = WorldRegionsHeader::from_bytes(&bytes[0..WorldRegionsHeader::size()]);
-            let volume = header.width as usize * header.height as usize * header.width as usize;
-            let offsets_end = WorldRegionsHeader::size()+std::mem::size_of::<u32>()*volume;
-            let offsets = cast_vec_from_bytes::<u32>(&bytes[WorldRegionsHeader::size()..offsets_end]);
-            let mut chunk_offset = offsets_end;
-            for (i, offset) in offsets.into_iter().enumerate().filter(|(_, offset)| *offset != 0) {
-                let Some(chunk) = region.chunks.get_mut(i) else {continue};
-                *chunk = EncodedChunk::Some(bytes[chunk_offset..offset as usize+chunk_offset].into());
-                chunk_offset += offset as usize;
-            }
-        }
+        let region = if let Ok(bytes) = file {
+            let header = bincode::deserialize::<WorldRegionsHeader>(&bytes).unwrap();
+            header.region
+        } else {
+            Arc::new(Region::new_empty())
+        };
 
-        self.regions.insert(coords, region);
-    }
-
-    /// Only safe access in an UnsafeMutex
-    pub fn change_path(&mut self, path: PathBuf) {
-        self.path = path;
-        self.regions = HashMap::new();
+        self.regions.lock().unwrap().insert(coords, Arc::clone(&region));
+        region
     }
 }
 
@@ -231,7 +232,7 @@ impl PlayerSave {
 }
 
 pub struct WorldSaver {
-    pub regions: Arc<UnsafeMutex<WorldRegions>>,
+    pub regions: Arc<WorldRegions>,
     pub player: Arc<UnsafeMutex<PlayerSave>>
 }
 
