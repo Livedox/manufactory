@@ -29,7 +29,7 @@ impl World {
         self.light.solve_rgbs(&self.chunks);
     }
 
-    pub fn load_column_of_chunks(&self, regions: &mut WorldRegions, cx: i32, cz: i32) {
+    pub fn load_column_of_chunks(&self, regions: &WorldRegions, cx: i32, cz: i32) {
         let start = Instant::now();
         for cy in (0..WORLD_HEIGHT as i32).rev() {
             let chunk = match regions.chunk((cx, cy, cz).into()) {

@@ -20,7 +20,7 @@ pub fn spawn(
             let (lock, cvar) = &*save_condvar;
             let (mut save_state, _) = cvar.wait_timeout(lock.lock().unwrap(), Duration::new(60, 0)).unwrap();
 
-            let mut world_regions = unsafe {world_saver.regions.lock_unsafe()}.unwrap();
+            let world_regions = &world_saver.regions;
 
             let mut chunks_awaiting_deletion = world.chunks.chunks_awaiting_deletion.lock().unwrap();
             chunks_awaiting_deletion.iter().for_each(|chunk| {

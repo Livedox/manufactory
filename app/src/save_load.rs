@@ -239,7 +239,7 @@ pub struct WorldSaver {
 impl WorldSaver {
     pub fn new(path: PathBuf) -> Self {
         Self {
-            regions: Arc::new(UnsafeMutex::new(WorldRegions::new(path.clone()))),
+            regions: Arc::new(WorldRegions::new(path.clone())),
             player: Arc::new(UnsafeMutex::new(PlayerSave::new(path))),
         }
     }
