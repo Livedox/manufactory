@@ -3,7 +3,7 @@ use crate::shaders;
 
 shaders!(block_vertex, block_fragment, glass_fragment, transport_belt,
     model, animated_model, selection, crosshair, post_process_fragment,
-    multisampled_post_process_fragment, composite_fragment, fullscreen_vertex);
+    multisampled_post_process_fragment, composite_fragment, fullscreen_vertex, player);
 // pub(crate) struct Shaders {
 //     pub(crate) block_vertex: wgpu::ShaderModule,
 //     pub(crate) block_fragment: wgpu::ShaderModule,

@@ -1,5 +1,5 @@
 use wgpu::{Device, BindGroupLayout, VertexBufferLayout, ShaderModule, TextureFormat, PrimitiveTopology, RenderPipeline};
-use crate::{constants::PRIMITIVE_TOPOLOGY, texture};
+use crate::{constants::PRIMITIVE_TOPOLOGY, texture, vertices::player::PlayerVertex};
 use self::builder::{PipelineBuilder, PipelineBuilderShader};
 
 use super::{bind_group_layout::Layouts, shaders::Shaders, vertices::{block_vertex::BlockVertex, model_vertex::ModelVertex, model_instance::ModelInstance, animated_model_vertex::AnimatedModelVertex, animated_model_instance::AnimatedModelInstance, selection_vertex::SelectionVertex}};
@@ -42,6 +42,7 @@ const REVEAL_BLEND_STATE: wgpu::BlendState = wgpu::BlendState {
 };
 
 pub(crate) struct Pipelines {
+    pub player: RenderPipeline,
     pub block: RenderPipeline,
     pub transport_belt: RenderPipeline,
     pub model: RenderPipeline,
@@ -67,6 +68,12 @@ impl Pipelines {
                 PipelineBuilderShader::new_separated(&shaders.block_vertex, &shaders.block_fragment))
             .sample_count(sample_count).topology(PRIMITIVE_TOPOLOGY)
             .label("block").build(),
+
+        player: PipelineBuilder::new(device, format,
+                &[&layouts.sun, &layouts.player_texture, &layouts.camera], &[PlayerVertex::desc()],
+                PipelineBuilderShader::new(&shaders.player))
+            .sample_count(sample_count).topology(PRIMITIVE_TOPOLOGY)
+            .label("player").build(),
         
         transport_belt: PipelineBuilder::new(device, format,
                 &[&layouts.sun, &layouts.block_texture, &layouts.camera, &layouts.time],

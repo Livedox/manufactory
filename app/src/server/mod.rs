@@ -7,6 +7,6 @@ pub mod local_server;
 pub mod connect_local_server;
 
 pub trait Server {
-    fn test() -> Result<Box<dyn Debug>, Box<dyn Error>>;
-    fn load_chunk(cc: ChunkCoord) -> Result<Option<Arc<Chunk>>, Box<dyn Error>>;
+    async fn test(&self) -> Result<Box<dyn Debug>, Box<dyn Error>>;
+    async fn load_chunk(cc: ChunkCoord) -> Result<Option<Arc<Chunk>>, Box<dyn Error>>;
 }

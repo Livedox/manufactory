@@ -36,30 +36,6 @@ impl CameraController {
         self.camera.rotate(self.pitch, self.yaw, 0.0);
     }
 
-    pub fn update(&mut self, input: &InputService, delta_time: f32, is_cursor: bool) {
-        if !is_cursor {
-            self.camera.rotation = glm::Mat4::identity();
-            self.yaw -= input.delta().0*Self::SENSETIV*delta_time;
-            self.pitch -= input.delta().1*Self::SENSETIV*delta_time;
-            if self.pitch > 1.569_051 {self.pitch = 1.569_051}
-            if self.pitch < -1.569_051 {self.pitch = -1.569_051}
-            self.camera.rotate(self.pitch, self.yaw, 0.0); 
-        }
-
-        if input.is_key(&Key::KeyW, KeypressState::AnyStayPress) {
-            self.camera.position +=  self.camera.front * Self::SPEED * delta_time;
-        }
-        if input.is_key(&Key::KeyS, KeypressState::AnyStayPress) {
-            self.camera.position -=  self.camera.front * Self::SPEED * delta_time;
-        }
-        if input.is_key(&Key::KeyA, KeypressState::AnyStayPress) {
-            self.camera.position -=  self.camera.right * Self::SPEED * delta_time;
-        }
-        if input.is_key(&Key::KeyD, KeypressState::AnyStayPress) {
-            self.camera.position +=  self.camera.right * Self::SPEED * delta_time;
-        }
-    }
-
     pub fn set_position(&mut self, position: glm::Vec3) {
         self.camera.position = position;
     }
@@ -85,6 +61,7 @@ impl CameraController {
     pub fn fov(&self) -> f32 {self.camera.fov}
     pub fn yaw(&self) -> f32 {self.yaw}
     pub fn pitch(&self) -> f32 {self.pitch}
+    pub fn next_direction(&mut self) {self.camera.next_direction()}
 
     pub fn new_frustum(&self, aspect: f32) -> Frustum {
         Frustum::new(self, aspect)

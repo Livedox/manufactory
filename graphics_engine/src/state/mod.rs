@@ -5,6 +5,8 @@ use winit::window::Window;
 use crate::bind_group::block_texture;
 use crate::constants::{BLOCK_MIPMAP_COUNT, BLOCK_TEXTURE_SIZE};
 use crate::models::load_model::load_models;
+use crate::models::load_texture::load_texture;
+use crate::player_mesh::PlayerMesh;
 use crate::{bind_group, bind_group_layout::Layouts, models::load_animated_model::load_animated_model, pipeline::Pipelines, rev_qumark, shaders::Shaders, texture::Texture};
 use crate::texture::TextureAtlas;
 use super::{bind_group_buffer::BindGroupsBuffers, egui::Egui, mesh::Mesh, models::{animated_model::AnimatedModel, model::Model}, setting::GraphicSetting, texture};
@@ -98,7 +100,8 @@ pub struct State<'a> {
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
 
-    block_texutre_bg: wgpu::BindGroup,
+    block_texture_bg: wgpu::BindGroup,
+    player_texture_bg: wgpu::BindGroup,
     window: Arc<Window>,
 
     pipelines: Pipelines,
@@ -139,6 +142,7 @@ impl<'a> State<'a> {
         atlas: &[u8],
         atlas_size: u32,
         proj_view: &[[f32; 4]; 4],
+        player_texture: (Vec<u8>, u32, u32),
     ) -> Self {
         let size = window.inner_size();
         // The instance is a handle to our GPU
@@ -214,7 +218,7 @@ impl<'a> State<'a> {
         let bb: Vec<&[u8]> = blocks.iter().map(Vec::as_slice).collect();
         let block_texture = texture::Texture::block_array(&device, &queue, &bb, blocks_len);
 
-        let block_texutre_bg = bind_group::block_texture::get(&device, &layouts.block_texture, &block_texture);
+        let block_texture_bg = bind_group::block_texture::get(&device, &layouts.block_texture, &block_texture);
 
         let models = load_models(&device, &queue, &layouts.model_texture, models, "models");
         let animated_models = load_animated_model(&device, &queue,
@@ -233,6 +237,8 @@ impl<'a> State<'a> {
         let accum_texture = texture::Texture::create_accum_texture(&device, &config, "accum_texture", sample_count);
         let reveal_texture = texture::Texture::create_reveal_texture(&device, &config, "reveal_texture");
 
+        let player_texture_bg = load_texture(&device, &queue, &layouts.player_texture,
+            &player_texture.0, player_texture.1, player_texture.2, "player_texture_bg");
 
         Self {
             surface,
@@ -241,7 +247,9 @@ impl<'a> State<'a> {
             config,
             size,
 
-            block_texutre_bg,
+            block_texture_bg,
+            player_texture_bg,
+
             window,
 
             depth_texture,
@@ -310,7 +318,7 @@ impl<'a> State<'a> {
         self.queue.write_buffer(&self.bind_groups_buffers.camera.buffer, 0, bytemuck::cast_slice(proj_view));
     }
 
-    pub fn render(&mut self, meshes: &[Arc<Mesh>], ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, meshes: &[Arc<Mesh>], players: &[PlayerMesh], ui: impl FnMut(&egui::Context)) -> Result<(), wgpu::SurfaceError> {
         self.window.pre_present_notify();
         let output = self.surface.get_current_texture()?;
         let output_texture = &output.texture;
@@ -320,7 +328,7 @@ impl<'a> State<'a> {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
-        self.draw_all(&mut encoder, output_texture, &view, meshes);
+        self.draw_all(&mut encoder, output_texture, &view, meshes, players);
         
         let egui_renderer = self.egui.prepare(&mut encoder, &self.window, &self.device,
             &self.queue, [self.config.width, self.config.height], ui);

@@ -2,13 +2,14 @@ use std::{collections::{HashMap, VecDeque}, future::IntoFuture, hash::Hash, path
 use camera::frustum::Frustum;
 
 use coords::chunk_coord::ChunkCoord;
-use graphics_engine::{constants::{BLOCK_MIPMAP_COUNT, BLOCK_TEXTURE_SIZE}, state::{self, State}};
+use graphics_engine::{constants::{BLOCK_MIPMAP_COUNT, BLOCK_TEXTURE_SIZE}, player_mesh::PlayerMesh, state::{self, State}};
 
 use gui::gui_controller::GuiController;
 use image::imageops::FilterType;
 use input_event::{input_service::InputService, KeypressState};
 use level::Level;
 
+use server::{connect_local_server::ConnectLocalServer, local_server::LocalServer, Server};
 use unsafe_mutex::UnsafeMutex;
 use world::{loader::WorldLoader};
 use crate::{content_loader::{indices::{load_animated_models, load_blocks_textures, load_models, GamePath, Indices}, ContentLoader}, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}};
@@ -89,6 +90,12 @@ pub extern "C" fn run() {
 pub async fn run_async() {
     println!("{:?}", Path::new("./data/").canonicalize());
     let mut world_loader = WorldLoader::new(Path::new("./data/worlds/"));
+
+
+    // let _locals = LocalServer::new().await.unwrap();
+    // let connect = ConnectLocalServer::new().await.unwrap();
+
+    // println!("{:?}", connect.test().await);
     
     //let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     // Load a sound from a file, using a path relative to Cargo.toml
@@ -106,6 +113,8 @@ pub async fn run_async() {
         &["./res/game/assets/models"]);
 
     let img = image::open("./res/game/assets/items/items.png").expect("./res/game/assets/items/items.png");
+    let player_texture = image::open("./res/game/player.png").expect("./res/game/player.png");
+    let player_texture = (player_texture.as_bytes().to_vec(), player_texture.width(), player_texture.height());
     let (width, height) = (img.width(), img.height());
     if width != height { panic!("Use square textures") }
 
@@ -143,7 +152,8 @@ pub async fn run_async() {
         animated_models,
         img.as_bytes(),
         width,
-        &[[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]).await;
+        &[[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]],
+        player_texture).await;
     let mut gui_controller = GuiController::new(window, state.texture_atlas.clone());
     // load_complex_object("transport_belt.json", &state.indices);
     let mut timer_16ms = Timer::new(Duration::from_millis(16));
@@ -156,6 +166,7 @@ pub async fn run_async() {
         };
 
         let mut debug_data = String::new();
+        let mut player_position: Option<[f32; 3]> = None;
         let mesh_vec = if let Some(level) = &mut level {
             let result = level.update(
                 &input,
@@ -167,6 +178,8 @@ pub async fn run_async() {
             );
             let player = unsafe {level.player.lock_unsafe()}.unwrap();
             debug_data += &format!("{:?}", player.camera().position_tuple());
+            let pp = player.position();
+            player_position = Some([pp.x, pp.y, pp.z]);
             state.update_camera(&player.camera().proj_view(state.size.width as f32, state.size.height as f32).into());
             let (sun, sky) = level.sun.sun_sky();
             state.set_sun_color(sun.into());
@@ -210,7 +223,9 @@ pub async fn run_async() {
             state.set_ui_interaction(gui_controller.is_menu);
         }
 
-        match state.render(&mesh_vec, |ctx| {
+        let players_mesh = player_position.map_or(vec![], |pp| vec![PlayerMesh::new(&state, pp),
+            PlayerMesh::new(&state, [pp[0]+10.0, pp[1], pp[2]])]);
+        match state.render(&mesh_vec, &players_mesh, |ctx| {
             if let Some(l) = &level {
                 let mut player = unsafe {l.player.lock_unsafe()}.unwrap();
                 gui_controller

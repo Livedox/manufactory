@@ -12,3 +12,4 @@ pub mod setting;
 pub mod mesh;
 pub mod models;
 pub mod macros;
+pub mod player_mesh;

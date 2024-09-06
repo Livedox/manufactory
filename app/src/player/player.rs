@@ -68,6 +68,9 @@ impl Player {
         if input.is_key(&Key::KeyD, KeypressState::AnyStayPress) {
             self.position +=  self.camera.right() * Self::SPEED * delta_time;
         }
+        if input.is_key(&Key::F3, KeypressState::JustPressed) {
+            self.camera.next_direction();
+        }
         self.camera.set_position(self.position);
 
         if input.wheel() < 0 {

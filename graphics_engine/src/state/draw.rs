@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 
 
-use crate::{bind_group, mesh::{Mesh, MeshBuffer}, texture::Texture};
+use crate::{bind_group, mesh::{Mesh, MeshBuffer}, player_mesh::PlayerMesh, texture::Texture};
 
 use super::State;
 
@@ -14,6 +14,7 @@ impl<'a> State<'a> {
         output_texture: &wgpu::Texture,
         view: &wgpu::TextureView,
         meshes: &[Arc<Mesh>],
+        players: &[PlayerMesh]
     ) {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass Start"),
@@ -36,6 +37,7 @@ impl<'a> State<'a> {
         // Set camera
         render_pass.set_bind_group(2, &self.bind_groups_buffers.camera.bind_group, &[]);
 
+        self.draw_players(&mut render_pass, players);
         self.draw_block(&mut render_pass, meshes);
         self.draw_transport_belt(&mut render_pass, meshes);
         self.draw_animated_model(&mut render_pass, meshes);
@@ -207,7 +209,7 @@ impl<'a> State<'a> {
     #[inline]
     fn draw_block<'b>(&'b self, render_pass: &mut wgpu::RenderPass<'b>, meshes: &'b [Arc<Mesh>]) {
         render_pass.set_pipeline(&self.pipelines.block);
-        render_pass.set_bind_group(1, &self.block_texutre_bg, &[]);
+        render_pass.set_bind_group(1, &self.block_texture_bg, &[]);
         meshes.iter().filter(|m| m.block_index_count > 0).for_each(|mesh| {
             render_pass.set_vertex_buffer(0, mesh.block_vertex_buffer.slice(..));
             render_pass.set_index_buffer(mesh.block_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
@@ -219,10 +221,7 @@ impl<'a> State<'a> {
     #[inline]
     fn draw_glass<'b>(&'b self, render_pass: &mut wgpu::RenderPass<'b>, meshes: &'b [Arc<Mesh>]) {
         render_pass.set_pipeline(&self.pipelines.glass);
-        render_pass.set_bind_group(1, &self.block_texutre_bg, &[]);
-        // render_pass.set_blend_constant(wgpu::Color {r: -0.9, g: -0.9, b: -0.9, a: 0.0});
-        // render_pass.set_blend_constant(wgpu::Color {r: 0.0, g: 0.0, b: 0.0, a: 0.0});
-        // render_pass.set_blend_constant(wgpu::Color {r: 0.5, g: 0.5, b: 0.5, a: 0.0});
+        render_pass.set_bind_group(1, &self.block_texture_bg, &[]);
         meshes.iter().filter(|m| m.glass_index_count > 0).for_each(|mesh| {
             render_pass.set_vertex_buffer(0, mesh.glass_vertex_buffer.slice(..));
             render_pass.set_index_buffer(mesh.glass_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
@@ -234,11 +233,22 @@ impl<'a> State<'a> {
     #[inline]
     fn draw_transport_belt<'b>(&'b self, render_pass: &mut wgpu::RenderPass<'b>, meshes: &'b [Arc<Mesh>]) {
         render_pass.set_pipeline(&self.pipelines.transport_belt);
+        render_pass.set_bind_group(1, &self.block_texture_bg, &[]);
         render_pass.set_bind_group(3, &self.bind_groups_buffers.time.bind_group, &[]);
         meshes.iter().filter(|m| m.belt_index_count > 0).for_each(|mesh| {
             render_pass.set_vertex_buffer(0, mesh.belt_vertex_buffer.slice(..));
             render_pass.set_index_buffer(mesh.belt_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
             render_pass.draw_indexed(0..mesh.belt_index_count, 0, 0..1);
+        });
+    }
+
+    #[inline]
+    fn draw_players<'b>(&'b self, render_pass: &mut wgpu::RenderPass<'b>, players: &'b [PlayerMesh]) {
+        render_pass.set_pipeline(&self.pipelines.player);
+        render_pass.set_bind_group(1, &self.player_texture_bg, &[]);
+        players.iter().for_each(|mesh| {
+            render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+            render_pass.draw(0..mesh.vertex_count, 0..1);
         });
     }
 
