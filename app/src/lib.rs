@@ -5,11 +5,10 @@ use coords::chunk_coord::ChunkCoord;
 use graphics_engine::{constants::{BLOCK_MIPMAP_COUNT, BLOCK_TEXTURE_SIZE}, player_mesh::PlayerMesh, state::{self, State}};
 
 use gui::gui_controller::GuiController;
-use image::imageops::FilterType;
 use input_event::{input_service::InputService, KeypressState};
 use level::Level;
 
-use server::{connect_local_server::ConnectLocalServer, local_server::LocalServer, Server};
+use server_engine::ServerEngine;
 use unsafe_mutex::UnsafeMutex;
 use world::{loader::WorldLoader};
 use crate::{content_loader::{indices::{load_animated_models, load_blocks_textures, load_models, GamePath, Indices}, ContentLoader}, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}};
@@ -47,7 +46,8 @@ pub mod setting;
 pub mod level;
 pub mod nalgebra_converter;
 pub mod content;
-pub mod server;
+pub mod socket;
+pub mod server_engine;
 
 const _GAME_VERSION: u32 = 1;
 
@@ -77,17 +77,14 @@ pub fn frustum(chunks: &Chunks, frustum: &Frustum) -> Vec<usize> {
     indices
 }
 
-#[no_mangle]
-pub extern "C" fn run() {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
 
-    rt.block_on(run_async());
-}
-
-pub async fn run_async() {
+pub async fn run() {
+    let (_server, mut rx) = socket::socket_test().await.unwrap();
+    std::thread::spawn(move || {loop {
+        let Some(event) = rx.blocking_recv() else {break};
+        println!("{:?}", event);
+    }});
+    ServerEngine::start();
     println!("{:?}", Path::new("./data/").canonicalize());
     let mut world_loader = WorldLoader::new(Path::new("./data/worlds/"));
 

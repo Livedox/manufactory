@@ -11,10 +11,10 @@ edition = "2021"
 [dependencies]
 app = { path = "./app" }
 
+tokio = { version = "1.40.0", features = ["full"] }
 libloading = "0.8.3"
 
 [profile.dev]
-opt-level = 1
 debug = true
 
 [profile.release]

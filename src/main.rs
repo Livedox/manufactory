@@ -14,7 +14,8 @@ const LIB_FORMAT: &'static str = if cfg!(target_os = "windows") {
 };
 
 
-pub fn main() {
+#[tokio::main]
+pub async fn main() {
     println!("{}", cfg!(target_endian = "little"));
     // let content_loader = ContentLoader::new("./res/content/");
     // let mut registrator = Registrator {
@@ -37,7 +38,7 @@ pub fn main() {
     //         }
     //     )
     // }
-    app::run();
+    app::run().await;
     println!("Exit!");
 
     // libs.into_iter().for_each(|lib| lib.close().unwrap());
