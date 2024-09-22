@@ -286,8 +286,10 @@ impl SocketServer {
         tx: Sender<SocketServerEvent>,
         socket_clients: SocketClients,
     ) {
+        println!("Start acceptiong!");
         let mut client_id = 0u32;
         loop {
+            println!("Work listener!");
             let (socket, addr) = listener.accept().await.unwrap();
             let Ok(socket_client) = SocketClient::new(
                 socket,
@@ -303,35 +305,26 @@ impl SocketServer {
         }
     }
 
-    fn send(&self, client_id: u32, payload: Arc<[u8]>) {
-        let socket_clients = self.socket_clients.clone();
-        tokio::spawn(async move {
-            if let Some(client) = socket_clients.get(client_id).await {
-                let _ = client.sender().send(payload).await;
-            };
-        });
+    pub fn send(&self, client_id: u32, payload: Arc<[u8]>) {
+        if let Some(client) = self.socket_clients.0.blocking_read().get(&client_id) {
+            let _ = client.sender().blocking_send(payload);
+        };
     }
 
-    fn send_exlude(&self, client_id: u32, payload: Arc<[u8]>) {
-        let socket_clients = self.socket_clients.clone();
-        tokio::spawn(async move {
-            let guard = socket_clients.0.read().await;
-            for client in guard.values() {
-                if client.id() != client_id {
-                    let _ = client.sender().send(Arc::clone(&payload)).await;
-                }
+    pub fn send_exlude(&self, client_id: u32, payload: Arc<[u8]>) {
+        let guard = self.socket_clients.0.blocking_read();
+        for client in guard.values() {
+            if client.id() != client_id {
+                let _ = client.sender().blocking_send(Arc::clone(&payload));
             }
-        });
+        }
     }
 
-    fn send_all(&self, payload: Arc<[u8]>) {
-        let socket_clients = self.socket_clients.clone();
-        tokio::spawn(async move {
-            let guard = socket_clients.0.read().await;
-            for client in guard.values() {
-                let _ = client.sender().send(Arc::clone(&payload)).await;
-            }
-        });
+    pub fn send_all(&self, payload: Arc<[u8]>) {
+        let guard = self.socket_clients.0.blocking_read();
+        for client in guard.values() {
+            let _ = client.sender().blocking_send(Arc::clone(&payload));
+        }
     }
 }
 

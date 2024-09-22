@@ -22,37 +22,55 @@ impl Default for ClientConfig {
 
 
 pub struct Client {
-    writer: tokio::net::tcp::OwnedWriteHalf,
+    ptx: tokio::sync::mpsc::Sender<Vec<u8>>,
+    id: u32,
 }
 
 
 impl Client {
-    pub async fn start(config: ClientConfig) -> tokio::io::Result<Self> {
+    pub async fn start(config: ClientConfig, payload_sender: tokio::sync::mpsc::Sender<Vec<u8>>) -> tokio::io::Result<Self> {
+        println!("a");
         let mut stream = TcpStream::connect(config.addr).await?;
-        let _client_id = Self::handshake(&mut stream).await.unwrap();
+        println!("b");
+        let id = Self::handshake(&mut stream).await.unwrap();
+        println!("c");
+        let (ptx, mut prx) = tokio::sync::mpsc::channel::<Vec<u8>>(100);
 
-        let (mut reader, writer) = stream.into_split();
+        let (mut reader, mut writer) = stream.into_split();
 
         tokio::spawn(async move {
-            let mut count = 0;
+            let mut buf: Vec<u8> = vec![0; 1_000_000];
             loop {
-                let Ok(header_num) = reader.read_u64().await else {break};
-                let header = Header::try_from(header_num).unwrap();
-                count += 1;
-                println!("Addr: {:?}, Header: {:?}, Count: {count}", reader.local_addr(), header);
+                let Ok(size) = reader.read_u32().await else {break};
+                if size == 0 || size > 1_000_000 {break};
+                let buf = &mut buf[0..size as usize];
+                reader.read_exact(buf).await.unwrap();
+                payload_sender.send(Vec::from(buf)).await.unwrap();
             }
         });
 
-        Ok(Self {writer})
+        tokio::spawn(async move {
+            loop {
+                let Some(data) = prx.recv().await else {break};
+                let size = data.len() as u32;
+                writer.write_u32(size).await.unwrap();
+                writer.write_all(&data).await.unwrap();
+            }
+        });
+
+        Ok(Self {ptx, id})
     }
 
-    pub async fn send_header(&mut self, header: Header) -> tokio::io::Result<()> {
-        self.writer.write_u64(header.into()).await?;
-        Ok(())
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+
+    pub fn send_payload(&mut self, payload: Vec<u8>) {
+        self.ptx.try_send(payload).unwrap();
     }
 
 
-    pub async fn handshake(stream: &mut TcpStream) -> Result<u32, Box<dyn std::error::Error>> {
+    async fn handshake(stream: &mut TcpStream) -> Result<u32, Box<dyn std::error::Error>> {
         stream.write_u64(Handshake::new(HandshakeId::ProtocolVersion, PROTOCOL_VERSION as u32).into()).await?;
         let handshake: Handshake = stream.read_u64().await?.into();
         Self::check_reject(stream, handshake).await?;

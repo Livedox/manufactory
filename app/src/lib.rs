@@ -1,6 +1,7 @@
 use std::{collections::{HashMap, VecDeque}, future::IntoFuture, hash::Hash, path::Path, sync::{atomic::AtomicBool, Arc}, time::{Duration, Instant}};
 use camera::frustum::Frustum;
 
+use client_engine::ClientEngine;
 use coords::chunk_coord::ChunkCoord;
 use graphics_engine::{constants::{BLOCK_MIPMAP_COUNT, BLOCK_TEXTURE_SIZE}, player_mesh::PlayerMesh, state::{self, State}};
 
@@ -9,6 +10,7 @@ use input_event::{input_service::InputService, KeypressState};
 use level::Level;
 
 use server_engine::ServerEngine;
+use socket::client;
 use unsafe_mutex::UnsafeMutex;
 use world::{loader::WorldLoader};
 use crate::{content_loader::{indices::{load_animated_models, load_blocks_textures, load_models, GamePath, Indices}, ContentLoader}, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}};
@@ -48,6 +50,8 @@ pub mod nalgebra_converter;
 pub mod content;
 pub mod socket;
 pub mod server_engine;
+pub mod common;
+pub mod client_engine;
 
 const _GAME_VERSION: u32 = 1;
 
@@ -76,19 +80,37 @@ pub fn frustum(chunks: &Chunks, frustum: &Frustum) -> Vec<usize> {
     }
     indices
 }
-
+pub fn run_server() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let mut server = runtime.block_on(ServerEngine::start());
+    let h = std::thread::spawn(move || {
+        loop {
+            server.tick();
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    });
+    h.join().unwrap();
+}
 
 pub async fn run() {
-    let (_server, mut rx) = socket::socket_test().await.unwrap();
-    std::thread::spawn(move || {loop {
-        let Some(event) = rx.blocking_recv() else {break};
-        println!("{:?}", event);
-    }});
-    ServerEngine::start();
-    println!("{:?}", Path::new("./data/").canonicalize());
+    // let (_server, mut rx, mut rx2) = socket::socket_test().await.unwrap();
+    // std::thread::spawn(move || {loop {
+    //     let Some(event) = rx.blocking_recv() else {break};
+    //     println!("{:?}", event);
+    // }});
+    // std::thread::spawn(move || {loop {
+    //     let Some(event) = rx2.blocking_recv() else {break};
+    //     println!("{:?}", event);
+    // }});
+    // ServerEngine::start().await;
+    // println!("{:?}", Path::new("./data/").canonicalize());
     let mut world_loader = WorldLoader::new(Path::new("./data/worlds/"));
-
-
+    println!("acd");
+    let mut client_engine = ClientEngine::start().await;
+    println!("acsddxdd");
     // let _locals = LocalServer::new().await.unwrap();
     // let connect = ConnectLocalServer::new().await.unwrap();
 
@@ -121,7 +143,7 @@ pub async fn run() {
         models: models_indices,
         animated_models: animated_models_indices,
     };
-
+    println!("dsc");
     let save = Save::new("./data/worlds/debug/", "./data/");
     let mut setting = save.setting.load().unwrap_or_default();
     save.setting.save(&setting);
@@ -164,6 +186,7 @@ pub async fn run() {
 
         let mut debug_data = String::new();
         let mut player_position: Option<[f32; 3]> = None;
+        client_engine.player().handle_input(input, time.delta(), true);
         let mesh_vec = if let Some(level) = &mut level {
             let result = level.update(
                 &input,
@@ -173,7 +196,7 @@ pub async fn run() {
                 &mut debug_block_id,
                 setting.render_radius,
             );
-            let player = unsafe {level.player.lock_unsafe()}.unwrap();
+            let player = client_engine.player();
             debug_data += &format!("{:?}", player.camera().position_tuple());
             let pp = player.position();
             player_position = Some([pp.x, pp.y, pp.z]);
@@ -188,7 +211,7 @@ pub async fn run() {
             }
             result
         } else {vec![]};
-        
+        client_engine.tick();
         
         time.update();
         state.update_time(time.current());
@@ -220,8 +243,7 @@ pub async fn run() {
             state.set_ui_interaction(gui_controller.is_menu);
         }
 
-        let players_mesh = player_position.map_or(vec![], |pp| vec![PlayerMesh::new(&state, pp),
-            PlayerMesh::new(&state, [pp[0]+10.0, pp[1], pp[2]])]);
+        let players_mesh: Vec<PlayerMesh> = client_engine.positions().into_iter().map(|pp| PlayerMesh::new(&state, pp)).collect();
         match state.render(&mesh_vec, &players_mesh, |ctx| {
             if let Some(l) = &level {
                 let mut player = unsafe {l.player.lock_unsafe()}.unwrap();

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use server::{SocketServer, SocketServerConfig};
 use tokio::{io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader}, net::{TcpListener, TcpStream}, sync::mpsc::Receiver};
 
-use std::{collections::HashMap, fmt::{write, Display}, io::{self, BufRead, Bytes}, net::SocketAddr, os::windows::io::{AsRawSocket, AsSocket}, time::Duration};
+use std::{collections::HashMap, fmt::{write, Display}, io::{self, BufRead, Bytes}, net::SocketAddr, os::windows::io::{AsRawSocket, AsSocket}, sync::Arc, time::Duration};
 pub mod packet;
 pub mod server;
 pub mod client;
@@ -43,24 +43,25 @@ async fn process_socket<T>(socket: T) {
     // do work with socket here
 }
 
-pub async fn socket_test() -> io::Result<(SocketServer, Receiver<SocketServerEvent>)> {
-    let header = Header::new(HeaderId::Heartbeat, 2);
-    let num = <u64>::from(header);
-    let header_two = Header::try_from(num).unwrap();
+// pub async fn socket_test() -> io::Result<(SocketServer, Receiver<SocketServerEvent>, Receiver<Vec<u8>>)> {
+//     let header = Header::new(HeaderId::Heartbeat, 2);
+//     let num = <u64>::from(header);
+//     let header_two = Header::try_from(num).unwrap();
 
-    assert_eq!(header, header_two);
-    let (tx, rx) = tokio::sync::mpsc::channel(200);
-    let server = SocketServer::start(SocketServerConfig::default(), tx).await.unwrap();
+//     assert_eq!(header, header_two);
+    
 
-    let mut client = Client::start(ClientConfig::default()).await.unwrap();
-    client.send_header(Header::new(HeaderId::Heartbeat, 0)).await.unwrap();
+//     let (tx1, rx2) = tokio::sync::mpsc::channel(200);
+//     let mut _client = Client::start(ClientConfig::default(), tx1.clone()).await.unwrap();
+//     // client.send_header(Header::new(HeaderId::Heartbeat, 0)).await.unwrap();
 
-    let mut client2 = Client::start(ClientConfig::default()).await.unwrap();
-    for _ in 0..2 {
-        client2.send_header(Header::new(HeaderId::Heartbeat, 0)).await.unwrap();
-    }
-    // drop(server);
-    // loop {}
-    drop(client);
-    Ok((server, rx))
-}
+//     let mut _client2 = Client::start(ClientConfig::default(), tx1).await.unwrap();
+//     for _ in 0..2 {
+//         // client2.send_header(Header::new(HeaderId::Heartbeat, 0)).await.unwrap();
+//     }
+
+//     server.send_all(Arc::new([1u8,2,3,4,5]));
+//     // drop(server);
+//     // loop {}
+//     Ok((server, rx, rx2))
+// }
