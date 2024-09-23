@@ -28,7 +28,7 @@ fn from_bytes(bytes: &[u8]) -> Box<dyn LiveVoxelBehavior> {
 pub struct TrashCan {}
 
 impl Draw for TrashCan {
-    fn draw(&mut self, ui: &mut egui::Ui, _: Arc<app::graphics_engine::texture::TextureAtlas>, _: Arc<Mutex<app::player::inventory::PlayerInventory>>) {
+    fn draw(&mut self, ui: &mut egui::ui::Ui, _: Arc<app::graphics_engine::texture::TextureAtlas>, _: Arc<Mutex<app::player::inventory::PlayerInventory>>) {
         ui.label("delete");
     }
 }

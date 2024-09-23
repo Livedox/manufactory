@@ -13,3 +13,6 @@ pub mod mesh;
 pub mod models;
 pub mod macros;
 pub mod player_mesh;
+pub mod raw_texture;
+pub mod resources;
+pub mod animator;

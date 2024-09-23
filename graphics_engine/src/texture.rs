@@ -296,6 +296,24 @@ impl Texture {
             depth_or_array_layers: 1,
         }
     }
+
+
+    pub fn into_model_bind_group(self, device: &wgpu::Device, layout: &wgpu::BindGroupLayout, label: Option<&str>) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&self.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&self.sampler),
+                },
+            ],
+            label,
+        })
+    }
 }
 
 

@@ -8,15 +8,16 @@ edition = "2021"
 [dependencies]
 resources = { path = "../resources" }
 
-wgpu-core = "0.19"
-wgpu-types = { version = "0.19", features = ["serde", "trace", "replay"]}
-wgpu = "0.19"
+nalgebra-glm = { version = "0.18.0", features = ["convert-bytemuck"] }
+wgpu-core = "=0.21.1"
+wgpu-types = { version = "=0.20.0", features = ["serde"]}
+wgpu = "=0.20.1"
 
 winit = "0.29"
 bytemuck = { version = "1.14", features = ["derive"] }
 itertools = "0.11.0"
 serde = "1"
 
-egui-winit = "0.27.0"
-egui-wgpu = "0.27"
-egui = { version = "0.27", features = ["color-hex"]}
+egui-winit = "0.28.0"
+egui-wgpu = "0.28"
+egui = { version = "0.28", features = ["color-hex"]}

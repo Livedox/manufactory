@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-use resources::animated_model::Animator;
 use wgpu::util::DeviceExt;
 
-use crate::vertices::animated_model_vertex::AnimatedModelVertex;
+use crate::{animator::Animator, vertices::animated_model_vertex::AnimatedModelVertex};
 
 #[derive(Debug)]
 pub struct AnimatedModel {
@@ -20,10 +18,10 @@ impl AnimatedModel {
       model: &[AnimatedModelVertex],
       texture: wgpu::BindGroup,
       animator: Animator,
-      name: &str
+      label: Option<&str>
     ) -> Self {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some(&format!("Animated model vertex buffer ({})", name)),
+            label,
             contents: bytemuck::cast_slice(model),
             usage: wgpu::BufferUsages::VERTEX,
         });

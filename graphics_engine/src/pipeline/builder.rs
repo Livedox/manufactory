@@ -1,3 +1,5 @@
+use wgpu::PipelineCompilationOptions;
+
 use crate::constants::DEPTH_FORMAT;
 
 pub enum PipelineBuilderShader<'a> {
@@ -120,11 +122,13 @@ impl<'a> PipelineBuilder<'a> {
                 module: self.vertex,
                 entry_point: "vs_main",
                 buffers: self.buffers,
+                compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
                 module: self.fragment,
                 entry_point: "fs_main",
                 targets: fragment_targets,
+                compilation_options: Default::default(),
             }),
     
             primitive: wgpu::PrimitiveState {

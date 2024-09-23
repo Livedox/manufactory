@@ -14,10 +14,10 @@ impl Model {
       device: &wgpu::Device,
       model: &[ModelVertex],
       texture: wgpu::BindGroup,
-      name: &str
+      label: Option<&str>
     ) -> Self {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some(&format!("Model vertex buffer ({})", name)),
+            label,
             contents: bytemuck::cast_slice(model),
             usage: wgpu::BufferUsages::VERTEX,
         });

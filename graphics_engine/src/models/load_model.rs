@@ -18,6 +18,6 @@ pub fn load_models(
         
         let vertices: Vec::<ModelVertex> = model.vertices.into_iter().map(ModelVertex::from).collect();
 
-        Model::new(device, &vertices, texture, name)
+        Model::new(device, &vertices, texture, Some(name))
     }).collect()
 }

@@ -1,9 +1,9 @@
-use std::{collections::{HashMap, VecDeque}, future::IntoFuture, hash::Hash, path::Path, sync::{atomic::AtomicBool, Arc}, time::{Duration, Instant}};
+use std::{collections::{HashMap, VecDeque}, future::IntoFuture, hash::Hash, os::raw, path::Path, sync::{atomic::AtomicBool, Arc}, time::{Duration, Instant}};
 use camera::frustum::Frustum;
 
 use client_engine::ClientEngine;
 use coords::chunk_coord::ChunkCoord;
-use graphics_engine::{constants::{BLOCK_MIPMAP_COUNT, BLOCK_TEXTURE_SIZE}, player_mesh::PlayerMesh, state::{self, State}};
+use graphics_engine::{constants::{BLOCK_MIPMAP_COUNT, BLOCK_TEXTURE_SIZE}, player_mesh::PlayerMesh, raw_texture::RawTexture, resources::raw_resources::{Atlas, Blocks, RawResources}, state::{self, State}};
 
 use gui::gui_controller::GuiController;
 use input_event::{input_service::InputService, KeypressState};
@@ -63,6 +63,46 @@ pub struct Registrator {
 const CAMERA_FOV: f32 = 1.2;
 const CAMERA_NEAR: f32 = 0.1;
 const CAMERA_FAR: f32 = 1000.0;
+
+pub fn load_raw_resources() -> (RawResources, Indices) {
+    let (blocks_indices, blocks, blocks_count) = load_blocks_textures(&[GamePath {
+        path: "./res/game/assets/blocks/".into(),
+        prefix: None
+    }]);
+    let (models_indices, models) = load_models(&["./res/game/models"], &["./res/game/assets/models"]);
+    let (animated_models_indices, animated_models) = load_animated_models(&["./res/game/animated_models"],
+        &["./res/game/assets/models"]);
+
+    let img = image::open("./res/game/assets/items/items.png").expect("./res/game/assets/items/items.png");
+    let player_texture = image::open("./res/game/player.png").expect("./res/game/player.png");
+    let (width, height) = (img.width(), img.height());
+    if width != height { panic!("Use square textures") }
+
+
+    let indices = Indices {
+        block: blocks_indices,
+        models: models_indices,
+        animated_models: animated_models_indices,
+    };
+
+    let raw_resources = RawResources {
+        blocks: Blocks {
+            data: blocks,
+            count: blocks_count,
+        },
+        atlas: Atlas {
+            data: img.as_bytes().into(),
+            size: width,
+        },
+        player: RawTexture {
+            width: player_texture.width(),
+            height: player_texture.height(),
+            data: player_texture.as_bytes().to_vec(),
+        }
+    };
+
+    (raw_resources, indices)
+}
 
 pub fn frustum(chunks: &Chunks, frustum: &Frustum) -> Vec<usize> {
     // UPDATE
@@ -185,7 +225,6 @@ pub async fn run() {
         };
 
         let mut debug_data = String::new();
-        let mut player_position: Option<[f32; 3]> = None;
         client_engine.player().handle_input(input, time.delta(), true);
         let mesh_vec = if let Some(level) = &mut level {
             let result = level.update(
@@ -198,8 +237,6 @@ pub async fn run() {
             );
             let player = client_engine.player();
             debug_data += &format!("{:?}", player.camera().position_tuple());
-            let pp = player.position();
-            player_position = Some([pp.x, pp.y, pp.z]);
             state.update_camera(&player.camera().proj_view(state.size.width as f32, state.size.height as f32).into());
             let (sun, sky) = level.sun.sun_sky();
             state.set_sun_color(sun.into());
