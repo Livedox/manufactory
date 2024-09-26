@@ -1,4 +1,4 @@
-use winit::event::{Event, WindowEvent, ElementState, DeviceEvent, MouseScrollDelta};
+use winit::{event::{DeviceEvent, ElementState, Event, MouseScrollDelta, WindowEvent}, platform::scancode::PhysicalKeyExtScancode};
 
 use super::{input_broker::InputBroker, KeypressState, InputOffset};
 
@@ -65,6 +65,7 @@ impl InputService {
                     },
                     WindowEvent::CursorMoved { position, .. } => {
                         self.input_broker.set_coords(position.x as f32, position.y as f32);
+                        println!("{:?}", position);
                     },
                     WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, y), .. } => {
                         self.input_broker.set_wheel(*y as i8);
@@ -72,6 +73,7 @@ impl InputService {
                     _ => {}
             }}
             Event::DeviceEvent { event: DeviceEvent::MouseMotion { delta }, .. } => {
+                println!("{:?}", delta);
                 self.input_broker.set_delta(delta.0 as f32, delta.1 as f32);
             }
             _ => {}

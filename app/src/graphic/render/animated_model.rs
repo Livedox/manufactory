@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use graphics_engine::mesh::AnimatedModelRenderResult;
 
-use crate::voxels::chunk::{Chunk, CHUNK_SIZE};
+use crate::voxels::new_chunk::{Chunk, CHUNK_SIZE};
 
 // #[derive(Debug, Clone)]
 // pub struct AnimatedModelRenderResult {
@@ -26,10 +26,10 @@ pub fn render_animated_model(animated_models: &mut AnimatedModels, chunk: &Chunk
         }
     }
     
-    let light = chunk.get_light((lx, ly, lz).into()).get_normalized();
+    let light = chunk.light_map()[(lx, ly, lz).into()].get_normalized();
 
     let data = AnimatedModelRenderResult {
-        position: chunk.xyz.to_global((lx, ly, lz).into()).into(),
+        position: chunk.coord.to_global((lx, ly, lz).into()).into(),
         light,
         progress,
         rotation_index

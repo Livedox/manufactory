@@ -209,7 +209,7 @@ impl<'a> State<'a> {
     #[inline]
     fn draw_block<'b>(&'b self, render_pass: &mut wgpu::RenderPass<'b>, meshes: &'b [Arc<Mesh>]) {
         render_pass.set_pipeline(&self.pipelines.block);
-        render_pass.set_bind_group(1, &self.block_texture_bg, &[]);
+        render_pass.set_bind_group(1, self.resources().block_bind_group(), &[]);
         meshes.iter().filter(|m| m.block_index_count > 0).for_each(|mesh| {
             render_pass.set_vertex_buffer(0, mesh.block_vertex_buffer.slice(..));
             render_pass.set_index_buffer(mesh.block_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
@@ -221,7 +221,7 @@ impl<'a> State<'a> {
     #[inline]
     fn draw_glass<'b>(&'b self, render_pass: &mut wgpu::RenderPass<'b>, meshes: &'b [Arc<Mesh>]) {
         render_pass.set_pipeline(&self.pipelines.glass);
-        render_pass.set_bind_group(1, &self.block_texture_bg, &[]);
+        render_pass.set_bind_group(1, self.resources().block_bind_group(), &[]);
         meshes.iter().filter(|m| m.glass_index_count > 0).for_each(|mesh| {
             render_pass.set_vertex_buffer(0, mesh.glass_vertex_buffer.slice(..));
             render_pass.set_index_buffer(mesh.glass_index_buffer.slice(..), wgpu::IndexFormat::Uint32);
@@ -233,7 +233,7 @@ impl<'a> State<'a> {
     #[inline]
     fn draw_transport_belt<'b>(&'b self, render_pass: &mut wgpu::RenderPass<'b>, meshes: &'b [Arc<Mesh>]) {
         render_pass.set_pipeline(&self.pipelines.transport_belt);
-        render_pass.set_bind_group(1, &self.block_texture_bg, &[]);
+        render_pass.set_bind_group(1, self.resources().block_bind_group(), &[]);
         render_pass.set_bind_group(3, &self.bind_groups_buffers.time.bind_group, &[]);
         meshes.iter().filter(|m| m.belt_index_count > 0).for_each(|mesh| {
             render_pass.set_vertex_buffer(0, mesh.belt_vertex_buffer.slice(..));
@@ -245,7 +245,7 @@ impl<'a> State<'a> {
     #[inline]
     fn draw_players<'b>(&'b self, render_pass: &mut wgpu::RenderPass<'b>, players: &'b [PlayerMesh]) {
         render_pass.set_pipeline(&self.pipelines.player);
-        render_pass.set_bind_group(1, &self.player_texture_bg, &[]);
+        render_pass.set_bind_group(1, self.resources().player_bind_group(), &[]);
         players.iter().for_each(|mesh| {
             render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
             render_pass.draw(0..mesh.vertex_count, 0..1);
@@ -262,7 +262,7 @@ impl<'a> State<'a> {
 
             render_pass.set_bind_group(3, bind_group, &[]);
             mesh.animated_models.iter().for_each(|MeshBuffer {id, size, buffer}| {
-                let Some(animated_model) = self.animated_models.get(*id as usize) else { return; };
+                let Some(animated_model) = self.resources().animated_models().get(*id as usize) else { return; };
                 if !mesh.animated_models.is_empty() {
                     render_pass.set_bind_group(1, &animated_model.texture, &[]);
                     render_pass.set_vertex_buffer(0, animated_model.vertex_buffer.slice(..));
@@ -280,7 +280,7 @@ impl<'a> State<'a> {
         render_pass.set_pipeline(&self.pipelines.model);
         meshes.iter().for_each(|mesh| {
             mesh.models.iter().for_each(|MeshBuffer {id, size, buffer}| {
-                let Some(model) = self.models.get(*id as usize) else {return};
+                let Some(model) = self.resources().models().get(*id as usize) else {return};
 
                 render_pass.set_bind_group(1, &model.texture, &[]);
 

@@ -2,7 +2,7 @@
 
 use itertools::iproduct;
 use graphics_engine::{constants::IS_LINE_TOPOLOGY, mesh::MeshInput, vertices::block_vertex::BlockVertex};
-use crate::{content::Content, coords::chunk_coord::ChunkCoord, graphic::render::block_managers::BlockManagers, voxels::{block::block_type::BlockType, chunk::CHUNK_SIZE, chunks::Chunks}};
+use crate::{content::Content, graphic::render::block_managers::BlockManagers, voxels::{block::block_type::BlockType, new_chunk::{LocalCoord, CHUNK_SIZE}, new_chunks::{ChunkCoord, Chunks, WORLD_BLOCK_HEIGHT, WORLD_HEIGHT}}};
 
 use self::{model::{Models, render_model}, animated_model::{AnimatedModels, render_animated_model}, complex_object::render_complex_object, block::{render_block}};
 
@@ -64,26 +64,26 @@ impl Buffer {
 }
 
 pub struct RenderResult {
-    pub chunk_index: usize,
     pub coord: ChunkCoord,
     pub mesh: MeshInput,
 }
 
-pub fn render(chunk_index: usize, chunks: &Chunks, content: &Content) -> Option<RenderResult> {
-    let Some(Some(chunk)) = unsafe {&*chunks.chunks.get()}.get(chunk_index).cloned() else {return None};
-    
+pub fn render(cc: ChunkCoord, chunks: &Chunks, content: &Content) -> Option<RenderResult> {
+    println!("txasxax1");
+    let Some(chunk) = unsafe {&*chunks.chunks.get()}.get(&cc).cloned() else {return None};
+    println!("txasxax2");
     let mut models = Models::new();
     let mut animated_models = AnimatedModels::new();
     
-    let mut block_manager = BlockManagers::new(IS_GREEDY_MESHING);
-    let mut glass_manager = BlockManagers::new(IS_GREEDY_MESHING);
+    let mut block_manager = BlockManagers::new(!IS_GREEDY_MESHING);
+    let mut glass_manager = BlockManagers::new(!IS_GREEDY_MESHING);
     
     let mut buffer = Buffer::new();
     let mut glass_buffer = Buffer::new();
     let mut belt_buffer = Buffer::new();
 
-    for (ly, lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
-        let id = unsafe {chunk.get_unchecked_voxel((lx, ly, lz).into()).id};
+    for (ly, lz, lx) in iproduct!(0..CHUNK_SIZE, 0..WORLD_BLOCK_HEIGHT, 0..CHUNK_SIZE) {
+        let id = unsafe {chunk.voxels().get_unchecked((lx, ly, lz).into()).id()};
         if id == 0 { continue };
         let block = &content.blocks[id as usize];
         match block.block_type() {
@@ -96,23 +96,22 @@ pub fn render(chunk_index: usize, chunks: &Chunks, content: &Content) -> Option<
             },
             BlockType::None => {},
             BlockType::Model {id} => {
-                render_model(&mut models, &chunk, *id, lx, ly, lz);
+                render_model(&mut models, chunk.as_ref(), *id, lx, ly, lz);
             },
             BlockType::AnimatedModel {id} => {
-                render_animated_model(&mut animated_models, &chunk, *id, lx, ly, lz);
+                render_animated_model(&mut animated_models, chunk.as_ref(), *id, lx, ly, lz);
             },
             BlockType::ComplexObject {id} => {
                 let complex_object = &chunks.content.complex_objects[*id as usize];
-                render_complex_object(complex_object, &mut models, &mut animated_models, &mut buffer, &mut belt_buffer, &chunk, lx, ly, lz);
+                render_complex_object(complex_object, &mut models, &mut animated_models, &mut buffer, &mut belt_buffer, chunk.as_ref(), lx, ly, lz);
             },
         };
     }
-    let global = chunk.xyz.to_global((0u8, 0, 0).into()).into();
+    let global = chunk.coord.to_global(LocalCoord::new(0, 0, 0)).into();
     block_manager.manage_vertices(&mut buffer, global);
     glass_manager.manage_vertices(&mut glass_buffer, global);
     Some(RenderResult {
-        chunk_index,
-        coord: chunk.xyz,
+        coord: chunk.coord,
         mesh: MeshInput {
             block_vertices: buffer.buffer,
             block_indices: buffer.index_buffer,

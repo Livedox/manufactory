@@ -4,10 +4,10 @@ use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
 use crate::bind_group::block_texture;
 use crate::constants::{BLOCK_MIPMAP_COUNT, BLOCK_TEXTURE_SIZE};
-use crate::models::load_model::load_models;
-use crate::models::load_texture::load_texture;
 use crate::player_mesh::PlayerMesh;
-use crate::{bind_group, bind_group_layout::Layouts, models::load_animated_model::load_animated_model, pipeline::Pipelines, rev_qumark, shaders::Shaders, texture::Texture};
+use crate::resources::raw_resources::RawResources;
+use crate::resources::resources::Resources;
+use crate::{bind_group, bind_group_layout::Layouts, pipeline::Pipelines, rev_qumark, shaders::Shaders, texture::Texture};
 use crate::texture::TextureAtlas;
 use super::{bind_group_buffer::BindGroupsBuffers, egui::Egui, mesh::Mesh, models::{animated_model::AnimatedModel, model::Model}, setting::GraphicSetting, texture};
 
@@ -99,11 +99,7 @@ pub struct State<'a> {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-
-    block_texture_bg: wgpu::BindGroup,
-    player_texture_bg: wgpu::BindGroup,
     window: Arc<Window>,
-
     pipelines: Pipelines,
 
     depth_texture: texture::Texture,
@@ -116,15 +112,12 @@ pub struct State<'a> {
 
     pub egui: Egui,
 
-    models: Box<[Model]>,
-    pub animated_models: Box<[AnimatedModel]>,
-
     bind_groups_buffers: BindGroupsBuffers,
     pub layouts: Layouts,
 
-    pub texture_atlas: Arc<TextureAtlas>,
-
     pub selection_vertex_buffer: Option<wgpu::Buffer>,
+
+    resources: Resources,
 
     is_ui_interaction: bool,
     is_crosshair: bool,
@@ -135,14 +128,7 @@ impl<'a> State<'a> {
     pub async fn new(
         window: Arc<Window>,
         setting: &GraphicSetting,
-        blocks: Vec<Vec<u8>>,
-        blocks_len: u32,
-        models: Vec<resources::model::Model>,
-        animated_models: Vec<resources::animated_model::AnimatedModel>,
-        atlas: &[u8],
-        atlas_size: u32,
-        proj_view: &[[f32; 4]; 4],
-        player_texture: (Vec<u8>, u32, u32),
+        raw_resources: RawResources,
     ) -> Self {
         let size = window.inner_size();
         // The instance is a handle to our GPU
@@ -207,22 +193,11 @@ impl<'a> State<'a> {
         // let mut egui = Egui::new(&device, surface_format, size.width, size.height, window.scale_factor());
         let mut egui = Egui::new(&device, &window, surface_format, sample_count);
         // TODO: Make texture atlas from files not one file.
-        
-        let texture_atlas = TextureAtlas::new(egui.renderer(), &device, &queue, atlas_size, atlas, 4);
        
         let shaders = Shaders::new(&device);
         let layouts = Layouts::new(&device);
-        let bind_groups_buffers = BindGroupsBuffers::new(&device, &layouts, proj_view);
+        let bind_groups_buffers = BindGroupsBuffers::new(&device, &layouts, &[[0.0; 4]; 4]);
         let pipelines = Pipelines::new(&device, &layouts, &shaders, config.format, sample_count);
-
-        let bb: Vec<&[u8]> = blocks.iter().map(Vec::as_slice).collect();
-        let block_texture = texture::Texture::block_array(&device, &queue, &bb, blocks_len);
-
-        let block_texture_bg = bind_group::block_texture::get(&device, &layouts.block_texture, &block_texture);
-
-        let models = load_models(&device, &queue, &layouts.model_texture, models, "models");
-        let animated_models = load_animated_model(&device, &queue,
-            &layouts.model_texture, animated_models, "animated_models");
 
         let multisampled_framebuffer =
             texture::Texture::create_multisampled_framebuffer(&device, &config, config.view_formats[0], sample_count);
@@ -236,9 +211,8 @@ impl<'a> State<'a> {
         let depth_texture = texture::Texture::create_depth_texture(&device, &config, "depth_texture", sample_count);
         let accum_texture = texture::Texture::create_accum_texture(&device, &config, "accum_texture", sample_count);
         let reveal_texture = texture::Texture::create_reveal_texture(&device, &config, "reveal_texture");
-
-        let player_texture_bg = load_texture(&device, &queue, &layouts.player_texture,
-            &player_texture.0, player_texture.1, player_texture.2, "player_texture_bg");
+        
+        let resources = raw_resources.into_resources(&device, &queue, &layouts, egui.renderer());
 
         Self {
             surface,
@@ -246,9 +220,6 @@ impl<'a> State<'a> {
             queue,
             config,
             size,
-
-            block_texture_bg,
-            player_texture_bg,
 
             window,
 
@@ -263,11 +234,6 @@ impl<'a> State<'a> {
             egui,
 
             pipelines,
-
-            models,
-            animated_models,
-
-            texture_atlas: Arc::new(texture_atlas),
             selection_vertex_buffer: None,
 
             bind_groups_buffers,
@@ -275,7 +241,8 @@ impl<'a> State<'a> {
 
             is_crosshair: true,
             is_ui_interaction: true,
-            clear_color: wgpu::Color {r: 1.0, g: 1.0, b: 1.0, a: 1.0}
+            clear_color: wgpu::Color {r: 1.0, g: 1.0, b: 1.0, a: 1.0},
+            resources,
         }
     }
 
@@ -394,6 +361,10 @@ impl<'a> State<'a> {
 
     pub fn set_sun_color(&mut self, color: [f32; 3]) {
         self.queue.write_buffer(&self.bind_groups_buffers.sun.buffer, 0, bytemuck::cast_slice(&color));
+    }
+
+    pub fn resources(&self) -> &Resources {
+        &self.resources
     }
 
     fn get_rpass_color_attachment<'b>(&'b self, view: &'b wgpu::TextureView, store: wgpu::StoreOp) -> wgpu::RenderPassColorAttachment {

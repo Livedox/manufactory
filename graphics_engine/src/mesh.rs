@@ -86,7 +86,7 @@ pub struct Mesh {
 impl Mesh {
     pub fn new(state: &State, input: MeshInput, index: usize) -> Self {
         let device = state.device();
-
+        println!("block_vertices: {}", input.block_vertices.len());
         let block_vertex_buffer = new_buffer(device, &input.block_vertices, VERTEX,
             &format!("Block vertex Buffer (Chunk: {})", index));
         let block_index_buffer = new_buffer(device, &input.block_indices, INDEX,
@@ -111,7 +111,7 @@ impl Mesh {
         let mut animation: Vec<u8> = vec![];
         let mut start_matrix: u32 = 0;
         let animated_models: Vec<MeshBuffer> = input.animated_models.into_iter().sorted_by_key(|(id, _)| *id).map(|(id, data)| {
-            let animated_model = state.animated_models.get(id as usize).unwrap();
+            let animated_model = state.resources().animated_models().get(id as usize).unwrap();
             let animated_model_instances: Vec::<AnimatedModelInstance> = 
                 data.into_iter().map(|AnimatedModelRenderResult {position, light, progress, rotation_index}| {
                     animation.extend(animated_model.calculate_bytes_transforms(None, progress));
@@ -168,7 +168,7 @@ impl Mesh {
         let Some(buffer) = &self.transformation_matrices_buffer else {return};
 
         let transforms = progress.iter().flat_map(|(id, p)| {
-            let model = state.animated_models.get(*id as usize).unwrap();
+            let model = state.resources().animated_models().get(*id as usize).unwrap();
             p.iter().flat_map(|progress| {model.calculate_bytes_transforms(None, *progress)})
         }).collect_vec();
 

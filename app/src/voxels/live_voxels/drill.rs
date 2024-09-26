@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::live_voxel_default_deserialize;
 
-use crate::{coords::global_coord::GlobalCoord, direction::Direction, voxels::{chunks::Chunks}, recipes::{item::PossibleItem, storage::Storage}};
+use crate::{direction::Direction, recipes::{item::PossibleItem, storage::Storage}};
 use crate::voxels::live_voxels::LiveVoxelBehavior;
-
+use crate::voxels::new_chunks::{Chunks, GlobalCoord};
 use crate::voxels::live_voxels::LiveVoxelCreation;
 fn new_instant() -> Instant {Instant::now()}
 

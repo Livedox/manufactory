@@ -1,4 +1,4 @@
-use super::{voxel::Voxel, chunks::Chunks};
+use super::{new_chunks::Chunks, voxel::Voxel};
 
 use nalgebra_glm as glm;
 

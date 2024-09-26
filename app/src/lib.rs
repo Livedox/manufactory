@@ -2,7 +2,6 @@ use std::{collections::{HashMap, VecDeque}, future::IntoFuture, hash::Hash, os::
 use camera::frustum::Frustum;
 
 use client_engine::ClientEngine;
-use coords::chunk_coord::ChunkCoord;
 use graphics_engine::{constants::{BLOCK_MIPMAP_COUNT, BLOCK_TEXTURE_SIZE}, player_mesh::PlayerMesh, raw_texture::RawTexture, resources::raw_resources::{Atlas, Blocks, RawResources}, state::{self, State}};
 
 use gui::gui_controller::GuiController;
@@ -13,8 +12,8 @@ use server_engine::ServerEngine;
 use socket::client;
 use unsafe_mutex::UnsafeMutex;
 use world::{loader::WorldLoader};
-use crate::{content_loader::{indices::{load_animated_models, load_blocks_textures, load_models, GamePath, Indices}, ContentLoader}, save_load::Save, voxels::{block::block_test::test_serde_block, chunk::HALF_CHUNK_SIZE}};
-use voxels::{chunk::CHUNK_SIZE, chunks::Chunks, live_voxels::{BoxDesiarializeLiveVoxel, BoxNewLiveVoxel, DesiarializeLiveVoxel, NewLiveVoxel}};
+use crate::{content_loader::{indices::{load_animated_models, load_blocks_textures, load_models, GamePath, Indices}, ContentLoader}, save_load::Save, voxels::{block::block_test::test_serde_block}};
+use voxels::{live_voxels::{BoxDesiarializeLiveVoxel, BoxNewLiveVoxel, DesiarializeLiveVoxel, NewLiveVoxel}, new_chunks::Chunks};
 
 use winit::{
     dpi::PhysicalSize, event::*, event_loop::{EventLoop, EventLoopWindowTarget}, window::{Fullscreen, WindowBuilder}
@@ -98,28 +97,30 @@ pub fn load_raw_resources() -> (RawResources, Indices) {
             width: player_texture.width(),
             height: player_texture.height(),
             data: player_texture.as_bytes().to_vec(),
-        }
+        },
+        models,
+        animated_models,
     };
 
     (raw_resources, indices)
 }
 
-pub fn frustum(chunks: &Chunks, frustum: &Frustum) -> Vec<usize> {
-    // UPDATE
-    // This function could be much faster
-    let mut indices: Vec<usize> = vec![];
-    for (cy, cz, cx) in iproduct!(0..chunks.height, 0..chunks.depth, 0..chunks.width) {
-        let Some(c) = chunks.local_chunk(ChunkCoord::new(cx, cy, cz)) else {continue};
+// pub fn frustum(chunks: &Chunks, frustum: &Frustum) -> Vec<usize> {
+//     // UPDATE
+//     // This function could be much faster
+//     let mut indices: Vec<usize> = vec![];
+//     for (cy, cz, cx) in iproduct!(0..chunks.height, 0..chunks.depth, 0..chunks.width) {
+//         let Some(c) = chunks.local_chunk(ChunkCoord::new(cx, cy, cz)) else {continue};
 
-        let x = c.xyz.x as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
-        let y = c.xyz.y as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
-        let z = c.xyz.z as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
-        if frustum.is_cube_in(&glm::vec3(x, y, z), HALF_CHUNK_SIZE as f32) {
-            indices.push(ChunkCoord::new(cx, cy, cz).index_without_offset(chunks.width, chunks.depth));
-        }
-    }
-    indices
-}
+//         let x = c.xyz.x as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+//         let y = c.xyz.y as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+//         let z = c.xyz.z as f32 * CHUNK_SIZE as f32 + HALF_CHUNK_SIZE as f32;
+//         if frustum.is_cube_in(&glm::vec3(x, y, z), HALF_CHUNK_SIZE as f32) {
+//             indices.push(ChunkCoord::new(cx, cy, cz).index_without_offset(chunks.width, chunks.depth));
+//         }
+//     }
+//     indices
+// }
 pub fn run_server() {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -136,54 +137,11 @@ pub fn run_server() {
 }
 
 pub async fn run() {
-    // let (_server, mut rx, mut rx2) = socket::socket_test().await.unwrap();
-    // std::thread::spawn(move || {loop {
-    //     let Some(event) = rx.blocking_recv() else {break};
-    //     println!("{:?}", event);
-    // }});
-    // std::thread::spawn(move || {loop {
-    //     let Some(event) = rx2.blocking_recv() else {break};
-    //     println!("{:?}", event);
-    // }});
-    // ServerEngine::start().await;
-    // println!("{:?}", Path::new("./data/").canonicalize());
     let mut world_loader = WorldLoader::new(Path::new("./data/worlds/"));
     println!("acd");
     let mut client_engine = ClientEngine::start().await;
     println!("acsddxdd");
-    // let _locals = LocalServer::new().await.unwrap();
-    // let connect = ConnectLocalServer::new().await.unwrap();
-
-    // println!("{:?}", connect.test().await);
-    
-    //let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-    // Load a sound from a file, using a path relative to Cargo.toml
-    //let file = BufReader::new(File::open("./audio/music/Kyle Gabler - Years of Work.mp3").unwrap());
-    // Decode that sound file into a source
-    //let source = Decoder::new(file).unwrap();
-    // Play the sound directly on the device
-    //let _ = stream_handle.play_raw(source.convert_samples());
-    let (blocks_indices, blocks, blocks_len) = load_blocks_textures(&[GamePath {
-        path: "./res/game/assets/blocks/".into(),
-        prefix: None
-    }]);
-    let (models_indices, models) = load_models(&["./res/game/models"], &["./res/game/assets/models"]);
-    let (animated_models_indices, animated_models) = load_animated_models(&["./res/game/animated_models"],
-        &["./res/game/assets/models"]);
-
-    let img = image::open("./res/game/assets/items/items.png").expect("./res/game/assets/items/items.png");
-    let player_texture = image::open("./res/game/player.png").expect("./res/game/player.png");
-    let player_texture = (player_texture.as_bytes().to_vec(), player_texture.width(), player_texture.height());
-    let (width, height) = (img.width(), img.height());
-    if width != height { panic!("Use square textures") }
-
-
-    let indices = Indices {
-        block: blocks_indices,
-        models: models_indices,
-        animated_models: animated_models_indices,
-    };
-    println!("dsc");
+    let (raw_resources, indices) = load_raw_resources();
     let save = Save::new("./data/worlds/debug/", "./data/");
     let mut setting = save.setting.load().unwrap_or_default();
     save.setting.save(&setting);
@@ -205,15 +163,8 @@ pub async fn run() {
     let mut state = state::State::new(
         window.clone(),
         &setting.graphic,
-        blocks,
-        blocks_len,
-        models,
-        animated_models,
-        img.as_bytes(),
-        width,
-        &[[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]],
-        player_texture).await;
-    let mut gui_controller = GuiController::new(window, state.texture_atlas.clone());
+        raw_resources).await;
+    let mut gui_controller = GuiController::new(window, state.resources().clone_atlas());
     // load_complex_object("transport_belt.json", &state.indices);
     let mut timer_16ms = Timer::new(Duration::from_millis(16));
     let mut fps = Instant::now();
@@ -225,7 +176,7 @@ pub async fn run() {
         };
 
         let mut debug_data = String::new();
-        client_engine.player().handle_input(input, time.delta(), true);
+        client_engine.player().handle_input(input, time.delta(), false);
         let mesh_vec = if let Some(level) = &mut level {
             let result = level.update(
                 &input,
@@ -241,7 +192,7 @@ pub async fn run() {
             let (sun, sky) = level.sun.sun_sky();
             state.set_sun_color(sun.into());
             state.set_clear_color(sky.into());
-
+            // println!("Chunks: {}", unsafe {&*level.world.chunks.chunks.get()}.len());
             if input.is_key(&Key::KeyE, KeypressState::AnyJustPress) {
                 gui_controller.set_cursor_lock(player.is_inventory);
                 state.set_ui_interaction(player.is_inventory);
@@ -280,7 +231,8 @@ pub async fn run() {
             state.set_ui_interaction(gui_controller.is_menu);
         }
 
-        let players_mesh: Vec<PlayerMesh> = client_engine.positions().into_iter().map(|pp| PlayerMesh::new(&state, pp)).collect();
+        let players_mesh: Vec<PlayerMesh> = client_engine.positions().into_iter()
+            .map(|pp| PlayerMesh::new(&state, pp)).collect();
         match state.render(&mesh_vec, &players_mesh, |ctx| {
             if let Some(l) = &level {
                 let mut player = unsafe {l.player.lock_unsafe()}.unwrap();

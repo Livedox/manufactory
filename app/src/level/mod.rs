@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::{Arc, Mutex, Condvar, mpsc::{Sender, Receiver}}};
 use graphics_engine::{mesh::Mesh, state::{State}};
-use crate::Indices;
-use crate::{camera, content::Content, coords::{chunk_coord::ChunkCoord, global_coord::GlobalCoord}, direction::Direction, frustum, graphic::{render::RenderResult, render_selection::render_selection}, gui::gui_controller::GuiController, input_event::{input_service::{InputService, Mouse}, KeypressState}, meshes::{Meshes, MeshesRenderInput}, my_time::Time, nalgebra_converter::Conventer, player::player::Player, recipes::{item::Item, storage::Storage}, save_load::WorldSaver, setting::Setting, threads::{save::SaveState, Threads}, unsafe_mutex::UnsafeMutex, voxels::{chunks::WORLD_HEIGHT, ray_cast::ray_cast}, world::{sun::{Color, Sun}, World}, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
+use crate::{voxels::new_chunks::{ChunkCoord, GlobalCoord, WORLD_HEIGHT}, Indices};
+use crate::{camera, content::Content, direction::Direction, graphic::{render::RenderResult, render_selection::render_selection}, gui::gui_controller::GuiController, input_event::{input_service::{InputService, Mouse}, KeypressState}, meshes::{Meshes, MeshesRenderInput}, my_time::Time, nalgebra_converter::Conventer, player::player::Player, recipes::{item::Item, storage::Storage}, save_load::WorldSaver, setting::Setting, threads::{save::SaveState, Threads}, unsafe_mutex::UnsafeMutex, voxels::{ray_cast::ray_cast}, world::{sun::{Color, Sun}, World}, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
 use nalgebra_glm as glm;
 
 pub struct Level {
@@ -108,13 +108,13 @@ impl Level {
             let need_translate = self.meshes.need_translate.clone();
             self.world.chunks.set_translate(true);
             let world = self.world.clone();
-            tokio::spawn(async move {
-                *need_translate.lock().unwrap() += 1;
-                let vec = world.chunks.translate(px-render_radius as i32, pz-render_radius as i32);
-                world.chunks.set_translate(false);
-                drop(world);
-                let _ = sender.send(vec);
-            });
+            // tokio::spawn(async move {
+            //     *need_translate.lock().unwrap() += 1;
+            //     // let vec = world.chunks.translate(px-render_radius as i32, pz-render_radius as i32);
+            //     world.chunks.set_translate(false);
+            //     drop(world);
+            //     let _ = sender.send(vec);
+            // });
         }
 
         state.selection_vertex_buffer = None;
@@ -159,30 +159,26 @@ impl Level {
             }
         }
 
-        let indices = frustum(
-            &self.world.chunks,
-            &player.camera().new_frustum(state.size.width as f32/state.size.height as f32));
-        self.meshes.update_transforms_buffer(state, &self.world, &indices);
+        // let indices = frustum(
+        //     &self.world.chunks,
+        //     &player.camera().new_frustum(state.size.width as f32/state.size.height as f32));
+        let v: Vec<ChunkCoord> = unsafe{ &*self.world.chunks.chunks.get()}.keys().cloned().collect();
+        self.meshes.update_transforms_buffer(state, &self.world, &v);
 
-        if let Ok(indices) = self.indices_recv.try_recv() {
-            self.meshes.translate(&indices);
-            self.meshes.sub_need_translate();
-        }
+        // if let Ok(indices) = self.indices_recv.try_recv() {
+        //     self.meshes.translate(&indices);
+        //     self.meshes.sub_need_translate();
+        // }
 
-        if !self.meshes.is_need_translate() {
             while let Ok(result) = self.render_recv.try_recv() {
-                if self.world.chunks.is_in_area(result.coord) {
-                    let index = result.coord.chunk_index(&self.world.chunks);
+                println!("Work!");
                     self.meshes.render(MeshesRenderInput {
                         state: &state,
                         render_result: result,
-                    }, index);
-                }
+                    }, 0);
             }
-        }
 
-        indices.iter().filter_map(|i| self.meshes.meshes().get(*i).and_then(|c| c.as_ref().cloned()))
-            .collect::<Vec<Arc<Mesh>>>()
+        self.meshes.meshes().values().cloned().collect()
     }
 }
 

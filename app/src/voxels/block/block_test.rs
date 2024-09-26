@@ -1,8 +1,9 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use serde::{Deserialize, Serialize};
+use crate::voxels::new_chunks::GlobalCoord;
 use crate::Indices;
-use crate::{direction::Direction, player::player::Player, recipes::{item::Item}, coords::{coord::Coord, global_coord::GlobalCoord}, world::World};
+use crate::{direction::Direction, player::player::Player, recipes::{item::Item}, coords::{coord::Coord}, world::World};
 
 use super::{block_type::BlockType, functions::{Function, FUNCTIONS}};
 

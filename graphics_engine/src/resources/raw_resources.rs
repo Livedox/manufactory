@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{bind_group, bind_group_layout::Layouts, models::{raw_animated_model::RawAnimatedModel, raw_model::RawModel}, raw_texture::RawTexture, texture::{self, TextureAtlas}};
 
 use super::resources::Resources;
@@ -49,7 +51,7 @@ impl RawResources {
         Resources {
             models,
             animated_models,
-            texture_atlas,
+            texture_atlas: Arc::new(texture_atlas),
             block_bind_group,
             player_bind_group,
         }

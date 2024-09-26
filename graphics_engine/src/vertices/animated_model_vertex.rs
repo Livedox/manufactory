@@ -20,9 +20,3 @@ impl AnimatedModelVertex {
         }
     }
 }
-
-impl From<resources::animated_model::AnimatedModelVertex> for AnimatedModelVertex {
-    fn from(value: resources::animated_model::AnimatedModelVertex) -> Self {
-        Self { position: value.position, uv: value.uv, bone_id: value.bone_id, bone_weight: value.bone_weight }
-    }
-}

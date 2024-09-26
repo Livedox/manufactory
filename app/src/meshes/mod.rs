@@ -3,7 +3,7 @@ use std::{collections::{BTreeMap, HashMap}, sync::{Arc, Mutex}};
 use itertools::Itertools;
 use graphics_engine::mesh::Mesh;
 
-use crate::{content::Content, graphic::render::{model::ModelRenderResult, RenderResult}, state::State, voxels::block::block_type::BlockType, world::World};
+use crate::{content::Content, graphic::render::{model::ModelRenderResult, RenderResult}, state::State, voxels::{block::block_type::BlockType, new_chunks::ChunkCoord}, world::World};
 
 
 pub struct MeshesRenderInput<'a> {
@@ -15,7 +15,7 @@ pub struct MeshesRenderInput<'a> {
 #[derive(Debug)]
 pub struct Meshes {
     content: Arc<Content>,
-    meshes: Vec<Option<Arc<Mesh>>>,
+    meshes: HashMap<ChunkCoord, Arc<Mesh>>,
     // Indicates how many translate need to be performed.
     // Use atomicity if I add this to another thread
     pub need_translate: Arc<Mutex<usize>>, 
@@ -24,36 +24,35 @@ pub struct Meshes {
 impl Meshes {
     pub fn new(content: Arc<Content>) -> Self { Self {
         content,
-        meshes: vec![],
+        meshes: HashMap::new(),
         need_translate: Arc::new(Mutex::new(0)),
     }}
 
     pub fn render(&mut self, input: MeshesRenderInput, index: usize) {
         let MeshesRenderInput {state, render_result} = input;
         let mesh = Mesh::new(state, render_result.mesh, index);
-        if index+1 > self.meshes.len() { self.meshes.resize_with(index+1, || {None}) };
-        self.meshes[index] = Some(Arc::new(mesh));
+        self.meshes.insert(render_result.coord, Arc::new(mesh));
     }
 
 
-    pub fn translate(&mut self, indices: &[(usize, usize)]) {
-        let max = *indices.iter().map(|(a, b)| a.max(b)).max().unwrap_or(&0);
-        if self.meshes.len() <= max {self.meshes.resize_with(max+1, || None)}
-        let mut new_meshes = Vec::<Option<Arc<Mesh>>>::with_capacity(self.meshes.len());
-        new_meshes.resize_with(self.meshes.len(), || None);
+    // pub fn translate(&mut self, indices: &[(usize, usize)]) {
+    //     let max = *indices.iter().map(|(a, b)| a.max(b)).max().unwrap_or(&0);
+    //     if self.meshes.len() <= max {self.meshes.resize_with(max+1, || None)}
+    //     let mut new_meshes = Vec::<Option<Arc<Mesh>>>::with_capacity(self.meshes.len());
+    //     new_meshes.resize_with(self.meshes.len(), || None);
 
-        for (old, new) in indices.iter() {
-            new_meshes[*new] = self.meshes[*old].take();
-        }
+    //     for (old, new) in indices.iter() {
+    //         new_meshes[*new] = self.meshes[*old].take();
+    //     }
 
-        self.meshes = new_meshes;
-    }
+    //     self.meshes = new_meshes;
+    // }
 
 
-    pub fn update_transforms_buffer(&mut self, state: &State, world: &World, indices: &[usize]) {
-        indices.iter().for_each(|index| {
-            let Some(Some(chunk)) = unsafe {&*world.chunks.chunks.get()}.get(*index).cloned() else { return };
-            let Some(Some(mesh)) = self.meshes().get(*index) else {return};
+    pub fn update_transforms_buffer(&mut self, state: &State, world: &World, indices: &[ChunkCoord]) {
+        indices.iter().for_each(|cc| {
+            let Some(chunk) = unsafe {&*world.chunks.chunks.get()}.get(&cc).cloned() else { return };
+            let Some(mesh) = self.meshes().get(&cc) else {return};
             if chunk.live_voxels.is_empty() {return};
 
             let mut animated_models: BTreeMap<u32, Vec<f32>> = BTreeMap::new();
@@ -78,7 +77,7 @@ impl Meshes {
         });
     }
 
-    pub fn meshes(&self) -> &[Option<Arc<Mesh>>] {
+    pub fn meshes(&self) -> &HashMap<ChunkCoord, Arc<Mesh>> {
         &self.meshes
     }
 

@@ -1,7 +1,7 @@
 use std::{sync::{Arc}, time::Instant};
 
 
-use crate::{bytes::BytesCoder, content::Content, coords::global_coord::GlobalCoord, light::light::{LightSolvers, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP}, save_load::{EncodedChunk, WorldRegions}, voxels::{chunk::{Chunk, CHUNK_VOLUME}, chunks::{Chunks, WORLD_HEIGHT}, generator::Generator, voxel::Voxel}};
+use crate::{bytes::BytesCoder, content::Content, light::light::{LightSolvers, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP}, save_load::{EncodedChunk, WorldRegions}, voxels::{generator::Generator, new_chunk::{Chunk, CHUNK_VOLUME}, new_chunks::{Chunks, GlobalCoord}, voxel::Voxel}};
 
 pub mod sun;
 pub mod loader;
@@ -19,7 +19,7 @@ impl World {
     pub fn new(content: Arc<Content>, seed: u64, width: i32, height: i32, depth: i32, ox: i32, oy: i32, oz: i32) -> Self {
         Self {
             generator: Generator::new(&content, seed),
-            chunks: Arc::new(Chunks::new(Arc::clone(&content), width, height, depth, ox, oy, oz)),
+            chunks: Arc::new(Chunks::new(Arc::clone(&content), width, depth, ox, oz)),
             light: LightSolvers::new(ADD_QUEUE_CAP, REMOVE_QUEUE_CAP, Arc::clone(&content)),
             player_light_solver: LightSolvers::new(CHUNK_VOLUME, CHUNK_VOLUME, content),
         }
@@ -31,24 +31,23 @@ impl World {
 
     pub fn load_column_of_chunks(&self, regions: &WorldRegions, cx: i32, cz: i32) {
         let start = Instant::now();
-        for cy in (0..WORLD_HEIGHT as i32).rev() {
-            let chunk = match regions.chunk((cx, cy, cz).into()) {
-                None => Chunk::new(&self.generator, cx, cy, cz),
-                Some(EncodedChunk::Some(b)) => Chunk::decode_bytes(&self.chunks.content, &b),
-            };
-            
-            let index = chunk.xyz.chunk_index(&self.chunks);
-            let chunks = unsafe {&mut *self.chunks.chunks.get()};
-            chunks[index] = Some(Arc::new(chunk));
-            self.build_chunk(cx, cy, cz);
-        }
+        println!("1");
+        let chunk = match regions.chunk((cx, cz).into()) {
+            None => Chunk::new(&self.generator, cx, cz),
+            Some(EncodedChunk::Some(b)) => Chunk::decode_bytes(&self.chunks.content, &b),
+        };
+        println!("2");
+        let chunks = unsafe {&mut *self.chunks.chunks.get()};
+        chunks.insert((cx, cz).into(), Arc::new(chunk));
+        self.build_chunk(cx, cz);
+        println!("3");
         self.solve_rgbs();
         println!("Load column: {:?}", start.elapsed().as_secs_f32());
     }
 
-    pub fn build_chunk(&self, cx: i32, cy: i32, cz: i32) {
-        self.light.build_sky_light_chunk(&self.chunks, cx, cy, cz);
-        self.light.on_chunk_loaded(&self.chunks, cx, cy, cz);
+    pub fn build_chunk(&self, cx: i32, cz: i32) {
+        self.light.build_sky_light_chunk(&self.chunks, cx, cz);
+        self.light.on_chunk_loaded(&self.chunks, cx, cz);
     }
 
 

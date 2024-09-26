@@ -10,7 +10,6 @@ name = "app"
 
 [dependencies]
 graphics_engine = { path = "../graphics_engine" }
-resources = { path = "../resources" }
 
 wgpu-core = "=0.21.1"
 wgpu-types = { version = "=0.20.0", features = ["serde"]}
@@ -34,6 +33,8 @@ erased-serde = "0.4"
 serde_json = "1"
 flate2 = "1.0.28"
 bincode = "1.3.3"
+
+russimp = { version = "=2.0.5", features = ["prebuilt"] }
 
 egui = { version = "0.28", features = ["color-hex"]}
 

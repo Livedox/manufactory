@@ -1,5 +1,5 @@
 use std::{sync::{Mutex, Arc, Weak}};
-use crate::{bytes::{AsFromBytes, BytesCoder}, camera::camera_controller::CameraController, content::Content, coords::global_coord::GlobalCoord, direction::Direction, input_event::{input_service::{InputService, Key}, KeypressState}, recipes::{item_interaction::ItemInteraction, items::ITEMS, storage::Storage}, voxels::live_voxels::PlayerUnlockable, world::World, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
+use crate::{bytes::{AsFromBytes, BytesCoder}, camera::camera_controller::CameraController, content::Content, direction::Direction, input_event::{input_service::{InputService, Key}, KeypressState}, recipes::{item_interaction::ItemInteraction, items::ITEMS, storage::Storage}, voxels::{live_voxels::PlayerUnlockable, new_chunks::GlobalCoord}, world::World, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
 use super::inventory::PlayerInventory;
 
 use nalgebra_glm as glm;

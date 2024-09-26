@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::OnceLock};
 
-use crate::{coords::global_coord::GlobalCoord, direction::Direction, player::player::Player, recipes::{item::Item, storage::Storage}, world::World};
+use crate::{direction::Direction, player::player::Player, recipes::{item::Item, storage::Storage}, voxels::new_chunks::GlobalCoord, world::World};
 
 use super::block_test::BlockBase;
 

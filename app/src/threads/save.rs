@@ -15,7 +15,8 @@ pub fn spawn(
     world_saver: Arc<WorldSaver>,
     save_condvar: Arc<(Mutex<SaveState>, Condvar)>
 ) -> JoinHandle<()> {
-    thread::spawn(move || {
+    let thread = std::thread::Builder::new().name("save".to_owned());
+    thread.spawn(move || {
         loop {
             let (lock, cvar) = &*save_condvar;
             let (mut save_state, _) = cvar.wait_timeout(lock.lock().unwrap(), Duration::new(60, 0)).unwrap();
@@ -29,8 +30,7 @@ pub fn spawn(
             chunks_awaiting_deletion.clear();
             drop(chunks_awaiting_deletion);
 
-            unsafe {&*world.chunks.chunks.get()}.iter().for_each(|chunk| {
-                let Some(chunk) = chunk else {return};
+            unsafe {&*world.chunks.chunks.get()}.values().for_each(|chunk| {
                 if !chunk.unsaved() {return};
                 world_regions.save_chunk(chunk);
                 chunk.save(false);
@@ -44,5 +44,5 @@ pub fn spawn(
             if *save_state == SaveState::WorldExit {break};
             *save_state = SaveState::Saved;
         }
-    })
+    }).unwrap()
 }

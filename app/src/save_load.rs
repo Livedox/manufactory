@@ -11,10 +11,9 @@ use serde::{Deserialize, Serialize};
 use crate::bytes::{BytesCoder, cast_vec_from_bytes};
 use crate::player::player::Player;
 use crate::setting::Setting;
-use crate::voxels::chunk::Chunk;
-use crate::voxels::chunks::WORLD_HEIGHT;
-use crate::coords::chunk_coord::ChunkCoord;
 use crate::bytes::AsFromBytes;
+use crate::voxels::new_chunk::Chunk;
+use crate::voxels::new_chunks::{ChunkCoord, WORLD_HEIGHT};
 use crate::UnsafeMutex;
 
 // Must be a power of two
@@ -66,10 +65,9 @@ pub trait RegionChunkIndex {
 impl RegionChunkIndex for ChunkCoord {
     fn region_chunk_index(&self) -> usize {
         let x = self.x as usize & REGION_SIZE_BITS;
-        let y = self.y as usize & (WORLD_HEIGHT - 1);
         let z = self.z as usize & REGION_SIZE_BITS;
 
-        (x * WORLD_HEIGHT + y) * REGION_SIZE + z
+        x * REGION_SIZE + z
     }
 }
 
@@ -153,8 +151,8 @@ impl WorldRegions {
 
 
     pub fn save_chunk(&self, chunk: &Chunk) {
-        self.get_or_create_region(chunk.xyz.into())
-            .save_chunk(chunk.xyz, EncodedChunk::Some(chunk.encode_bytes().into()));
+        self.get_or_create_region(chunk.coord.into())
+            .save_chunk(chunk.coord, EncodedChunk::Some(chunk.encode_bytes().into()));
     }
 
     pub fn get_or_create_region(&self, coords: RegionCoords) -> Arc<Region> {

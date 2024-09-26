@@ -2,7 +2,7 @@ use std::{sync::Arc};
 
 use itertools::iproduct;
 
-use crate::{content::Content, coords::chunk_coord::ChunkCoord, voxels::{chunk::CHUNK_SIZE, chunks::{Chunks, WORLD_HEIGHT}}};
+use crate::{content::Content, voxels::{new_chunk::{CHUNK_SIZE, CHUNK_SQUARE, CHUNK_VOLUME}, new_chunks::{ChunkCoord, Chunks, WORLD_BLOCK_HEIGHT, WORLD_HEIGHT}}};
 
 use super::light_solver::LightSolver;
 const MAX_LIGHT: u8 = 15;
@@ -34,59 +34,55 @@ impl LightSolvers {
         solver_sun: LightSolver::new(3, add_queue_cap, remove_queue_cap),
     }}
 
-    pub fn build_sky_light_chunk(&self, chunks: &Chunks, cx: i32, cy: i32, cz: i32) {
-        let Some(chunk) = chunks.chunk(ChunkCoord::new(cx, cy, cz)) else {return};
+    pub fn build_sky_light_chunk(&self, chunks: &Chunks, cx: i32, cz: i32) {
+        let Some(chunk) = chunks.chunk(ChunkCoord::new(cx, cz)) else {return};
         let max_y = (CHUNK_SIZE-1) as u8;
 
-        if cy == (WORLD_HEIGHT-1) as i32 {
-            for (lz, lx) in iproduct!(0..CHUNK_SIZE as u8, 0..CHUNK_SIZE as u8) {
-                chunk.lightmap.get((lx, max_y, lz).into()).set_sun(15);
-            }
+        for i in (CHUNK_VOLUME-CHUNK_SQUARE)..CHUNK_VOLUME {
+            unsafe {chunk.light_map().0.get_unchecked(i)}.set_sun(15);
         }
 
-        if let Some(top_chunk) = chunks.chunk(ChunkCoord::new(cx, cy+1, cz)) {
-            for (lz, lx) in iproduct!(0..CHUNK_SIZE as u8, 0..CHUNK_SIZE as u8) {
-                if top_chunk.lightmap.get((lx, 0, lz).into()).get_sun() == 15 {
-                    chunk.lightmap.get((lx, max_y, lz).into()).set_sun(15);
-                }
-            }
-        }
-
-        for (ly, lz, lx) in iproduct!((0..(CHUNK_SIZE-1) as u8).rev(), 0..CHUNK_SIZE as u8, 0..CHUNK_SIZE as u8) {
-            let id = chunk.voxel((lx, ly, lz).into()).id as usize;
-            if chunk.lightmap.get((lx, (ly+1), lz).into()).get_sun() == 15 && self.content.blocks[id].is_light_passing() {
-                chunk.lightmap.get((lx, ly, lz).into()).set_sun(15);
-                let global = ChunkCoord::new(cx, cy, cz).to_global((lx, ly, lz).into());
+        for (ly, lz, lx) in iproduct!((0..(WORLD_BLOCK_HEIGHT-1)).rev(), 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
+            let id = chunk.voxels()[(lx, ly, lz).into()].id() as usize;
+            if chunk.light_map()[(lx, (ly+1), lz).into()].get_sun() == 15 && self.content.blocks[id].is_light_passing() {
+                chunk.light_map()[(lx, ly, lz).into()].set_sun(15);
+                let global = ChunkCoord::new(cx, cz).to_global((lx, ly, lz).into());
                 self.solver_sun.add(chunks, global.x, global.y, global.z);
             }
         }
+        println!("rr3");
         self.solver_sun.solve(chunks, &self.content);
+        println!("rr4");
     }
 
 
-    pub fn on_chunk_loaded(&self, chunks: &Chunks, cx: i32, cy: i32, cz: i32) {
-        for (ly, lz, lx) in iproduct!(0..CHUNK_SIZE, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
-            let xyz = ChunkCoord::new(cx, cy, cz).to_global((lx as u8, ly as u8, lz as u8).into());
+    pub fn on_chunk_loaded(&self, chunks: &Chunks, cx: i32, cz: i32) {
+        println!("yy1");
+        for (ly, lz, lx) in iproduct!(0..WORLD_BLOCK_HEIGHT, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
+            let xyz = ChunkCoord::new(cx, cz).to_global((lx, ly, lz).into());
             let id = chunks.voxel_global(xyz).map_or(0, |v| v.id as usize);
             let emission = self.content.blocks[id].emission();
             if emission.iter().any(|e| *e > 0) {
                 self.add_with_emission_rgb(chunks, xyz.x, xyz.y, xyz.z, emission);
             }
         }
+        println!("yy2");
         self.solve_rgb(chunks);
-        self.build_nearby_light(chunks, cx, cy, cz);
+        println!("yy3");
+        self.build_nearby_light(chunks, cx, cz);
+        println!("yy4");
     }
 
 
-    fn build_nearby_light(&self, chunks: &Chunks, cx: i32, cy: i32, cz: i32) {
-        for (ly, lz, lx) in iproduct!(-1..=CHUNK_SIZE as i32, -1..=CHUNK_SIZE as i32, -1..=CHUNK_SIZE as i32) {
+    fn build_nearby_light(&self, chunks: &Chunks, cx: i32, cz: i32) {
+        for (ly, lz, lx) in iproduct!(0..WORLD_BLOCK_HEIGHT as i32, -1..=CHUNK_SIZE as i32, -1..=CHUNK_SIZE as i32) {
             if lx != -1 && lx != CHUNK_SIZE as i32
               && lz != -1 && lz != CHUNK_SIZE as i32
               && ly != -1 && ly != CHUNK_SIZE as i32 {
                 continue;
             }
             let x = cx*CHUNK_SIZE as i32 + lx;
-            let y = cy*CHUNK_SIZE as i32 + ly;
+            let y = ly;
             let z = cz*CHUNK_SIZE as i32 + lz;
             if chunks.get_light((x, y, z).into()).to_number() > 0 {
                 self.add_rgbs(chunks, x, y, z);

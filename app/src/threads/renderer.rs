@@ -19,8 +19,11 @@ pub fn spawn(
         
         if let Some(chunk) = world.chunks.find_unrendered() {
             chunk.modify(false);
-            if let Some(result) = render(chunk.xyz.nindex(width, depth, ox, oz), &world.chunks, &content) {
-                let _ = sender.send(result);
+            println!("cdscsd");
+            if let Some(result) = render(chunk.coord, &world.chunks, &content) {
+                println!("cdsdc");
+                sender.send(result).unwrap();
+                println!("cdsdc");
             }
         } else {
             std::thread::sleep(Duration::from_millis(16));

@@ -1,5 +1,4 @@
-use crate::{content::Content, voxels::{block::{block_test::BlockBase}, chunks::Chunks, chunk::Chunk}};
-use crate::light::light_map::Light;
+use crate::{content::Content, light::new_light_map::Light, voxels::{block::block_test::BlockBase, new_chunk::Chunk, new_chunks::{Chunks, WORLD_BLOCK_HEIGHT}}};
 use super::block_managers::BlockManagers;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -59,7 +58,7 @@ pub fn render_block(
     local: (usize, usize, usize),
 ) {
     let (lx, ly, lz) = local;
-    let (x, y, z) = chunk.xyz.to_global((lx, ly, lz).into()).into();
+    let (x, y, z) = chunk.coord.to_global((lx, ly, lz).into()).into();
     let (nx, px, ny, py, nz, pz) = (x-1, x+1, y-1, y+1, z-1, z+1);
     if !is_blocked(x-1, y, z, chunks, block, content) {
         let light = BlockFaceLight::new(chunks, [
@@ -119,6 +118,7 @@ pub fn render_block(
 
 #[inline]
 fn is_blocked(x: i32, y: i32, z: i32, chunks: &Chunks, block: &BlockBase, content: &Content) -> bool {
+    if y < 0 || y >= WORLD_BLOCK_HEIGHT as i32 {return false};
     let Some(voxel) = chunks.voxel_global((x, y, z).into()) else {return false};
     let nblock = &content.blocks[voxel.id as usize].base;
     if block.is_glass && nblock.is_glass {

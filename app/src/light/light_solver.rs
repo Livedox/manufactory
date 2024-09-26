@@ -1,6 +1,6 @@
-use std::{collections::VecDeque, cell::UnsafeCell, ptr::null};
+use std::{cell::UnsafeCell, collections::VecDeque, i32, ptr::null, sync::Arc};
 
-use crate::{content::Content, coords::{chunk_coord::ChunkCoord, global_coord::GlobalCoord, local_coord::LocalCoord}, voxels::{chunk::Chunk, chunks::Chunks}};
+use crate::{content::Content, voxels::{new_chunk::{Chunk, LocalCoord}, new_chunks::{ChunkCoord, Chunks, GlobalCoord, WORLD_BLOCK_HEIGHT}}};
 
 /// It's very unsafe, but very fast.
 /// May issue STATUS_HEAP_CORRUPTION during relocation.
@@ -39,30 +39,28 @@ impl LightEntry {
     }
 }
 
-pub struct ChunkBuffer(usize, *const Chunk);
+pub struct ChunkBuffer(ChunkCoord, Option<Arc<Chunk>>);
 impl ChunkBuffer {
     #[inline]
     pub fn new() -> Self {Self::default()}
 
     #[inline]
-    pub unsafe fn get_or_init(&mut self, chunks: &Chunks, coords: GlobalCoord) -> Option<&Chunk> {
-        let coords: ChunkCoord = coords.into();
-        let index = coords.nindex(chunks.width, chunks.depth, chunks.ox(), chunks.oz());
-        if self.0 == index {
-            Some(unsafe {&*self.1})
+    pub unsafe fn get_or_init(&mut self, chunks: &Chunks, coords: GlobalCoord) -> Option<Arc<Chunk>> {
+        let cc: ChunkCoord = coords.into();
+        if self.0 == cc {
+            self.1.clone()
         } else {
-            if !chunks.is_in_area(coords) {return None};
-            let chunk = (unsafe {chunks.get_unchecked_chunk(index)})?;
-            self.0 = index;
-            self.1 = chunk;
-            Some(unsafe {&*self.1})
+            let chunk = chunks.chunk(cc)?.clone();
+            self.0 = cc;
+            self.1 = Some(chunk);
+            self.1.clone()
         }
     }
 }
 
 impl Default for ChunkBuffer {
     #[inline]
-    fn default() -> Self {Self(usize::MAX, null())}
+    fn default() -> Self {Self(ChunkCoord::new(i32::MAX, i32::MAX), None)}
 }
 
 const NEIGHBOURS: [GlobalCoord; 6] = [
@@ -100,11 +98,11 @@ impl LightSolver {
         if emission <= 1 {return};
         
         let global = GlobalCoord::new(x, y, z);
-        let Some(chunk) = chunks.chunk_ptr(global).map(|c| unsafe {&*c}) else {return};
+        let Some(chunk) = chunks.chunk(global.into()) else {return};
 
         let entry = LightEntry::new(global, emission);
         let local = LocalCoord::from(global);
-        chunk.lightmap.get(local).set(emission, self.channel);
+        chunk.light_map()[local].set(emission, self.channel);
         chunk.modify(true);
         
         self.add_queue.push(entry);
@@ -118,12 +116,12 @@ impl LightSolver {
 
     pub fn remove(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
         let global = GlobalCoord::new(x, y, z);
-        let Some(chunk) = chunks.chunk_ptr(global).map(|c| unsafe {&*c}) else {return};
+        let Some(chunk) = chunks.chunk(global.into()) else {return};
 
         let index = LocalCoord::from(global).index();
 
-        let light = unsafe {chunk.lightmap.0.get_unchecked(index).get_unchecked_channel(self.channel)};
-        unsafe {chunk.lightmap.0.get_unchecked(index).set_unchecked_channel(0, self.channel)};
+        let light = unsafe {chunk.lightmap.0.get_unchecked(index).get_unchecked(self.channel)};
+        unsafe {chunk.lightmap.0.get_unchecked(index).set_unchecked(0, self.channel)};
 
         self.remove_queue.push(LightEntry::new(global, light));
     }
@@ -144,13 +142,13 @@ impl LightSolver {
                 let Some(chunk) = (unsafe {chunk_buffer.get_or_init(chunks, entry.coords)}) else {continue};
                 let index = LocalCoord::from(entry.coords).index();
 
-                entry.light = unsafe {chunk.lightmap.0.get_unchecked(index)
-                    .get_unchecked_channel(self.channel)};
+                entry.light = unsafe {chunk.lightmap.0[index]
+                    .get_unchecked(self.channel)};
 
                 if entry.light != 0 && entry_prev_light != 0 && entry.light == entry_prev_light - 1 {
                     self.remove_queue.push(entry);
-                    unsafe {chunk.lightmap.0.get_unchecked(index)
-                        .set_unchecked_channel(0, self.channel)};
+                    unsafe {chunk.lightmap.0[index]
+                        .set_unchecked(0, self.channel)};
                     chunk.modify(true);
                 } else if entry.light >= entry_prev_light {
                     self.add_queue.push(entry);
@@ -167,18 +165,19 @@ impl LightSolver {
             entry.light -= 1;
             for offsets in NEIGHBOURS.iter() {
                 entry.coords += offsets;
+                if entry.coords.y < 0 || entry.coords.y >= WORLD_BLOCK_HEIGHT as i32 {continue}
 
                 let Some(chunk) = (unsafe {chunk_buffer.get_or_init(chunks, entry.coords)}) else {continue};
                 let index = LocalCoord::from(entry.coords).index();
 
-                let light = unsafe {chunk.lightmap.0.get_unchecked(index)
-                    .get_unchecked_channel(self.channel)};
-                let id = unsafe {chunk.voxels.0.get_unchecked(index).id()};
+                let light = unsafe {chunk.lightmap.0[index]
+                    .get_unchecked(self.channel)};
+                let id = unsafe {chunk.voxels.0[index].id()};
 
                 if content.blocks[id as usize].is_light_passing() && (light+2) <= prev_light {
                     self.add_queue.push(entry);
                     unsafe {chunk.lightmap.0.get_unchecked(index)
-                        .set_unchecked_channel(entry.light, self.channel)};
+                        .set_unchecked(entry.light, self.channel)};
                     chunk.modify(true);
                 }
             }

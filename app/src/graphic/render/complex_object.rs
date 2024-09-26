@@ -1,5 +1,5 @@
 use graphics_engine::vertices::block_vertex::BlockVertex;
-use crate::{graphic::complex_object::{ComplexObjectSide, ComplexObject}, voxels::chunk::Chunk};
+use crate::{graphic::complex_object::{ComplexObject, ComplexObjectSide}, voxels::new_chunk::Chunk};
 use super::{animated_model::{render_animated_model, AnimatedModels}, model::{render_model, Models}, Buffer};
 
 const INDICES: [[usize; 6]; 2] = [[0,1,2,0,2,3], [3,2,0,2,1,0]];
@@ -37,8 +37,8 @@ pub fn render_complex_object(
         Some(live_voxel) => live_voxel.rotation_index().unwrap_or(0),
         _ => 0,
     } as usize;
-    let light = chunk.get_light((lx, ly, lz).into()).get_normalized();
-    let global = chunk.xyz.to_global((lx, ly, lz).into()).into();
+    let light = chunk.light_map()[(lx, ly, lz).into()].get_normalized();
+    let global = chunk.coord.to_global((lx, ly, lz).into()).into();
 
     complex_object.block.iter().enumerate().for_each(|(i, sides)| {
         render_side(buffer, i, sides, light, global, rotation_index);
