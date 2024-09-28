@@ -13,7 +13,7 @@ use socket::client;
 use unsafe_mutex::UnsafeMutex;
 use world::{loader::WorldLoader};
 use crate::{content_loader::{indices::{load_animated_models, load_blocks_textures, load_models, GamePath, Indices}, ContentLoader}, save_load::Save, voxels::{block::block_test::test_serde_block}};
-use voxels::{live_voxels::{BoxDesiarializeLiveVoxel, BoxNewLiveVoxel, DesiarializeLiveVoxel, NewLiveVoxel}, new_chunks::Chunks};
+use voxels::{live_voxels::{BoxDesiarializeLiveVoxel, BoxNewLiveVoxel, DesiarializeLiveVoxel, NewLiveVoxel}, new_chunk::LocalCoord, new_chunks::{Chunks, GlobalCoord}};
 
 use winit::{
     dpi::PhysicalSize, event::*, event_loop::{EventLoop, EventLoopWindowTarget}, window::{Fullscreen, WindowBuilder}
@@ -185,6 +185,7 @@ pub async fn run() {
                 &mut gui_controller,
                 &mut debug_block_id,
                 setting.render_radius,
+                &client_engine.player()
             );
             let player = client_engine.player();
             debug_data += &format!("{:?}", player.camera().position_tuple());
@@ -222,6 +223,16 @@ pub async fn run() {
                 window.set_fullscreen(None);
             } else {
                 window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+            }
+        }
+
+        if input.is_key(&Key::F6, KeypressState::AnyJustPress) {
+            println!("{:?}", level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(0, 0, 0)));
+            println!("{:?}", level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(1, 1, 1)));
+            println!("{:?}", level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(33, 1, 33)));
+            for chunk in unsafe {&*level.as_ref().unwrap().world.chunks.chunks.get()}.values() {
+                println!("{:?}", chunk.coord);
+                println!("{:?}", chunk.voxels().get(LocalCoord::new(0, 0, 0)));
             }
         }
 

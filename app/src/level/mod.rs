@@ -40,12 +40,12 @@ impl Level {
                 player
             }
         };
-        let render_diameter = (setting.render_radius * 2 + 1) as i32;
+
         let chunk_position: ChunkCoord = GlobalCoord::from(player.position().tuple()).into();
         let ox = chunk_position.x - setting.render_radius as i32;
         let oz = chunk_position.z - setting.render_radius as i32;
         let world = Arc::new(
-            World::new(Arc::clone(&content), seed, render_diameter, WORLD_HEIGHT as i32, render_diameter, ox, 0, oz));
+            World::new(Arc::clone(&content), seed, setting.render_radius as i32, ox, oz));
         let save_condvar = Arc::new((Mutex::new(SaveState::Unsaved), Condvar::new()));
         
         let player = Arc::new(UnsafeMutex::new(player));
@@ -93,13 +93,14 @@ impl Level {
       gui_controller: &mut GuiController,
       debug_block_id: &mut Option<u32>,
       render_radius: u32,
+      players: &Player,
     ) -> Vec<Arc<Mesh>> {
         let mut player = unsafe {self.player.lock_unsafe()}.unwrap();
         let is_cursor = gui_controller.is_cursor();
         player.handle_input(input, time.delta(), is_cursor);
         player.inventory().lock().unwrap().update_recipe();
 
-        let ChunkCoord{x: px, z: pz, ..} = ChunkCoord::from(GlobalCoord::from(player.position().tuple()));
+        let ChunkCoord{x: px, z: pz, ..} = ChunkCoord::from(GlobalCoord::from(players.position().tuple()));
         if ((px-render_radius as i32 - self.world.chunks.ox()).abs() > 2 ||
             (pz-render_radius as i32 - self.world.chunks.oz()).abs() > 2) &&
             !self.world.chunks.is_translate()
@@ -118,8 +119,8 @@ impl Level {
         }
 
         state.selection_vertex_buffer = None;
-        let result = ray_cast(&self.world.chunks, &player.position().array(),
-            &player.camera().front_array(), 10.0);
+        let result = ray_cast(&self.world.chunks, &players.position().array(),
+            &players.camera().front_array(), 10.0);
 
         if let Some(result) = result {
             let (global, voxel, norm) = (result.0, result.1, result.2);
@@ -171,11 +172,11 @@ impl Level {
         // }
 
             while let Ok(result) = self.render_recv.try_recv() {
-                println!("Work!");
-                    self.meshes.render(MeshesRenderInput {
-                        state: &state,
-                        render_result: result,
-                    }, 0);
+                println!("cc: {:?}", result.coord);
+                self.meshes.render(MeshesRenderInput {
+                    state: &state,
+                    render_result: result,
+                }, 0);
             }
 
         self.meshes.meshes().values().cloned().collect()

@@ -3,13 +3,14 @@ use std::{cell::UnsafeCell, collections::HashMap, hash::Hash, ops::{Add, AddAssi
 use itertools::{iproduct, Itertools};
 use serde::{Deserialize, Serialize};
 
-use crate::{content::Content, coords::coord::Coord, direction::Direction, light::new_light_map::Light, vec_none};
+use crate::{content::Content, coords::coord::Coord, direction::Direction, light::new_light::{Light}, vec_none};
 
 use super::{live_voxels::{LiveVoxelBehavior, LiveVoxelContainer}, new_chunk::{Chunk, LiveVoxels, LocalCoord, CHUNK_BITS, CHUNK_BIT_SHIFT, CHUNK_SIZE}, voxel::Voxel};
 
 pub const WORLD_BLOCK_HEIGHT: usize = 256;
 pub const WORLD_HEIGHT: usize = WORLD_BLOCK_HEIGHT / CHUNK_SIZE; // In chunks
 
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct GlobalCoord {
     pub x: i32,
@@ -154,28 +155,20 @@ pub struct Chunks {
     // I tried to do this using safe code, but it kills performance by about 2 times
     pub chunks: UnsafeCell<HashMap<ChunkCoord, Arc<Chunk>>>,
     pub chunks_awaiting_deletion: Arc<Mutex<Vec<Arc<Chunk>>>>,
-
-    pub width: i32,
-    pub depth: i32,
     
     pub ox: AtomicI32,
     pub oz: AtomicI32,
-    
-    width_with_offset: AtomicI32, //Needed to optimize the function (is_in_area)
-    depth_with_offset: AtomicI32, //Needed to optimize the function (is_in_area)
+
+    pub render_radius: i32,
 }
 
 impl Chunks {
-    pub fn new(content: Arc<Content>, width: i32, depth: i32, ox: i32, oz: i32) -> Chunks {
+    pub fn new(content: Arc<Content>, render_radius: i32, ox: i32, oz: i32) -> Chunks {
         Chunks {
             content,
             chunks: UnsafeCell::new(HashMap::new()),
             chunks_awaiting_deletion: Arc::new(Mutex::new(Vec::new())),
-            width,
-            depth,
-            
-            width_with_offset: AtomicI32::new(width+ox),
-            depth_with_offset: AtomicI32::new(depth+oz),
+            render_radius,
             ox: AtomicI32::new(ox),
             oz: AtomicI32::new(oz),
             is_translate: AtomicBool::new(false),
@@ -197,15 +190,15 @@ impl Chunks {
     #[inline] pub fn set_ox(&self, value: i32) {self.ox.store(value, Ordering::Relaxed)}
     #[inline] pub fn set_oz(&self, value: i32) {self.oz.store(value, Ordering::Relaxed)}
 
-    #[inline] pub fn width_with_offset(&self) -> i32 {
-        self.width_with_offset.load(Ordering::Relaxed)}
-    #[inline] pub fn depth_with_offset(&self) -> i32 {
-        self.depth_with_offset.load(Ordering::Relaxed)}
+    // #[inline] pub fn width_with_offset(&self) -> i32 {
+    //     self.width_with_offset.load(Ordering::Relaxed)}
+    // #[inline] pub fn depth_with_offset(&self) -> i32 {
+    //     self.depth_with_offset.load(Ordering::Relaxed)}
 
-    #[inline] pub fn set_width_with_offset(&self, value: i32) {
-        self.width_with_offset.store(value, Ordering::Relaxed)}
-    #[inline] pub fn set_depth_with_offset(&self, value: i32) {
-        self.depth_with_offset.store(value, Ordering::Relaxed)}
+    // #[inline] pub fn set_width_with_offset(&self, value: i32) {
+    //     self.width_with_offset.store(value, Ordering::Relaxed)}
+    // #[inline] pub fn set_depth_with_offset(&self, value: i32) {
+    //     self.depth_with_offset.store(value, Ordering::Relaxed)}
     
     // pub fn translate(&self, ox: i32, oz: i32) -> Vec<(usize, usize)> {
     //     let mut indices = Vec::<(usize, usize)>::new();
@@ -386,7 +379,7 @@ impl Chunks {
             self.chunk((cx, cz).into()).is_none().then_some((cx, cz))
         };
  
-        Self::clockwise_square_spiral(self.width as usize, callback)
+        Self::clockwise_square_spiral(self.render_radius as usize * 2, callback)
     }
 
     pub fn find_unrendered(&self) -> Option<Arc<Chunk>> {
@@ -417,11 +410,12 @@ impl Chunks {
         let mut y = 0;
         let mut dx = 0;
         let mut dy = -1;
-        let o = (n as i32 % 2) ^ 1;
+        // let o = (n as i32 % 2) ^ 1;
         let half = n as i32/2;
         for _ in 0..n.pow(2) {
             if x >= -half && x <= half && y >= -half && y <= half {
-                let result = callback(x+half-o, y+half-o);
+                // println!("{x}, {y}, {}, {}, {}, {}", x+half, y+half, x+half-o, y+half-o);
+                let result = callback(x, y);
                 if result.is_some() {return result};
             }
             if (x == y) || (x == -y && x < 0) || (x == 1-y && x > 0) {

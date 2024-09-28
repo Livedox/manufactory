@@ -14,16 +14,11 @@ pub fn spawn(
 
         let ox = world.chunks.ox();
         let oz = world.chunks.oz();
-        let width = world.chunks.width;
-        let depth = world.chunks.depth;
         
         if let Some(chunk) = world.chunks.find_unrendered() {
             chunk.modify(false);
-            println!("cdscsd");
             if let Some(result) = render(chunk.coord, &world.chunks, &content) {
-                println!("cdsdc");
                 sender.send(result).unwrap();
-                println!("cdsdc");
             }
         } else {
             std::thread::sleep(Duration::from_millis(16));

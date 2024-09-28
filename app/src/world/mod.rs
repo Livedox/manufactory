@@ -1,7 +1,7 @@
 use std::{sync::{Arc}, time::Instant};
 
 
-use crate::{bytes::BytesCoder, content::Content, light::light::{LightSolvers, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP}, save_load::{EncodedChunk, WorldRegions}, voxels::{generator::Generator, new_chunk::{Chunk, CHUNK_VOLUME}, new_chunks::{Chunks, GlobalCoord}, voxel::Voxel}};
+use crate::{bytes::BytesCoder, content::Content, light::{light::{ADD_QUEUE_CAP, REMOVE_QUEUE_CAP}, new_light_solvers::LightSolvers}, save_load::{EncodedChunk, WorldRegions}, voxels::{generator::Generator, new_chunk::{Chunk, CHUNK_VOLUME}, new_chunks::{Chunks, GlobalCoord}, voxel::Voxel}};
 
 pub mod sun;
 pub mod loader;
@@ -16,10 +16,10 @@ pub struct World {
 }
 
 impl World {
-    pub fn new(content: Arc<Content>, seed: u64, width: i32, height: i32, depth: i32, ox: i32, oy: i32, oz: i32) -> Self {
+    pub fn new(content: Arc<Content>, seed: u64, render_radius: i32, ox: i32, oz: i32) -> Self {
         Self {
             generator: Generator::new(&content, seed),
-            chunks: Arc::new(Chunks::new(Arc::clone(&content), width, depth, ox, oz)),
+            chunks: Arc::new(Chunks::new(Arc::clone(&content), render_radius, ox, oz)),
             light: LightSolvers::new(ADD_QUEUE_CAP, REMOVE_QUEUE_CAP, Arc::clone(&content)),
             player_light_solver: LightSolvers::new(CHUNK_VOLUME, CHUNK_VOLUME, content),
         }

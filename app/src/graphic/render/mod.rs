@@ -69,9 +69,7 @@ pub struct RenderResult {
 }
 
 pub fn render(cc: ChunkCoord, chunks: &Chunks, content: &Content) -> Option<RenderResult> {
-    println!("txasxax1");
     let Some(chunk) = unsafe {&*chunks.chunks.get()}.get(&cc).cloned() else {return None};
-    println!("txasxax2");
     let mut models = Models::new();
     let mut animated_models = AnimatedModels::new();
     
@@ -82,7 +80,7 @@ pub fn render(cc: ChunkCoord, chunks: &Chunks, content: &Content) -> Option<Rend
     let mut glass_buffer = Buffer::new();
     let mut belt_buffer = Buffer::new();
 
-    for (ly, lz, lx) in iproduct!(0..CHUNK_SIZE, 0..WORLD_BLOCK_HEIGHT, 0..CHUNK_SIZE) {
+    for (ly, lz, lx) in iproduct!(0..WORLD_BLOCK_HEIGHT, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
         let id = unsafe {chunk.voxels().get_unchecked((lx, ly, lz).into()).id()};
         if id == 0 { continue };
         let block = &content.blocks[id as usize];

@@ -1,4 +1,4 @@
-use crate::{content::Content, light::new_light_map::Light, voxels::{block::block_test::BlockBase, new_chunk::Chunk, new_chunks::{Chunks, WORLD_BLOCK_HEIGHT}}};
+use crate::{content::Content, light::new_light::Light, voxels::{block::block_test::BlockBase, new_chunk::Chunk, new_chunks::{Chunks, WORLD_BLOCK_HEIGHT}}};
 use super::block_managers::BlockManagers;
 
 #[derive(Debug, PartialEq, Eq, Clone)]

@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Index, slice::SliceIndex, sync::{atomic::{A
 
 use itertools::iproduct;
 use serde::{de::Visitor, ser::{SerializeStruct, SerializeTuple, SerializeTupleStruct}, Deserialize, Serialize};
-use crate::{bytes::{AsFromBytes, BytesCoder}, content::{Content}, light::new_light_map::{Light, LightMap}};
+use crate::{bytes::{AsFromBytes, BytesCoder}, content::{Content}, light::new_light_map::{LightMap}, light::new_light::{Light}};
 
 use super::{generator::Generator, live_voxels::LiveVoxelContainer, new_chunks::{ChunkCoord, WORLD_BLOCK_HEIGHT}, voxel::{Voxel, VoxelAtomic}};
 use std::io::prelude::*;

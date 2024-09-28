@@ -32,9 +32,9 @@ impl Generator {
             return self.iron_ore;
         }
 
-        if y > 250 {
-            return self.rock;
-        }
+        // if y > 250 {
+        //     return self.rock;
+        // }
 
         0
     }
