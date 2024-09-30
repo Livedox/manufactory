@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use graphics_engine::vertices::model_instance::ModelInstance;
-use crate::voxels::new_chunk::{Chunk, CHUNK_SIZE};
+use crate::voxels::chunk::{Chunk, CHUNK_SIZE};
 
 #[derive(Debug, Clone)]
 pub struct ModelRenderResult {

@@ -1,7 +1,7 @@
 use std::{sync::{Arc}, time::Instant};
 
 
-use crate::{bytes::BytesCoder, content::Content, light::{light::{ADD_QUEUE_CAP, REMOVE_QUEUE_CAP}, new_light_solvers::LightSolvers}, save_load::{EncodedChunk, WorldRegions}, voxels::{generator::Generator, new_chunk::{Chunk, CHUNK_VOLUME}, new_chunks::{Chunks, GlobalCoord}, voxel::Voxel}};
+use crate::{bytes::BytesCoder, content::Content, coords::global_coord::GlobalCoord, light::light_solvers::{LightSolvers, ADD_QUEUE_CAP, REMOVE_QUEUE_CAP}, save_load::{EncodedChunk, WorldRegions}, voxels::{chunk::{Chunk, CHUNK_VOLUME}, chunks::Chunks, generator::Generator, voxel::Voxel}};
 
 pub mod sun;
 pub mod loader;
@@ -31,16 +31,13 @@ impl World {
 
     pub fn load_column_of_chunks(&self, regions: &WorldRegions, cx: i32, cz: i32) {
         let start = Instant::now();
-        println!("1");
         let chunk = match regions.chunk((cx, cz).into()) {
             None => Chunk::new(&self.generator, cx, cz),
             Some(EncodedChunk::Some(b)) => Chunk::decode_bytes(&self.chunks.content, &b),
         };
-        println!("2");
         let chunks = unsafe {&mut *self.chunks.chunks.get()};
         chunks.insert((cx, cz).into(), Arc::new(chunk));
         self.build_chunk(cx, cz);
-        println!("3");
         self.solve_rgbs();
         println!("Load column: {:?}", start.elapsed().as_secs_f32());
     }

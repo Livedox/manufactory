@@ -45,3 +45,6 @@ tokio-util = { version = "0.7.12", features = ["rt"] }
 rayon = "1.8"
 
 toml = "0.8.12"
+
+rustc-hash = "2.0.0"
+fnv = "1.0.7"

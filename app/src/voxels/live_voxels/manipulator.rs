@@ -1,10 +1,10 @@
 use std::{sync::{Mutex}, time::{Duration, Instant}};
 use serde::{Deserialize, Serialize};
 
-use crate::{direction::Direction, live_voxel_default_deserialize, recipes::item::Item};
+use crate::{coords::global_coord::GlobalCoord, direction::Direction, live_voxel_default_deserialize, recipes::item::Item};
 
 use super::{LiveVoxelBehavior, LiveVoxelCreation};
-use crate::voxels::new_chunks::{Chunks, GlobalCoord};
+use crate::voxels::chunks::{Chunks};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Manipulator {

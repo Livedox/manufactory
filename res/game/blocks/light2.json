@@ -1,0 +1,15 @@
+{
+    "id": "light2",
+    "block_type": {"block": {"faces": "marble"}},
+    "item_id": null,
+    "emission": [15,15,15],
+    "width": 1,
+    "height": 1,
+    "depth": 1,
+    "is_light_passing": false,
+    "is_additional_data": false,
+    "is_glass": false,
+    "is_ore": false,
+    "on_break": ["on_break"],
+    "on_set": ["on_set"]
+}

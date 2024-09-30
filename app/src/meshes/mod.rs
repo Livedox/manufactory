@@ -3,7 +3,7 @@ use std::{collections::{BTreeMap, HashMap}, sync::{Arc, Mutex}};
 use itertools::Itertools;
 use graphics_engine::mesh::Mesh;
 
-use crate::{content::Content, graphic::render::{model::ModelRenderResult, RenderResult}, state::State, voxels::{block::block_type::BlockType, new_chunks::ChunkCoord}, world::World};
+use crate::{content::Content, coords::chunk_coord::ChunkCoord, graphic::render::{model::ModelRenderResult, RenderResult}, state::State, voxels::block::block_type::BlockType, world::World};
 
 
 pub struct MeshesRenderInput<'a> {

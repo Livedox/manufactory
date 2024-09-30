@@ -6,5 +6,3 @@ pub mod ray_cast;
 pub mod find_chunks;
 pub mod generator;
 pub mod live_voxels;
-pub mod new_chunk;
-pub mod new_chunks;

@@ -1,73 +1,68 @@
-// use crate::{voxels::{chunk::{CHUNK_BIT_SHIFT, CHUNK_SIZE}, chunks::Chunks}, bytes::AsFromBytes};
-// use super::{global_coord::GlobalCoord, local_coord::LocalCoord};
+use crate::voxels::chunk::CHUNK_SIZE;
+use std::hash::{BuildHasher, Hash, Hasher};
+use super::{global_coord::GlobalCoord, local_coord::LocalCoord};
 
-// #[repr(C)]
-// #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-// pub struct ChunkCoord {
-//     pub x: i32,
-//     pub y: i32,
-//     pub z: i32
-// }
+#[repr(C)]
+pub struct MyHasher {
+    pub x: i32,
+    pub z: i32
+}
 
-// impl AsFromBytes for ChunkCoord {}
+impl MyHasher {
+    pub fn new() -> Self {Self {x: 0, z: 0}}
+}
 
-// impl ChunkCoord {
-//     #[inline]
-//     pub const fn new(x: i32, y: i32, z: i32) -> Self {
-//         Self { x, y, z }
-//     }
+impl Hasher for MyHasher {
+    #[inline]
+    fn finish(&self) -> u64 {
+        (self.x * 67_108_864 + self.z) as u64//1 875 000
+    }
 
-//     #[inline]
-//     pub const fn nindex(&self, w: i32, d: i32, ox: i32, oz: i32) -> usize {
-//         ((self.y*d + self.z-oz)*w + self.x-ox) as usize
-//     }
+    fn write(&mut self, _bytes: &[u8]) {
+        todo!();
+    }
 
-//     #[inline]
-//     pub fn chunk_index(&self, chunks: &Chunks) -> usize {
-//         ((self.y*chunks.depth + self.z-chunks.oz())*chunks.width + self.x-chunks.ox()) as usize
-//     }
+    #[inline]
+    fn write_u64(&mut self, u: u64) {
+        *self = unsafe {std::mem::transmute::<_, Self>(u)}
+    }
+}
 
-//     #[inline]
-//     pub const fn index_without_offset(&self, width: i32, depth: i32) -> usize {
-//         ((self.y*depth + self.z)*width + self.x) as usize
-//     }
+impl BuildHasher for MyHasher {
+    type Hasher = MyHasher;
 
-//     #[inline]
-//     pub const fn to_global(self, local: LocalCoord) -> GlobalCoord {
-//         GlobalCoord::new(
-//             self.x * CHUNK_SIZE as i32 + local.x as i32, 
-//             self.y * CHUNK_SIZE as i32 + local.y as i32, 
-//             self.z * CHUNK_SIZE as i32 + local.z as i32)
-//     }
-// }
+    fn build_hasher(&self) -> Self::Hasher {
+        MyHasher {x: 0, z: 0}
+    }
+}
 
-// impl From<(i32, i32, i32)> for ChunkCoord {
-//     #[inline]
-//     fn from(xyz: (i32, i32, i32)) -> Self {
-//         Self::new(xyz.0, xyz.1, xyz.2)
-//     }
-// }
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ChunkCoord {
+    pub x: i32,
+    pub z: i32
+}
 
-// impl From<ChunkCoord> for (i32, i32, i32) {
-//     #[inline]
-//     fn from(coord: ChunkCoord) -> Self {
-//         (coord.x, coord.y, coord.z)
-//     }
-// }
+impl ChunkCoord {
+    pub fn new(x: i32, z: i32) -> Self {Self { x, z }}
 
-// impl From<ChunkCoord> for [i32; 3] {
-//     #[inline]
-//     fn from(coord: ChunkCoord) -> Self {
-//         unsafe {std::mem::transmute(coord)}
-//     }
-// }
+    #[inline]
+    pub const fn to_global(self, local: LocalCoord) -> GlobalCoord {
+        GlobalCoord::new(
+            self.x * CHUNK_SIZE as i32 + local.x as i32, 
+            local.y as i32, 
+            self.z * CHUNK_SIZE as i32 + local.z as i32)
+    }
+}
 
-// impl From<GlobalCoord> for ChunkCoord {
-//     #[inline]
-//     fn from(coord: GlobalCoord) -> Self {
-//         ChunkCoord::new(
-//             coord.x >> CHUNK_BIT_SHIFT,
-//             coord.y >> CHUNK_BIT_SHIFT,
-//             coord.z >> CHUNK_BIT_SHIFT)
+impl From<(i32, i32)> for ChunkCoord {
+    fn from(value: (i32, i32)) -> Self {
+        Self { x: value.0, z: value.1 }
+    }
+}
+
+// impl Hash for ChunkCoord {
+//     fn hash<H: Hasher>(&self, state: &mut H) {
+//         state.write_u64(unsafe {std::mem::transmute::<_, u64>(*self)});
 //     }
 // }

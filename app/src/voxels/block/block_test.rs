@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use serde::{Deserialize, Serialize};
-use crate::voxels::new_chunks::GlobalCoord;
+use crate::coords::global_coord::GlobalCoord;
 use crate::Indices;
 use crate::{direction::Direction, player::player::Player, recipes::{item::Item}, coords::{coord::Coord}, world::World};
 

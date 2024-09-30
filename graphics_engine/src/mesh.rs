@@ -86,7 +86,6 @@ pub struct Mesh {
 impl Mesh {
     pub fn new(state: &State, input: MeshInput, index: usize) -> Self {
         let device = state.device();
-        println!("block_vertices: {}", input.block_vertices.len());
         let block_vertex_buffer = new_buffer(device, &input.block_vertices, VERTEX,
             &format!("Block vertex Buffer (Chunk: {})", index));
         let block_index_buffer = new_buffer(device, &input.block_indices, INDEX,

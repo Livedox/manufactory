@@ -2,11 +2,11 @@ use std::{collections::HashMap, sync::{Arc, Mutex, Weak}};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{bytes::AsFromBytes, content::Content, direction::Direction, gui::draw::Draw, recipes::storage::Storage};
+use crate::{bytes::AsFromBytes, content::Content, coords::global_coord::GlobalCoord, direction::Direction, gui::draw::Draw, recipes::storage::Storage};
 use std::fmt::Debug;
 use self::{assembling_machine::AssemblingMachine, cowboy::Cowboy, drill::Drill, furnace::Furnace, manipulator::Manipulator, transport_belt::TransportBelt, voxel_box::VoxelBox};
 
-use super::new_chunks::{Chunks, GlobalCoord};
+use super::chunks::{Chunks};
 
 pub mod furnace;
 pub mod voxel_box;

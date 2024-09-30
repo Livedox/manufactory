@@ -2,9 +2,9 @@ use std::{sync::Arc};
 
 use itertools::iproduct;
 
-use crate::{content::Content, voxels::{new_chunk::{CHUNK_SIZE, CHUNK_SQUARE, CHUNK_VOLUME}, new_chunks::{ChunkCoord, Chunks, WORLD_BLOCK_HEIGHT, WORLD_HEIGHT}}};
+use crate::{content::Content, coords::{chunk_coord::ChunkCoord, local_coord::LocalCoord}, voxels::{chunk::{CHUNK_SIZE, CHUNK_SQUARE, CHUNK_VOLUME}, chunks::{Chunks, WORLD_BLOCK_HEIGHT, WORLD_HEIGHT}}};
 
-use super::{new_light::Light, new_light_solver::LightSolver};
+use super::{light::Light, light_solver::LightSolver};
 
 const MAX_LIGHT: u8 = 15;
 const SIDE_COORDS_OFFSET: [(i32, i32, i32); 6] = [
@@ -36,28 +36,61 @@ impl LightSolvers {
             unsafe {chunk.light_map().0.get_unchecked(i)}.set_sun(15);
         }
 
-        for (ly, lz, lx) in iproduct!((0..(WORLD_BLOCK_HEIGHT-1)).rev(), 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
-            let id = chunk.voxels()[(lx, ly, lz).into()].id() as usize;
-            if chunk.light_map()[(lx, (ly+1), lz).into()].get_sun() == 15 && self.content.blocks[id].is_light_passing() {
-                chunk.light_map()[(lx, ly, lz).into()].set_sun(15);
-                let global = ChunkCoord::new(cx, cz).to_global((lx, ly, lz).into());
-                self.solver.add(chunks, global);
+        // let mut idx = CHUNK_VOLUME-CHUNK_SQUARE;
+        // for (ly, lz, lx) in iproduct!((0..(WORLD_BLOCK_HEIGHT-1)).rev(), (0..CHUNK_SIZE), (0..CHUNK_SIZE)) {
+        //     // idx -= 1;
+        //     // let id = unsafe {chunk.voxels().0.get_unchecked(idx)}.id() as usize;
+        //     // if unsafe {chunk.light_map().0.get_unchecked(idx + CHUNK_SQUARE)}.get_sun() == 15
+        //     //     && self.content.blocks[id].is_light_passing()
+        //     // {
+        //     //     unsafe {chunk.light_map().0.get_unchecked(idx)}.set_sun(15);
+        //     //     let global = ChunkCoord::new(cx, cz).to_global((lx, ly, lz).into());
+        //     //     self.solver.add(chunks, global);
+        //     // }
+        //     let id = chunk.voxels()[(lx, ly, lz).into()].id() as usize;
+        //     if chunk.light_map()[(lx, (ly+1), lz).into()].get_sun() == 15 && self.content.blocks[id].is_light_passing() {
+        //         chunk.light_map()[(lx, ly, lz).into()].set_sun(15);
+        //         let global = ChunkCoord::new(cx, cz).to_global((lx, ly, lz).into());
+        //         self.solver.add(chunks, global);
+        //     }
+        // }
+
+        for idx in (0..CHUNK_VOLUME-CHUNK_SQUARE).rev() {
+            let id = unsafe {chunk.voxels().0.get_unchecked(idx)}.id() as usize;
+            if unsafe {chunk.light_map().0.get_unchecked(idx + CHUNK_SQUARE)}.get_sun() == 15
+                && self.content.blocks[id].is_light_passing()
+            {
+                unsafe {chunk.light_map().0.get_unchecked(idx)}.set_sun(15);
+                let global = ChunkCoord::new(cx, cz)
+                    .to_global(LocalCoord::from_index(idx));
+                self.solver.add_max_sun_to_solve(global);
             }
         }
+
         self.solver.solve(chunks, &self.content);
         chunk.modify(true);
     }
 
 
     pub fn on_chunk_loaded(&self, chunks: &Chunks, cx: i32, cz: i32) {
-        for (ly, lz, lx) in iproduct!(0..WORLD_BLOCK_HEIGHT, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
-            let xyz = ChunkCoord::new(cx, cz).to_global((lx, ly, lz).into());
-            let id = chunks.voxel_global(xyz).map_or(0, |v| v.id as usize);
+        let cc = ChunkCoord::new(cx, cz);
+        let Some(chunk) = chunks.chunk(cc) else {return};
+        for idx in 0..CHUNK_VOLUME {
+            let id = unsafe {chunk.voxels().0.get_unchecked(idx)}.id() as usize;
             let emission = self.content.blocks[id].emission();
             if emission.iter().any(|e| *e > 0) {
-                self.add_with_emission_rgb(chunks, xyz.x, xyz.y, xyz.z, emission);
+                let gc = cc.to_global(LocalCoord::from_index(idx));
+                self.add_with_emission_rgb(chunks, gc.x, gc.y, gc.z, emission);
             }
         }
+        // for (ly, lz, lx) in iproduct!(0..WORLD_BLOCK_HEIGHT, 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
+        //     let xyz = ChunkCoord::new(cx, cz).to_global((lx, ly, lz).into());
+        //     let id = chunks.voxel_global(xyz).map_or(0, |v| v.id as usize);
+        //     let emission = self.content.blocks[id].emission();
+        //     if emission.iter().any(|e| *e > 0) {
+        //         self.add_with_emission_rgb(chunks, xyz.x, xyz.y, xyz.z, emission);
+        //     }
+        // }
         self.solve_rgb(chunks);
         self.build_nearby_light(chunks, cx, cz);
     }

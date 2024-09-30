@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use graphics_engine::mesh::AnimatedModelRenderResult;
 
-use crate::voxels::new_chunk::{Chunk, CHUNK_SIZE};
+use crate::voxels::chunk::{Chunk, CHUNK_SIZE};
 
 // #[derive(Debug, Clone)]
 // pub struct AnimatedModelRenderResult {

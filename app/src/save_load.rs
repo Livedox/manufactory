@@ -9,11 +9,12 @@ use std::sync::{Mutex};
 use serde::{Deserialize, Serialize};
 
 use crate::bytes::{BytesCoder, cast_vec_from_bytes};
+use crate::coords::chunk_coord::ChunkCoord;
 use crate::player::player::Player;
 use crate::setting::Setting;
 use crate::bytes::AsFromBytes;
-use crate::voxels::new_chunk::Chunk;
-use crate::voxels::new_chunks::{ChunkCoord, WORLD_HEIGHT};
+use crate::voxels::chunk::Chunk;
+use crate::voxels::chunks::{WORLD_HEIGHT};
 use crate::UnsafeMutex;
 
 // Must be a power of two

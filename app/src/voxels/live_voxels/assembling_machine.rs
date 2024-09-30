@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 use graphics_engine::texture::TextureAtlas;
 
+use crate::coords::global_coord::GlobalCoord;
 use crate::direction::Direction;
 use crate::recipes::item::PossibleItem;
-use crate::voxels::new_chunks::{self, Chunks};
+use crate::voxels::chunks::{self, Chunks};
 use crate::{live_voxel_default_deserialize, player_unlockable};
 use crate::recipes::recipe::{ActiveRecipe, Recipe};
 use std::sync::{Arc, Mutex};
@@ -32,7 +33,7 @@ impl LiveVoxelBehavior for Arc<Mutex<AssemblingMachine>> {
         Some(self.clone())
     }
 
-    fn update(&self, _: &Chunks, _: new_chunks::GlobalCoord, _: &[new_chunks::GlobalCoord]) {
+    fn update(&self, _: &Chunks, _: GlobalCoord, _: &[GlobalCoord]) {
         self.lock().unwrap().update();
     }
 

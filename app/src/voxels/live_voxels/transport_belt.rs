@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use crate::coords::global_coord::GlobalCoord;
 use crate::direction::{Direction};
 use crate::recipes::item::PossibleItem;
-use crate::voxels::new_chunks::{Chunks, GlobalCoord};
+use crate::voxels::chunks::{Chunks};
 use crate::{live_voxel_default_deserialize};
 
 use std::sync::{Arc, Mutex};

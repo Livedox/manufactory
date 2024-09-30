@@ -1,7 +1,7 @@
 use std::ops::Range;
 use itertools::iproduct;
 
-use crate::{graphic::render::Buffer, voxels::new_chunk::CHUNK_SIZE};
+use crate::{graphic::render::Buffer, voxels::chunk::CHUNK_SIZE};
 use crate::graphic::render::block::BlockFace;
 use super::face_managers::{manage_z, manage_y, manage_x};
 

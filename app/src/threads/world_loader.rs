@@ -14,11 +14,8 @@ pub fn spawn(
     thread.spawn(move || {
         loop {
             if exit.load(Ordering::Relaxed) {break};
-            println!("r1");
             if let Some((cx, cz)) = world.chunks.find_unloaded() {
-                println!("r2");
                 world.load_column_of_chunks(&world_regions, cx, cz);
-                println!("r3");
             } else {
                 thread::sleep(Duration::from_millis(200));
             }

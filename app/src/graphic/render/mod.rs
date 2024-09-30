@@ -2,7 +2,7 @@
 
 use itertools::iproduct;
 use graphics_engine::{constants::IS_LINE_TOPOLOGY, mesh::MeshInput, vertices::block_vertex::BlockVertex};
-use crate::{content::Content, graphic::render::block_managers::BlockManagers, voxels::{block::block_type::BlockType, new_chunk::{LocalCoord, CHUNK_SIZE}, new_chunks::{ChunkCoord, Chunks, WORLD_BLOCK_HEIGHT, WORLD_HEIGHT}}};
+use crate::{content::Content, coords::{chunk_coord::ChunkCoord, local_coord::LocalCoord}, graphic::render::block_managers::BlockManagers, voxels::{block::block_type::BlockType, chunk::CHUNK_SIZE, chunks::{Chunks, WORLD_BLOCK_HEIGHT, WORLD_HEIGHT}}};
 
 use self::{model::{Models, render_model}, animated_model::{AnimatedModels, render_animated_model}, complex_object::render_complex_object, block::{render_block}};
 
@@ -87,9 +87,9 @@ pub fn render(cc: ChunkCoord, chunks: &Chunks, content: &Content) -> Option<Rend
         match block.block_type() {
             BlockType::Block {faces} => {
                 if block.is_glass() {
-                    render_block(content, &mut glass_manager, chunks, &chunk, &block.base, faces, (lx, ly, lz));
+                    render_block(content, &mut glass_manager, chunks, &chunk, &block.base, &faces, (lx, ly, lz));
                 } else {
-                    render_block(content, &mut block_manager, chunks, &chunk, &block.base, faces, (lx, ly, lz));
+                    render_block(content, &mut block_manager, chunks, &chunk, &block.base, &faces, (lx, ly, lz));
                 }
             },
             BlockType::None => {},

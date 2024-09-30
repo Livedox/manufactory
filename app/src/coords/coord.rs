@@ -1,5 +1,7 @@
 use std::ops::Add;
 
+use super::global_coord::GlobalCoord;
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Coord {
@@ -43,12 +45,12 @@ impl From<[f32; 3]> for Coord {
     }
 }
 
-// impl From<GlobalCoord> for Coord {
-//     #[inline]
-//     fn from(coord: GlobalCoord) -> Self {
-//         Self::new(coord.x as f32, coord.y as f32, coord.z as f32)
-//     }
-// }
+impl From<GlobalCoord> for Coord {
+    #[inline]
+    fn from(coord: GlobalCoord) -> Self {
+        Self::new(coord.x as f32, coord.y as f32, coord.z as f32)
+    }
+}
 
 impl Add for Coord {
     type Output = Self;

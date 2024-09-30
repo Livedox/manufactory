@@ -2,6 +2,7 @@ use std::{collections::{HashMap, VecDeque}, future::IntoFuture, hash::Hash, os::
 use camera::frustum::Frustum;
 
 use client_engine::ClientEngine;
+use coords::{global_coord::GlobalCoord, local_coord::LocalCoord};
 use graphics_engine::{constants::{BLOCK_MIPMAP_COUNT, BLOCK_TEXTURE_SIZE}, player_mesh::PlayerMesh, raw_texture::RawTexture, resources::raw_resources::{Atlas, Blocks, RawResources}, state::{self, State}};
 
 use gui::gui_controller::GuiController;
@@ -13,7 +14,7 @@ use socket::client;
 use unsafe_mutex::UnsafeMutex;
 use world::{loader::WorldLoader};
 use crate::{content_loader::{indices::{load_animated_models, load_blocks_textures, load_models, GamePath, Indices}, ContentLoader}, save_load::Save, voxels::{block::block_test::test_serde_block}};
-use voxels::{live_voxels::{BoxDesiarializeLiveVoxel, BoxNewLiveVoxel, DesiarializeLiveVoxel, NewLiveVoxel}, new_chunk::LocalCoord, new_chunks::{Chunks, GlobalCoord}};
+use voxels::{live_voxels::{BoxDesiarializeLiveVoxel, BoxNewLiveVoxel, DesiarializeLiveVoxel, NewLiveVoxel}, chunks::{Chunks}};
 
 use winit::{
     dpi::PhysicalSize, event::*, event_loop::{EventLoop, EventLoopWindowTarget}, window::{Fullscreen, WindowBuilder}

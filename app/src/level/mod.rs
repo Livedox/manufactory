@@ -1,6 +1,6 @@
 use std::{path::PathBuf, sync::{Arc, Mutex, Condvar, mpsc::{Sender, Receiver}}};
 use graphics_engine::{mesh::Mesh, state::{State}};
-use crate::{voxels::new_chunks::{ChunkCoord, GlobalCoord, WORLD_HEIGHT}, Indices};
+use crate::{coords::{chunk_coord::ChunkCoord, global_coord::GlobalCoord}, voxels::chunks::WORLD_HEIGHT, Indices};
 use crate::{camera, content::Content, direction::Direction, graphic::{render::RenderResult, render_selection::render_selection}, gui::gui_controller::GuiController, input_event::{input_service::{InputService, Mouse}, KeypressState}, meshes::{Meshes, MeshesRenderInput}, my_time::Time, nalgebra_converter::Conventer, player::player::Player, recipes::{item::Item, storage::Storage}, save_load::WorldSaver, setting::Setting, threads::{save::SaveState, Threads}, unsafe_mutex::UnsafeMutex, voxels::{ray_cast::ray_cast}, world::{sun::{Color, Sun}, World}, CAMERA_FAR, CAMERA_FOV, CAMERA_NEAR};
 use nalgebra_glm as glm;
 
@@ -172,7 +172,6 @@ impl Level {
         // }
 
             while let Ok(result) = self.render_recv.try_recv() {
-                println!("cc: {:?}", result.coord);
                 self.meshes.render(MeshesRenderInput {
                     state: &state,
                     render_result: result,
