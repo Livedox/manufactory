@@ -87,7 +87,6 @@ const NEIGHBOURS: [GlobalCoord; 6] = [
 pub struct LightSolver {
     add_queue: LightQueue,
     remove_queue: LightQueue,
-    channel: usize,
 }
 
 unsafe impl Send for LightSolver {}
@@ -96,11 +95,10 @@ unsafe impl Sync for LightSolver {}
 impl LightSolver {
     /// Safety
     /// If in any way the amount of light exceeds the capacity, we are fucked.
-    pub fn new(channel: usize, add_queue_cap: usize, remove_queue_cap: usize) -> LightSolver {
+    pub fn new(add_queue_cap: usize, remove_queue_cap: usize) -> LightSolver {
         LightSolver {
             add_queue: LightQueue::new(add_queue_cap),
-            remove_queue: LightQueue::new(remove_queue_cap),
-            channel
+            remove_queue: LightQueue::new(remove_queue_cap)
         }
     }
 
@@ -109,9 +107,7 @@ impl LightSolver {
         self.add_queue.push(LightEntry::new(gc, Light::new(0, 0, 0, Light::MAX)));
     }
 
-    #[inline(never)]
     pub fn add_with_emission(&self, chunks: &Chunks, gc: GlobalCoord, light: Light) {
-        // println!("1");
         if light.all_le_one() {return};
         if gc.y < 0 || gc.y >= WORLD_BLOCK_HEIGHT as i32 {return};
         let Some(chunk) = chunks.chunk(gc.into()) else {return};
@@ -120,11 +116,9 @@ impl LightSolver {
         let local = LocalCoord::from(gc);
         chunk.light_map()[local].set_light(light.clone());
         chunk.modify(true);
-        // println!("Light: {:?}", light);
         self.add_queue.push(entry);
     }
 
-    #[inline(never)]
     pub fn add(&self, chunks: &Chunks, gc: GlobalCoord) {
         let light = chunks.get_light(gc);
         self.add_with_emission(chunks, gc, light);
@@ -183,13 +177,13 @@ impl LightSolver {
                 let Some(chunk) = chunks.chunk(entry.coords.into()) else {continue};
                 let index = LocalCoord::from(entry.coords).index();
 
-                entry.light = unsafe {chunk.lightmap.0[index].clone()};
+                entry.light = chunk.lightmap.0[index].clone();
 
                 let new = entry.light.zero_if_equal_elements(pvsub.clone());
 
                 if entry.light.to_number() != 0 && entry.light != new {
                     self.remove_queue.push(entry.clone());
-                    unsafe {chunk.lightmap.0[index].set_light(new)};
+                    chunk.lightmap.0[index].set_light(new);
                     chunk.modify(true);
                 } else if entry.light.has_greater_element(pvsub.clone()) {
                     self.add_queue.push(entry.clone());
@@ -198,12 +192,13 @@ impl LightSolver {
         }
     }
 
-    //DELETE
-    #[inline(never)]
     fn solve_add_queue(&self, chunks: &Chunks, content: &Content) {
+        // Optimize this function in the region of 50%-70%,
+        // because the light is mostly in one chunk,
+        // and access to the hash table is long.
         let mut chunk_buffer: (ChunkCoord, MaybeUninit<&Arc<Chunk>>) =
             (ChunkCoord::new(i32::MAX, i32::MAX), MaybeUninit::uninit());
-        // let mut c = ChunkBuffer::default();
+
         while let Some(mut entry) = self.add_queue.pop() {
             if entry.light.all_le_one() {continue};
             entry.light = entry.light.saturated_sub_one();
@@ -221,8 +216,6 @@ impl LightSolver {
                     chunk_buffer.1.write(chunk);
                     chunk
                 };
-                // let Some(chunk) = (unsafe {c.get_or_init(chunks, entry.coords)}) else {continue};
-                // let Some(chunk) = chunks.chunk(entry.coords.into()) else {continue};
 
                 let index = LocalCoord::from(entry.coords).index();
                 let light = unsafe {chunk.light_map().0.get_unchecked(index)};

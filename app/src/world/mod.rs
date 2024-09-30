@@ -25,8 +25,8 @@ impl World {
         }
     }
 
-    pub fn solve_rgbs(&self) {
-        self.light.solve_rgbs(&self.chunks);
+    pub fn solve(&self) {
+        self.light.solve(&self.chunks);
     }
 
     pub fn load_column_of_chunks(&self, regions: &WorldRegions, cx: i32, cz: i32) {
@@ -38,7 +38,7 @@ impl World {
         let chunks = unsafe {&mut *self.chunks.chunks.get()};
         chunks.insert((cx, cz).into(), Arc::new(chunk));
         self.build_chunk(cx, cz);
-        self.solve_rgbs();
+        self.solve();
         println!("Load column: {:?}", start.elapsed().as_secs_f32());
     }
 
