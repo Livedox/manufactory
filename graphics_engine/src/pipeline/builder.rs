@@ -1,4 +1,4 @@
-use wgpu::PipelineCompilationOptions;
+use wgpu::{PipelineCache, PipelineCompilationOptions};
 
 use crate::constants::DEPTH_FORMAT;
 
@@ -153,6 +153,7 @@ impl<'a> PipelineBuilder<'a> {
                 alpha_to_coverage_enabled: false,
             },
             multiview: None,
+            cache: None,
         })
     }
 }

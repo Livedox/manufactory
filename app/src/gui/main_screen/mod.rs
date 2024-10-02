@@ -1,7 +1,7 @@
 
 
 use egui::{vec2, Align2};
-use winit::event_loop::{EventLoopWindowTarget};
+use winit::event_loop::{ActiveEventLoop};
 use crate::{world::loader::{WorldLoader}, setting::Setting, level::Level};
 use crate::Indices;
 use self::worlds::{draw_world_display, WorldCreator};
@@ -24,7 +24,7 @@ impl MainScreen {
     pub fn draw(
       &mut self, 
       ctx: &egui::Context,
-      window_target: &EventLoopWindowTarget<()>,
+      window_target: &ActiveEventLoop,
       worlds: &mut WorldLoader,
       setting: &mut Setting,
       level: &mut Option<Level>,
@@ -35,7 +35,7 @@ impl MainScreen {
         self.draw_worlds(ctx, worlds, level, setting, indices);
     }
 
-    fn draw_main_screen(&mut self, ctx: &egui::Context, window_target: &EventLoopWindowTarget<()>, is_setting: &mut bool) {
+    fn draw_main_screen(&mut self, ctx: &egui::Context, window_target: &ActiveEventLoop, is_setting: &mut bool) {
         if self.is_worlds || *is_setting {return};
         egui::Area::new("MainScreen".into())
             .anchor(Align2::CENTER_CENTER, [0.0, 0.0])

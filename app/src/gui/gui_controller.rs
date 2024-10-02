@@ -1,7 +1,7 @@
 use std::{borrow::BorrowMut, sync::Arc};
 
 use egui::{epaint::Shadow, vec2, Align, Align2, Color32, Context, Margin, RichText, Rounding};
-use winit::{window::Window, dpi::PhysicalPosition, event_loop::{EventLoopWindowTarget}};
+use winit::{dpi::PhysicalPosition, event_loop::{ActiveEventLoop}, window::Window};
 use graphics_engine::{texture::TextureAtlas};
 
 use crate::{level::Level, player::player::Player, recipes::{recipes::RECIPES, storage::Storage}, save_load::SettingSave, setting::Setting, world::loader::WorldLoader, Indices};
@@ -68,7 +68,7 @@ impl GuiController {
     pub fn draw_main_screen(
         &mut self,
         ctx: &Context,
-        window_target: &EventLoopWindowTarget<()>,
+        window_target: &ActiveEventLoop,
         world_loader: &mut WorldLoader,
         setting: &mut Setting,
         level: &mut Option<Level>,

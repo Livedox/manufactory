@@ -1,4 +1,5 @@
 use std::{collections::{HashMap, VecDeque}, future::IntoFuture, hash::Hash, os::raw, path::Path, sync::{atomic::AtomicBool, Arc}, time::{Duration, Instant}};
+use app::App;
 use camera::frustum::Frustum;
 
 use client_engine::ClientEngine;
@@ -17,11 +18,11 @@ use crate::{content_loader::{indices::{load_animated_models, load_blocks_texture
 use voxels::{live_voxels::{BoxDesiarializeLiveVoxel, BoxNewLiveVoxel, DesiarializeLiveVoxel, NewLiveVoxel}, chunks::{Chunks}};
 
 use winit::{
-    dpi::PhysicalSize, event::*, event_loop::{EventLoop, EventLoopWindowTarget}, window::{Fullscreen, WindowBuilder}
+    dpi::PhysicalSize, event::*, event_loop::EventLoop, window::{Fullscreen, Window, WindowAttributes}
 };
 use itertools::{iproduct, Itertools};
 
-use crate::{input_event::input_service::{Key}, my_time::Timer};
+use crate::{input_event::input_service::{Key}};
 use nalgebra_glm as glm;
 pub use graphics_engine;
 
@@ -52,6 +53,7 @@ pub mod socket;
 pub mod server_engine;
 pub mod common;
 pub mod client_engine;
+pub mod app;
 
 const _GAME_VERSION: u32 = 1;
 
@@ -137,160 +139,193 @@ pub fn run_server() {
     h.join().unwrap();
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Timer {
+    Tick,
+    Second,
+    Minute,
+}
+
 pub async fn run() {
-    let mut world_loader = WorldLoader::new(Path::new("./data/worlds/"));
-    println!("acd");
-    let mut client_engine = ClientEngine::start().await;
-    println!("acsddxdd");
-    let (raw_resources, indices) = load_raw_resources();
-    let save = Save::new("./data/worlds/debug/", "./data/");
-    let mut setting = save.setting.load().unwrap_or_default();
-    save.setting.save(&setting);
+    // println!("{:?}", rayon::max_num_threads());
+    // let mut world_loader = WorldLoader::new(Path::new("./data/worlds/"));
+    // println!("acd");
+    // let mut client_engine = ClientEngine::start().await;
+    // println!("acsddxdd");
+    // let (raw_resources, indices) = load_raw_resources();
+    // let save = Save::new("./data/worlds/debug/", "./data/");
+    // let mut setting = save.setting.load().unwrap_or_default();
+    // save.setting.save(&setting);
 
-    let mut debug_block_id = None;
-
-    let event_loop = EventLoop::new().expect("Failed to create event loop");
-    let window = Arc::new(WindowBuilder::new()
-        .with_title("Manufactory")
-        .with_inner_size(PhysicalSize::new(1150u32, 700u32))
-        .build(&event_loop)
-        .unwrap());
+    // let mut debug_block_id = None;
+    let event_loop = EventLoop::<Timer>::with_user_event().build().expect("Failed to create event loop");
+    let proxy_tick = event_loop.create_proxy();
+    let proxy_second = event_loop.create_proxy();
+    let proxy_minute = event_loop.create_proxy();
+    tokio::task::spawn(async move {
+        let mut tick = tokio::time::interval(Duration::from_secs_f32(1.0 / 20.0));
+        loop {
+            tick.tick().await;
+            proxy_tick.send_event(Timer::Tick).unwrap();
+        }
+    });
+    tokio::task::spawn(async move {
+        let mut second = tokio::time::interval(Duration::from_secs(1));
+        loop {
+            second.tick().await;
+            proxy_second.send_event(Timer::Second).unwrap();
+        }
+    });
+    tokio::task::spawn(async move {
+        let mut minute = tokio::time::interval(Duration::from_secs(60));
+        loop {
+            minute.tick().await;
+            proxy_minute.send_event(Timer::Minute).unwrap();
+        }
+    });
+    let mut app = App::new().await;
+    event_loop.run_app(&mut app).expect("run app error");
+    // // let window = Arc::new(Window::default_attributes()
+    // //     .with_title("Manufactory")
+    // //     .with_inner_size(PhysicalSize::new(1150u32, 700u32))
+    // //     .build(&event_loop)
+    // //     .unwrap());
         
-    let mut input = input_event::input_service::InputService::new();
-    let mut time = my_time::Time::new();
+    // let mut input = input_event::input_service::InputService::new();
+    // let mut time = my_time::Time::new();
 
-    let mut level: Option<Level> = None;
-    let mut exit_level = false;
-    let mut state = state::State::new(
-        window.clone(),
-        &setting.graphic,
-        raw_resources).await;
-    let mut gui_controller = GuiController::new(window, state.resources().clone_atlas());
-    // load_complex_object("transport_belt.json", &state.indices);
-    let mut timer_16ms = Timer::new(Duration::from_millis(16));
-    let mut fps = Instant::now();
-    let mut fps_queue = VecDeque::from([0.0; 10]);
-    let mut redraw = |target: &EventLoopWindowTarget<()>, input: &mut InputService, state: &mut State| {
-        if exit_level {
-            level = None;
-            exit_level = false;
-        };
+    // let mut level: Option<Level> = None;
+    // let mut exit_level = false;
+    // let mut state = state::State::new(
+    //     window.clone(),
+    //     &setting.graphic,
+    //     raw_resources).await;
+    // let mut gui_controller = GuiController::new(window, state.resources().clone_atlas());
+    // // load_complex_object("transport_belt.json", &state.indices);
+    // let mut timer_16ms = Timer::new(Duration::from_millis(16));
+    // let mut fps = Instant::now();
+    // let mut fps_queue = VecDeque::from([0.0; 10]);
+    // let mut redraw = |target: &EventLoopWindowTarget<()>, input: &mut InputService, state: &mut State| {
+    //     if exit_level {
+    //         level = None;
+    //         exit_level = false;
+    //     };
 
-        let mut debug_data = String::new();
-        client_engine.player().handle_input(input, time.delta(), false);
-        let mesh_vec = if let Some(level) = &mut level {
-            let result = level.update(
-                &input,
-                &time,
-                state,
-                &mut gui_controller,
-                &mut debug_block_id,
-                setting.render_radius,
-                &client_engine.player()
-            );
-            let player = client_engine.player();
-            debug_data += &format!("{:?}", player.camera().position_tuple());
-            state.update_camera(&player.camera().proj_view(state.size.width as f32, state.size.height as f32).into());
-            let (sun, sky) = level.sun.sun_sky();
-            state.set_sun_color(sun.into());
-            state.set_clear_color(sky.into());
-            // println!("Chunks: {}", unsafe {&*level.world.chunks.chunks.get()}.len());
-            if input.is_key(&Key::KeyE, KeypressState::AnyJustPress) {
-                gui_controller.set_cursor_lock(player.is_inventory);
-                state.set_ui_interaction(player.is_inventory);
-            }
-            result
-        } else {vec![]};
-        client_engine.tick();
+    //     let mut debug_data = String::new();
+    //     client_engine.player().handle_input(input, time.delta(), false);
+    //     let mesh_vec = if let Some(level) = &mut level {
+    //         let result = level.update(
+    //             &input,
+    //             &time,
+    //             state,
+    //             &mut gui_controller,
+    //             &mut debug_block_id,
+    //             setting.render_radius,
+    //             &client_engine.player()
+    //         );
+    //         let player = client_engine.player();
+    //         debug_data += &format!("{:?}", player.camera().position_tuple());
+    //         state.update_camera(&player.camera().proj_view(state.size.width as f32, state.size.height as f32).into());
+    //         let (sun, sky) = level.sun.sun_sky();
+    //         state.set_sun_color(sun.into());
+    //         state.set_clear_color(sky.into());
+    //         // println!("Chunks: {}", unsafe {&*level.world.chunks.chunks.get()}.len());
+    //         if input.is_key(&Key::KeyE, KeypressState::AnyJustPress) {
+    //             gui_controller.set_cursor_lock(player.is_inventory);
+    //             state.set_ui_interaction(player.is_inventory);
+    //         }
+    //         result
+    //     } else {vec![]};
+    //     client_engine.tick();
         
-        time.update();
-        state.update_time(time.current());
+    //     time.update();
+    //     state.update_time(time.current());
 
-        gui_controller.update_cursor_lock();
+    //     gui_controller.update_cursor_lock();
 
-        fps_queue.push_back(1.0/fps.elapsed().as_secs_f32());
-        debug_data += &(fps_queue.iter().sum::<f32>() / fps_queue.len() as f32).floor().to_string();
-        fps_queue.pop_front();
-        fps = Instant::now();
+    //     fps_queue.push_back(1.0/fps.elapsed().as_secs_f32());
+    //     debug_data += &(fps_queue.iter().sum::<f32>() / fps_queue.len() as f32).floor().to_string();
+    //     fps_queue.pop_front();
+    //     fps = Instant::now();
 
-        if input.is_key(&Key::F1, KeypressState::AnyJustPress) {
-            gui_controller.toggle_ui();
-            state.set_crosshair(gui_controller.is_ui());
-        }
+    //     if input.is_key(&Key::F1, KeypressState::AnyJustPress) {
+    //         gui_controller.toggle_ui();
+    //         state.set_crosshair(gui_controller.is_ui());
+    //     }
         
-        if input.is_key(&Key::F11, KeypressState::AnyJustPress) {
-            let window = state.window();
-            if window.fullscreen().is_some() {
-                window.set_fullscreen(None);
-            } else {
-                window.set_fullscreen(Some(Fullscreen::Borderless(None)));
-            }
-        }
+    //     if input.is_key(&Key::F11, KeypressState::AnyJustPress) {
+    //         let window = state.window();
+    //         if window.fullscreen().is_some() {
+    //             window.set_fullscreen(None);
+    //         } else {
+    //             window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+    //         }
+    //     }
 
-        if input.is_key(&Key::F6, KeypressState::AnyJustPress) {
-            println!("{:?}", level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(0, 0, 0)));
-            println!("{:?}", level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(1, 1, 1)));
-            println!("{:?}", level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(33, 1, 33)));
-            for chunk in unsafe {&*level.as_ref().unwrap().world.chunks.chunks.get()}.values() {
-                println!("{:?}", chunk.coord);
-                println!("{:?}", chunk.voxels().get(LocalCoord::new(0, 0, 0)));
-            }
-        }
+    //     if input.is_key(&Key::F6, KeypressState::AnyJustPress) {
+    //         println!("{:?}", level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(0, 0, 0)));
+    //         println!("{:?}", level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(1, 1, 1)));
+    //         println!("{:?}", level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(33, 1, 33)));
+    //         for chunk in unsafe {&*level.as_ref().unwrap().world.chunks.chunks.get()}.values() {
+    //             println!("{:?}", chunk.coord);
+    //             println!("{:?}", chunk.voxels().get(LocalCoord::new(0, 0, 0)));
+    //         }
+    //     }
 
-        if input.is_key(&Key::Escape, KeypressState::AnyJustPress) {
-            gui_controller.toggle_menu();
-            gui_controller.set_cursor_lock(gui_controller.is_menu);
-            state.set_ui_interaction(gui_controller.is_menu);
-        }
+    //     if input.is_key(&Key::Escape, KeypressState::AnyJustPress) {
+    //         gui_controller.toggle_menu();
+    //         gui_controller.set_cursor_lock(gui_controller.is_menu);
+    //         state.set_ui_interaction(gui_controller.is_menu);
+    //     }
 
-        let players_mesh: Vec<PlayerMesh> = client_engine.positions().into_iter()
-            .map(|pp| PlayerMesh::new(&state, pp)).collect();
-        match state.render(&mesh_vec, &players_mesh, |ctx| {
-            if let Some(l) = &level {
-                let mut player = unsafe {l.player.lock_unsafe()}.unwrap();
-                gui_controller
-                    .draw_inventory(ctx, &mut player)
-                    .draw_debug(ctx, &debug_data, &mut debug_block_id)
-                    .draw_active_recieps(ctx, &mut player);
+    //     let players_mesh: Vec<PlayerMesh> = client_engine.positions().into_iter()
+    //         .map(|pp| PlayerMesh::new(&state, pp)).collect();
+    //     match state.render(&mesh_vec, &players_mesh, |ctx| {
+    //         if let Some(l) = &level {
+    //             let mut player = unsafe {l.player.lock_unsafe()}.unwrap();
+    //             gui_controller
+    //                 .draw_inventory(ctx, &mut player)
+    //                 .draw_debug(ctx, &debug_data, &mut debug_block_id)
+    //                 .draw_active_recieps(ctx, &mut player);
 
-                drop(player);
-                gui_controller.draw_in_game_menu(ctx, &mut exit_level);
-            } else {
-                gui_controller
-                    .draw_main_screen(ctx, target, &mut world_loader, &mut setting, &mut level, &indices);
-            }
+    //             drop(player);
+    //             gui_controller.draw_in_game_menu(ctx, &mut exit_level);
+    //         } else {
+    //             gui_controller
+    //                 .draw_main_screen(ctx, target, &mut world_loader, &mut setting, &mut level, &indices);
+    //         }
 
-            gui_controller.draw_setting(ctx, &mut setting, &save.setting);
-        }) {
-            Ok(_) => {}
-            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                state.resize(state.size)
-            }
-            Err(wgpu::SurfaceError::OutOfMemory) => target.exit(),
-            Err(wgpu::SurfaceError::Timeout) => eprintln!("Surface timeout"),
-        }
-        input.update();
-        state.window().request_redraw();
-    };
+    //         gui_controller.draw_setting(ctx, &mut setting, &save.setting);
+    //     }) {
+    //         Ok(_) => {}
+    //         Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+    //             state.resize(state.size)
+    //         }
+    //         Err(wgpu::SurfaceError::OutOfMemory) => target.exit(),
+    //         Err(wgpu::SurfaceError::Timeout) => eprintln!("Surface timeout"),
+    //     }
+    //     input.update();
+    //     state.window().request_redraw();
+    // };
 
-    event_loop.run(move |event, target| {
-        state.handle_event(&event);
-        input.handle_event(&event);
-        if timer_16ms.check() {
-            input.update_delta_mouse();
-        }
-        match event {
-            Event::WindowEvent {
-                ref event,
-                window_id,
-            } if window_id == state.window().id() => {
-                match event {
-                    WindowEvent::CloseRequested => target.exit(),
-                    WindowEvent::RedrawRequested => { redraw(target, &mut input, &mut state) }
-                    _ => {}
-                }
-            }
-            _ => {}
-        }
-    }).expect("Failed to run event loop!");
+    // event_loop.run(move |event, target| {
+    //     state.handle_event(&event);
+    //     input.handle_event(&event);
+    //     if timer_16ms.check() {
+    //         input.update_delta_mouse();
+    //     }
+    //     match event {
+    //         Event::WindowEvent {
+    //             ref event,
+    //             window_id,
+    //         } if window_id == state.window().id() => {
+    //             match event {
+    //                 WindowEvent::CloseRequested => target.exit(),
+    //                 WindowEvent::RedrawRequested => { redraw(target, &mut input, &mut state) }
+    //                 _ => {}
+    //             }
+    //         }
+    //         _ => {}
+    //     }
+    // }).expect("Failed to run event loop!");
 }

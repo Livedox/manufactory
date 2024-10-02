@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::OnceLock};
 
-use crate::{coords::global_coord::GlobalCoord, direction::Direction, player::player::Player, recipes::{item::Item, storage::Storage}, world::World};
+use crate::{coords::global_coord::GlobalCoord, direction::Direction, light::light_solvers::{self, LightSolvers}, player::player::Player, recipes::{item::Item, storage::Storage}, world::World};
 
 use super::block_test::BlockBase;
 
@@ -17,7 +17,8 @@ pub fn on_break(_base: &BlockBase, world: &World, _player: &mut Player, xyz: &Gl
 pub fn on_set(base: &BlockBase, world: &World, _player: &mut Player, xyz: &GlobalCoord, dir: &Direction) -> bool {
     if world.voxel(xyz).map(|v| v.id == 0).unwrap_or(true) {
         world.chunks.set_block(*xyz, base.id, Some(dir));
-        world.light.on_block_set(&world.chunks, xyz.x, xyz.y, xyz.z, base.id);
+        let mut light_solvers = LightSolvers::new(&world.chunks.content);
+        light_solvers.on_block_set(&world.chunks, xyz.x, xyz.y, xyz.z, base.id);
         return true;
     }
     false
@@ -25,8 +26,9 @@ pub fn on_set(base: &BlockBase, world: &World, _player: &mut Player, xyz: &Globa
 
 pub fn on_multiblock_break(_base: &BlockBase, world: &World, _player: &mut Player, xyz: &GlobalCoord, _dir: &Direction) -> bool {
     if let Some(xyz) = world.chunks.remove_multiblock_structure(*xyz) {
+        let mut light_solvers = LightSolvers::new(&world.chunks.content);
         xyz.iter().for_each(|c| {
-            world.light.on_block_break(&world.chunks, c.x, c.y, c.z);
+            light_solvers.on_block_break(&world.chunks, c.x, c.y, c.z);
         });
     };
     true
@@ -47,8 +49,9 @@ pub fn on_multiblock_set(base: &BlockBase, world: &World, _player: &mut Player, 
     let coords = world.chunks
         .add_multiblock_structure(xyz, width, base.height as i32, depth, base.id, dir);
     if let Some(coords) = coords {
+        let mut light_solvers = LightSolvers::new(&world.chunks.content);
         coords.iter().for_each(|c| {
-            world.light.on_block_set(&world.chunks, c.x, c.y, c.z, base.id);
+            light_solvers.on_block_set(&world.chunks, c.x, c.y, c.z, base.id);
         });
         return true;
     }

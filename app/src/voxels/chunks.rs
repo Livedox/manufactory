@@ -94,8 +94,6 @@ impl Chunks {
         }
     }
 
-    // UPDATE
-    #[inline(never)]
     pub fn chunk(&self, cc: ChunkCoord) -> Option<&Arc<Chunk>> {
         let lock = unsafe {&mut *self.chunks.get()};
         lock.get(&cc)

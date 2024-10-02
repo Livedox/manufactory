@@ -7,15 +7,15 @@ edition = "2021"
 
 [dependencies]
 nalgebra-glm = { version = "0.18.0", features = ["convert-bytemuck"] }
-wgpu-core = "=0.21.1"
-wgpu-types = { version = "=0.20.0", features = ["serde"]}
-wgpu = "=0.20.1"
+wgpu-core = "=22.1.0"
+wgpu-types = { version = "=22.0.0", features = ["serde"]}
+wgpu = "=22.1.0"
 
-winit = "0.29"
+winit = "0.30.5"
 bytemuck = { version = "1.14", features = ["derive"] }
 itertools = "0.11.0"
 serde = "1"
 
-egui-winit = "0.28.0"
-egui-wgpu = "0.28"
-egui = { version = "0.28", features = ["color-hex"]}
+egui-winit = "0.29.0"
+egui-wgpu = "0.29"
+egui = { version = "0.29", features = ["color-hex"]}

@@ -42,39 +42,43 @@ impl InputService {
 
     pub fn update(&mut self) {
         self.input_broker.update();
+        self.update_delta_mouse();
     }
 
     pub fn wheel(&self) -> i8 {
         self.input_broker.wheel()
     }
 
-    pub fn handle_event(&mut self, event: &Event<()>) {
+    pub fn handle_window_event(&mut self, event: &winit::event::WindowEvent) {
         match event {
-            Event::WindowEvent { event, .. } => {
-                match event {
-                    WindowEvent::MouseInput { state, button, .. } => {
-                        let is_press = *state == ElementState::Pressed;
-                        self.input_broker.press(Self::to_mouse_id(button), is_press);
-                    }
-                    WindowEvent::KeyboardInput { event, .. } => {
-                        if let winit::keyboard::PhysicalKey::Code(code) = event.physical_key {
-                            let is_press = event.state == ElementState::Pressed;
-                            let id = code as usize + InputOffset::Key as usize;
-                            self.input_broker.press(id, is_press);
-                        }
-                    },
-                    WindowEvent::CursorMoved { position, .. } => {
-                        self.input_broker.set_coords(position.x as f32, position.y as f32);
-                    },
-                    WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, y), .. } => {
-                        self.input_broker.set_wheel(*y as i8);
-                    },
-                    _ => {}
-            }}
-            Event::DeviceEvent { event: DeviceEvent::MouseMotion { delta }, .. } => {
-                self.input_broker.set_delta(delta.0 as f32, delta.1 as f32);
+            WindowEvent::MouseInput { state, button, .. } => {
+                let is_press = *state == ElementState::Pressed;
+                self.input_broker.press(Self::to_mouse_id(button), is_press);
             }
+            WindowEvent::KeyboardInput { event, .. } => {
+                if let winit::keyboard::PhysicalKey::Code(code) = event.physical_key {
+                    let is_press = event.state == ElementState::Pressed;
+                    let id = code as usize + InputOffset::Key as usize;
+                    self.input_broker.press(id, is_press);
+                }
+            },
+            WindowEvent::CursorMoved { position, .. } => {
+                self.input_broker.set_coords(position.x as f32, position.y as f32);
+            },
+            WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, y), .. } => {
+                self.input_broker.set_wheel(*y as i8);
+            },
             _ => {}
+        }
+    }
+
+    pub fn handle_device_event(&mut self, event: winit::event::DeviceEvent) {
+        match event {
+            DeviceEvent::MouseMotion { delta } => {
+                println!("{:?}", delta);
+                self.input_broker.set_delta(delta.0 as f32, delta.1 as f32);
+            },
+            _ => {},
         }
     }
 }

@@ -1,5 +1,7 @@
+use std::time::Duration;
 use std::{collections::HashMap, iter, path::Path, sync::Arc, time::Instant};
 use itertools::Itertools;
+use wgpu::rwh::{HasDisplayHandle, HasWindowHandle};
 use wgpu::{util::DeviceExt, TextureFormat, TextureFormatFeatureFlags, Adapter};
 use winit::window::Window;
 use crate::bind_group::block_texture;
@@ -88,6 +90,7 @@ async fn request_device(adapter: &Adapter) -> Result<(wgpu::Device, wgpu::Queue)
             } else {
                 wgpu::Limits::default()
             },
+            memory_hints: wgpu::MemoryHints::Performance,
         },
         None,
     ).await
@@ -126,15 +129,16 @@ pub struct State<'a> {
 
 impl<'a> State<'a> {
     pub async fn new(
-        window: Arc<Window>,
+        window: Window,
         setting: &GraphicSetting,
         raw_resources: RawResources,
     ) -> Self {
+        let window = Arc::new(window);
         let size = window.inner_size();
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
+            backends: wgpu::Backends::PRIMARY,
             ..Default::default()
         });
         
@@ -142,7 +146,9 @@ impl<'a> State<'a> {
             println!("{:?} {:?} {:?}", i.get_info().device_type, i.get_info().name, i.get_info().backend);
         }
         
-        let surface = instance.create_surface(Arc::clone(&window)).unwrap();
+        println!("{:?}", window.display_handle());
+        println!("{:?}", window.window_handle());
+        let surface = instance.create_surface(window.clone()).unwrap();
 
         let power_preference = wgpu::PowerPreference::HighPerformance;
         let adapter = request_adapter(&instance, &surface, power_preference, setting)
@@ -246,7 +252,7 @@ impl<'a> State<'a> {
         }
     }
 
-    pub fn window(&self) -> &Window {
+    pub fn window(&self) -> &Arc<Window> {
         &self.window
     }
 
@@ -328,7 +334,7 @@ impl<'a> State<'a> {
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
-        });
+        }).forget_lifetime();
         egui_renderer.render(&mut render_pass);
         drop(render_pass);
         // self.egui.end(&mut encoder, &self.device, &self.queue, &view);
@@ -391,17 +397,10 @@ impl<'a> State<'a> {
         }
     }
 
-    pub fn handle_event(&mut self, event: &winit::event::Event<()>) {
-        match event {
-            winit::event::Event::WindowEvent {
-                ref event, window_id
-            } if *window_id == self.window.id() => {
-                let _ = self.egui.state().on_window_event(self.window.as_ref(), event);
-                if let winit::event::WindowEvent::Resized(physical_size) = event {
-                    self.resize(*physical_size);
-                }
-            }
-            _ => {}
+    pub fn handle_event(&mut self, event: &winit::event::WindowEvent) {
+        let _ = self.egui.state().on_window_event(self.window.as_ref(), event);
+        if let winit::event::WindowEvent::Resized(physical_size) = event {
+            self.resize(*physical_size);
         }
     }
 }

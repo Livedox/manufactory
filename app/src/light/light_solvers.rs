@@ -17,19 +17,23 @@ pub const ADD_QUEUE_CAP: usize = 262_144;
 pub const REMOVE_QUEUE_CAP: usize = 131_072;
 
 #[derive(Debug)]
-pub struct LightSolvers {
-    content: Arc<Content>,
+pub struct LightSolvers<'content> {
+    content: &'content Content,
     solver: LightSolver,
 }
 
 
-impl LightSolvers {
-    pub fn new(add_queue_cap: usize, remove_queue_cap: usize, content: Arc<Content>) -> Self {Self {
+impl<'content> LightSolvers<'content> {
+    pub fn new(content: &'content Content) -> Self {
+        Self {content, solver: LightSolver::new()}
+    }
+
+    pub fn with_capacity<'cont>(add_cap: usize, remove_cap: usize, content: &'content Content) -> Self {Self {
         content,
-        solver: LightSolver::new(add_queue_cap, remove_queue_cap),
+        solver: LightSolver::with_capacity(add_cap, remove_cap),
     }}
 
-    pub fn build_sky_light_chunk(&self, chunks: &Chunks, cx: i32, cz: i32) {
+    pub fn build_sky_light_chunk(&mut self, chunks: &Chunks, cx: i32, cz: i32) {
         let Some(chunk) = chunks.chunk(ChunkCoord::new(cx, cz)) else {return};
 
         for i in (CHUNK_VOLUME-CHUNK_SQUARE)..CHUNK_VOLUME {
@@ -53,7 +57,7 @@ impl LightSolvers {
     }
 
 
-    pub fn on_chunk_loaded(&self, chunks: &Chunks, cx: i32, cz: i32) {
+    pub fn on_chunk_loaded(&mut self, chunks: &Chunks, cx: i32, cz: i32) {
         let cc = ChunkCoord::new(cx, cz);
         let Some(chunk) = chunks.chunk(cc) else {return};
         for idx in 0..CHUNK_VOLUME {
@@ -70,7 +74,7 @@ impl LightSolvers {
     }
 
 
-    fn build_nearby_light(&self, chunks: &Chunks, cx: i32, cz: i32) {
+    fn build_nearby_light(&mut self, chunks: &Chunks, cx: i32, cz: i32) {
         for (ly, lz, lx) in iproduct!(0..WORLD_BLOCK_HEIGHT as i32, -1..=CHUNK_SIZE as i32, -1..=CHUNK_SIZE as i32) {
             if lx != -1 && lx != CHUNK_SIZE as i32
               && lz != -1 && lz != CHUNK_SIZE as i32
@@ -88,7 +92,7 @@ impl LightSolvers {
     }
 
 
-    pub fn on_block_break(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
+    pub fn on_block_break(&mut self, chunks: &Chunks, x: i32, y: i32, z: i32) {
         self.remove_rgb(chunks, x, y, z);
         self.solve(chunks);
         if chunks.get_sun((x, y+1, z).into()) == MAX_LIGHT || (y+1) as usize == WORLD_HEIGHT*CHUNK_SIZE {
@@ -104,7 +108,7 @@ impl LightSolvers {
     }
 
 
-    pub fn on_block_set(&self, chunks: &Chunks, x: i32, y: i32, z: i32, id: u32) {
+    pub fn on_block_set(&mut self, chunks: &Chunks, x: i32, y: i32, z: i32, id: u32) {
         let emission = self.content.blocks[id as usize].emission();
         self.remove_rgbs(chunks, x, y, z);
         self.solver.solve(chunks, &self.content);
@@ -122,27 +126,27 @@ impl LightSolvers {
     }
 
 
-    pub fn add_rgb(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
+    pub fn add_rgb(&mut self, chunks: &Chunks, x: i32, y: i32, z: i32) {
         self.solver.add(chunks, (x, y, z).into());
     }
 
-    pub fn add_rgbs(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
+    pub fn add_rgbs(&mut self, chunks: &Chunks, x: i32, y: i32, z: i32) {
         self.solver.add(chunks, (x, y, z).into());
     }
 
-    pub fn add_with_emission_rgb(&self, chunks: &Chunks, x: i32, y: i32, z: i32, emission: &[u8; 3]) {
+    pub fn add_with_emission_rgb(&mut self, chunks: &Chunks, x: i32, y: i32, z: i32, emission: &[u8; 3]) {
         self.solver.add_with_emission(chunks, (x, y, z).into(), Light::new(emission[0], emission[1], emission[2], 0));
     }
 
-    pub fn solve(&self, chunks: &Chunks) {
+    pub fn solve(&mut self, chunks: &Chunks) {
         self.solver.solve(chunks, &self.content);
     }
 
-    pub fn remove_rgb(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
+    pub fn remove_rgb(&mut self, chunks: &Chunks, x: i32, y: i32, z: i32) {
         self.solver.remove_rgb(chunks, (x, y, z).into());
     }
 
-    pub fn remove_rgbs(&self, chunks: &Chunks, x: i32, y: i32, z: i32) {
+    pub fn remove_rgbs(&mut self, chunks: &Chunks, x: i32, y: i32, z: i32) {
         self.solver.remove_all(chunks, (x, y, z).into());
     }
 }

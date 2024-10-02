@@ -13,7 +13,6 @@ const LIB_FORMAT: &'static str = if cfg!(target_os = "windows") {
     "module"
 };
 
-
 #[tokio::main]
 pub async fn main() {
     println!("{}", cfg!(target_endian = "little"));

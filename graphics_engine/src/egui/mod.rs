@@ -10,7 +10,7 @@ pub struct EguiRenderer<'a> {
 
 
 impl<'a> EguiRenderer<'a> {
-    pub fn render<'b>(&'b self, render_pass: &mut wgpu::RenderPass<'b>) {
+    pub fn render<'b>(&'b self, render_pass: &mut wgpu::RenderPass<'static>) {
         self.renderer.render(
             render_pass,
             &self.primitives,
@@ -33,7 +33,7 @@ pub struct Egui {
 
 impl Egui {
     pub fn new(device: &wgpu::Device, window: &Window, format: wgpu::TextureFormat, sample: u32) -> Self {
-        let renderer = egui_wgpu::Renderer::new(device, format, None, sample);
+        let renderer = egui_wgpu::Renderer::new(device, format, None, sample, true);
         let egui_ctx = egui::Context::default();
         egui_ctx.set_style(Style {
             visuals: Visuals {
@@ -47,7 +47,7 @@ impl Egui {
             ..Default::default()
         });
         let viewport_id = egui_ctx.viewport_id();
-        let state = egui_winit::State::new(egui_ctx, viewport_id, &window, None, None);
+        let state = egui_winit::State::new(egui_ctx, viewport_id, &window, None, None, None);
 
         Self { renderer, state }
     }
