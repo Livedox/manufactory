@@ -2,7 +2,7 @@ use std::{sync::Arc};
 
 use itertools::iproduct;
 
-use crate::{content::Content, coords::{chunk_coord::ChunkCoord, local_coord::LocalCoord}, voxels::{chunk::{CHUNK_SIZE, CHUNK_SQUARE, CHUNK_VOLUME}, chunks::{Chunks, WORLD_BLOCK_HEIGHT, WORLD_HEIGHT}}};
+use crate::{content::Content, coords::{chunk_coord::ChunkCoord, local_coord::LocalCoord}, voxels::{chunk::{Chunk, CHUNK_SIZE, CHUNK_SQUARE, CHUNK_VOLUME}, chunks::{Chunks, WORLD_BLOCK_HEIGHT, WORLD_HEIGHT}}};
 
 use super::{light::Light, light_solver::LightSolver};
 
@@ -64,8 +64,9 @@ impl<'content> LightSolvers<'content> {
             let id = unsafe {chunk.voxels().0.get_unchecked(idx)}.id() as usize;
             let emission = self.content.blocks[id].emission();
             if emission.iter().any(|e| *e > 0) {
-                let gc = cc.to_global(LocalCoord::from_index(idx));
-                self.add_with_emission_rgb(chunks, gc.x, gc.y, gc.z, emission);
+                let light = Light::new(emission[0], emission[1], emission[2], 0);
+                self.solver.add_with_emission_and_chunk(
+                    &chunk, LocalCoord::from_index(idx), light);
             }
         }
 
@@ -74,19 +75,35 @@ impl<'content> LightSolvers<'content> {
     }
 
 
+    #[inline(never)]
     fn build_nearby_light(&mut self, chunks: &Chunks, cx: i32, cz: i32) {
-        for (ly, lz, lx) in iproduct!(0..WORLD_BLOCK_HEIGHT as i32, -1..=CHUNK_SIZE as i32, -1..=CHUNK_SIZE as i32) {
-            if lx != -1 && lx != CHUNK_SIZE as i32
-              && lz != -1 && lz != CHUNK_SIZE as i32
-              && ly != -1 && ly != CHUNK_SIZE as i32 {
-                continue;
-            }
-            let x = cx*CHUNK_SIZE as i32 + lx;
-            let y = ly;
-            let z = cz*CHUNK_SIZE as i32 + lz;
-            if chunks.get_light((x, y, z).into()).to_number() > 0 {
-                self.add_rgbs(chunks, x, y, z);
-            }
+        let buffer: [Option<Arc<Chunk>>; 4] = [
+            chunks.chunk((cx - 1, cz).into()),
+            chunks.chunk((cx, cz - 1).into()),
+            chunks.chunk((cx + 1, cz).into()),
+            chunks.chunk((cx, cz + 1).into())
+        ];
+        for (ly, mut lz, mut lx) in iproduct!(0..WORLD_BLOCK_HEIGHT as i32, -1..=CHUNK_SIZE as i32, -1..=CHUNK_SIZE as i32) {
+            if lx == lz || (lx == -1 && lz == CHUNK_SIZE as i32) || (lx == CHUNK_SIZE as i32 && lz == -1) {continue};
+            let Some(chunk) = 
+                (if lx == -1 {
+                    lx = CHUNK_SIZE as i32 - 1;
+                    &buffer[0]
+                } else if lx == CHUNK_SIZE as i32 {
+                    lx = 0;
+                    &buffer[2]
+                } else if lz == -1 {
+                    lz = CHUNK_SIZE as i32 - 1;
+                    &buffer[1]
+                } else if lz == CHUNK_SIZE as i32 {
+                    lz = 0;
+                    &buffer[3]
+                } else {
+                    continue;
+                }) else {continue};
+
+            let lc = (lx as usize, ly as usize, lz as usize).into();
+            self.solver.add_with_chunk(chunk, lc);
             self.solve(chunks);
         }
     }

@@ -51,7 +51,7 @@ impl Meshes {
 
     pub fn update_transforms_buffer(&mut self, state: &State, world: &World, indices: &[ChunkCoord]) {
         indices.iter().for_each(|cc| {
-            let Some(chunk) = unsafe {&*world.chunks.chunks.get()}.get(&cc).cloned() else { return };
+            let Some(chunk) = world.chunks.chunks().get(&cc).cloned() else { return };
             let Some(mesh) = self.meshes().get(&cc) else {return};
             if chunk.live_voxels.is_empty() {return};
 

@@ -163,7 +163,7 @@ impl Level {
         // let indices = frustum(
         //     &self.world.chunks,
         //     &player.camera().new_frustum(state.size.width as f32/state.size.height as f32));
-        let v: Vec<ChunkCoord> = unsafe{ &*self.world.chunks.chunks.get()}.keys().cloned().collect();
+        let v: Vec<ChunkCoord> = self.world.chunks.chunks().keys().cloned().collect();
         self.meshes.update_transforms_buffer(state, &self.world, &v);
 
         // if let Ok(indices) = self.indices_recv.try_recv() {

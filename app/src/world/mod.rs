@@ -21,16 +21,15 @@ impl World {
         }
     }
 
-    pub fn load_column_of_chunks(&self, regions: &WorldRegions, cx: i32, cz: i32) {
-        let mut light = LightSolvers::new(&self.chunks.content);
+    #[inline(never)]
+    pub fn load_column_of_chunks(&self, regions: &WorldRegions, cx: i32, cz: i32, light: &mut LightSolvers) {
         let start = Instant::now();
         let chunk = match regions.chunk((cx, cz).into()) {
             None => Chunk::new(&self.generator, cx, cz),
             Some(EncodedChunk::Some(b)) => Chunk::decode_bytes(&self.chunks.content, &b),
         };
-        let chunks = unsafe {&mut *self.chunks.chunks.get()};
-        chunks.insert((cx, cz).into(), Arc::new(chunk));
-        self.build_chunk(&mut light, cx, cz);
+        self.chunks.chunks.write().unwrap().insert((cx, cz).into(), Arc::new(chunk));
+        self.build_chunk(light, cx, cz);
         light.solve(&self.chunks);
         println!("Load column: {:?}", start.elapsed().as_secs_f32());
     }

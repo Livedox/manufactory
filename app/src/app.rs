@@ -181,15 +181,15 @@ impl ApplicationHandler<crate::Timer> for App<'_> {
                         }
                     }
             
-                    if self.input.is_key(&Key::F6, KeypressState::AnyJustPress) {
-                        println!("{:?}", self.level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(0, 0, 0)));
-                        println!("{:?}", self.level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(1, 1, 1)));
-                        println!("{:?}", self.level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(33, 1, 33)));
-                        for chunk in unsafe {&*self.level.as_ref().unwrap().world.chunks.chunks.get()}.values() {
-                            println!("{:?}", chunk.coord);
-                            println!("{:?}", chunk.voxels().get(LocalCoord::new(0, 0, 0)));
-                        }
-                    }
+                    // if self.input.is_key(&Key::F6, KeypressState::AnyJustPress) {
+                    //     println!("{:?}", self.level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(0, 0, 0)));
+                    //     println!("{:?}", self.level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(1, 1, 1)));
+                    //     println!("{:?}", self.level.as_ref().unwrap().world.chunks.voxel_global(GlobalCoord::new(33, 1, 33)));
+                    //     for chunk in unsafe {&*self.level.as_ref().unwrap().world.chunks.chunks.get()}.values() {
+                    //         println!("{:?}", chunk.coord);
+                    //         println!("{:?}", chunk.voxels().get(LocalCoord::new(0, 0, 0)));
+                    //     }
+                    // }
             
                     if self.input.is_key(&Key::Escape, KeypressState::AnyJustPress) {
                         gui_controller.toggle_menu();

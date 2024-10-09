@@ -1,32 +1,66 @@
 use std::{cell::UnsafeCell, collections::VecDeque, i32, mem::MaybeUninit, ptr::null, sync::Arc};
 
 use chrono::offset;
+use itertools::Itertools;
 
-use crate::{content::Content, coords::{chunk_coord::ChunkCoord, global_coord::GlobalCoord, local_coord::LocalCoord}, voxels::{chunk::Chunk, chunks::{Chunks, WORLD_BLOCK_HEIGHT}}};
+use crate::{content::Content, coords::{chunk_coord::ChunkCoord, global_coord::GlobalCoord, local_coord::LocalCoord}, voxels::{chunk::{self, Chunk}, chunks::{Chunks, WORLD_BLOCK_HEIGHT}}};
 
 use super::light::Light;
 
-/// It's very unsafe, but very fast.
-/// May issue STATUS_HEAP_CORRUPTION during relocation.
-#[derive(Debug)]
-pub struct LightQueue(UnsafeCell<VecDeque<LightEntry>>);
+pub struct ChunkBuffer<const N: usize> {
+    coords: [ChunkCoord; N],
+    storage: [MaybeUninit<Arc<Chunk>>; N],
+    ind: usize,
+}
 
-impl LightQueue {
-    #[inline(always)]
-    /// Safety
-    /// If in any way the amount of light exceeds the capacity, we are fucked.
-    pub fn new(capacity: usize) -> LightQueue {
-        Self(UnsafeCell::new(VecDeque::<LightEntry>::with_capacity(capacity)))
+impl<const N: usize> ChunkBuffer<N> {
+    const FAKE_COORD: ChunkCoord = ChunkCoord::new(i32::MAX, i32::MAX);
+    const UNINIT: MaybeUninit<Arc<Chunk>> = MaybeUninit::uninit();
+    pub const fn new() -> Self {
+        Self {
+            coords: [Self::FAKE_COORD; N],
+            storage: [Self::UNINIT; N],
+            ind: N-1
+        }
+    }
+
+    pub fn with_chunks(coords: [Option<ChunkCoord>; N], chunks: [Option<Arc<Chunk>>; N]) -> Self {
+        let mut s = Self::new();
+        for (i, (cc, chunk)) in coords.into_iter().zip_eq(chunks.into_iter()).enumerate() {
+            if let Some(chunk) = chunk {
+                if let Some(cc) = cc {
+                    if cc == Self::FAKE_COORD {panic!("special meaning")}
+                    s.coords[i] = cc;
+                    s.storage[i].write(chunk);
+                }
+            }
+        }
+        s
     }
 
     #[inline(always)]
-    pub fn push(&self, light: LightEntry) {
-        unsafe {&mut *self.0.get()}.push_back(light);
+    pub fn find(&self, cc: ChunkCoord) -> Option<&Arc<Chunk>> {
+        self.coords.iter().position(|coord| *coord == cc)
+            .map(|ind| unsafe {self.storage.get_unchecked(ind).assume_init_ref()})
     }
 
-    #[inline(always)]
-    pub fn pop(&self) -> Option<LightEntry> {
-        unsafe {&mut *self.0.get()}.pop_front()
+
+    #[inline(never)]
+    pub fn push(&mut self, cc: ChunkCoord, chunk: Arc<Chunk>) -> &Arc<Chunk> {
+        self.ind += 1;
+        if self.ind > N-1 {self.ind = 1};
+        unsafe {
+            self.coords.swap(0, self.ind);
+            self.storage.swap(0, self.ind);
+
+            let coord = self.coords.get_unchecked_mut(0);
+            let chunk_s = self.storage.get_unchecked_mut(0);
+            if *coord != Self::FAKE_COORD {
+                chunk_s.assume_init_drop();
+            }
+            *coord = cc;
+            chunk_s.write(chunk)
+        }
     }
 }
 
@@ -82,6 +116,18 @@ impl LightSolver {
     #[inline]
     pub fn add_max_sun_to_solve(&mut self, gc: GlobalCoord) {
         self.add_queue.push_back(LightEntry::new(gc, Light::new(0, 0, 0, Light::MAX)));
+    }
+
+    pub fn add_with_emission_and_chunk(&mut self, chunk: &Arc<Chunk>, lc: LocalCoord, light: Light) {
+        if light.all_le_one() {return};
+        let entry = LightEntry::new(chunk.coord.to_global(lc), light.clone());
+        chunk.modify(true);
+        self.add_queue.push_back(entry);
+    }
+
+    pub fn add_with_chunk(&mut self, chunk: &Arc<Chunk>, lc: LocalCoord) {
+        let Some(light) = chunk.light_map().get(lc) else {return};
+        self.add_with_emission_and_chunk(chunk, lc, light.clone());
     }
 
     pub fn add_with_emission(&mut self, chunks: &Chunks, gc: GlobalCoord, light: Light) {
@@ -168,12 +214,14 @@ impl LightSolver {
         }
     }
 
+    #[inline(never)]
     fn solve_add_queue(&mut self, chunks: &Chunks, content: &Content) {
         // Optimize this function in the region of 50%-70%,
         // because the light is mostly in one chunk,
         // and access to the hash table is long.
-        let mut chunk_buffer: (ChunkCoord, MaybeUninit<&Arc<Chunk>>) =
-            (ChunkCoord::new(i32::MAX, i32::MAX), MaybeUninit::uninit());
+        let mut buffer = ChunkBuffer::<3>::new();
+        // let mut chunk_buffer: (ChunkCoord, MaybeUninit<Arc<Chunk>>) =
+        //     (ChunkCoord::new(i32::MAX, i32::MAX), MaybeUninit::uninit());
 
         while let Some(mut entry) = self.add_queue.pop_front() {
             if entry.light.all_le_one() {continue};
@@ -184,14 +232,20 @@ impl LightSolver {
                 if entry.coords.y < 0 || entry.coords.y >= WORLD_BLOCK_HEIGHT as i32 {continue};
 
                 let cc: ChunkCoord = entry.coords.into();
-                let chunk = if cc == chunk_buffer.0 {
-                    unsafe {chunk_buffer.1.assume_init_read()}
+                let chunk = if let Some(chunk) = buffer.find(cc) {
+                    chunk
                 } else {
                     let Some(chunk) = chunks.chunk(cc) else {continue};
-                    chunk_buffer.0 = cc;
-                    chunk_buffer.1.write(chunk);
-                    chunk
+                    buffer.push(cc, chunk)
                 };
+                // let chunk = if cc == chunk_buffer.0 {
+                //     unsafe {chunk_buffer.1.assume_init_ref()}
+                // } else {
+                //     let Some(chunk) = chunks.chunk(cc) else {continue};
+                //     chunk_buffer.0 = cc;
+                //     chunk_buffer.1.write(chunk);
+                //     unsafe {chunk_buffer.1.assume_init_ref()}
+                // };
 
                 let index = LocalCoord::from(entry.coords).index();
                 let light = unsafe {chunk.light_map().0.get_unchecked(index)};

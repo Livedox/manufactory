@@ -8,7 +8,7 @@ pub fn spawn(world: Arc<World>, exit: Arc<AtomicBool>) -> JoinHandle<()> {
         loop {
             if exit.load(Ordering::Relaxed) {break};
             let now = Instant::now();
-            for chunk in unsafe {&*(world.chunks.chunks.get())}.values() {
+            for chunk in world.chunks.chunks().values() {
                 if !chunk.live_voxels.0.read().unwrap().is_empty() {
                     chunk.save(true);
                 }

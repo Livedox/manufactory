@@ -9,14 +9,17 @@ use super::{live_voxels::{LiveVoxelBehavior, LiveVoxelContainer}, chunk::{Chunk,
 
 pub const WORLD_BLOCK_HEIGHT: usize = 256;
 pub const WORLD_HEIGHT: usize = WORLD_BLOCK_HEIGHT / CHUNK_SIZE; // In chunks
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxBuildHasher, FxHashMap};
+use parking_lot::{RwLock, RwLockReadGuard};
+use crossbeam::sync::{ShardedLock, ShardedLockReadGuard};
+
 
 #[derive(Debug)]
 pub struct Chunks {
     pub content: Arc<Content>,
     is_translate: AtomicBool,
     // I tried to do this using safe code, but it kills performance by about 2 times
-    pub chunks: UnsafeCell<FxHashMap<ChunkCoord, Arc<Chunk>>>,
+    pub chunks: ShardedLock<FxHashMap<ChunkCoord, Arc<Chunk>>>,
     pub chunks_awaiting_deletion: Arc<Mutex<Vec<Arc<Chunk>>>>,
     
     pub ox: AtomicI32,
@@ -29,7 +32,7 @@ impl Chunks {
     pub fn new(content: Arc<Content>, render_radius: i32, ox: i32, oz: i32) -> Chunks {
         Chunks {
             content,
-            chunks: UnsafeCell::new(FxHashMap::default()),
+            chunks: ShardedLock::new(FxHashMap::default()),
             chunks_awaiting_deletion: Arc::new(Mutex::new(Vec::new())),
             render_radius,
             ox: AtomicI32::new(ox),
@@ -94,9 +97,12 @@ impl Chunks {
         }
     }
 
-    pub fn chunk(&self, cc: ChunkCoord) -> Option<&Arc<Chunk>> {
-        let lock = unsafe {&mut *self.chunks.get()};
-        lock.get(&cc)
+    pub fn chunks(&self) -> ShardedLockReadGuard<'_, HashMap<ChunkCoord, Arc<Chunk>, FxBuildHasher>> {
+        self.chunks.read().unwrap()
+    }
+
+    pub fn chunk(&self, cc: ChunkCoord) -> Option<Arc<Chunk>> {
+        self.chunks.read().unwrap().get(&cc).cloned()
     }
 
     pub fn live_voxels(&self, cc: ChunkCoord) -> Option<LiveVoxels> {
@@ -203,7 +209,7 @@ impl Chunks {
     }
 
     pub fn find_unrendered(&self) -> Option<Arc<Chunk>> {
-        for chunk in unsafe {&*self.chunks.get()}.values() {
+        for chunk in self.chunks().values() {
             if chunk.modified() {return Some(Arc::clone(chunk))}
         }
         None

@@ -69,7 +69,7 @@ pub struct RenderResult {
 }
 
 pub fn render(cc: ChunkCoord, chunks: &Chunks, content: &Content) -> Option<RenderResult> {
-    let Some(chunk) = unsafe {&*chunks.chunks.get()}.get(&cc).cloned() else {return None};
+    let Some(chunk) = chunks.chunks().get(&cc).cloned() else {return None};
     let mut models = Models::new();
     let mut animated_models = AnimatedModels::new();
     

@@ -75,7 +75,6 @@ impl InputService {
     pub fn handle_device_event(&mut self, event: winit::event::DeviceEvent) {
         match event {
             DeviceEvent::MouseMotion { delta } => {
-                println!("{:?}", delta);
                 self.input_broker.set_delta(delta.0 as f32, delta.1 as f32);
             },
             _ => {},

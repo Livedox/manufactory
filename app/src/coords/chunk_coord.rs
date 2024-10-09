@@ -44,7 +44,7 @@ pub struct ChunkCoord {
 }
 
 impl ChunkCoord {
-    pub fn new(x: i32, z: i32) -> Self {Self { x, z }}
+    pub const fn new(x: i32, z: i32) -> Self {Self { x, z }}
 
     #[inline]
     pub const fn to_global(self, local: LocalCoord) -> GlobalCoord {
