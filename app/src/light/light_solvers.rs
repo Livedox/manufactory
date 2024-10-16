@@ -64,7 +64,7 @@ impl<'content> LightSolvers<'content> {
             let id = unsafe {chunk.voxels().0.get_unchecked(idx)}.id() as usize;
             let emission = self.content.blocks[id].emission();
             if emission.iter().any(|e| *e > 0) {
-                let light = Light::new(emission[0], emission[1], emission[2], 0);
+                let light = Light::with_rgb(emission[0], emission[1], emission[2]);
                 self.solver.add_with_emission_and_chunk(
                     &chunk, LocalCoord::from_index(idx), light);
             }
@@ -84,7 +84,8 @@ impl<'content> LightSolvers<'content> {
             chunks.chunk((cx, cz + 1).into())
         ];
         for (ly, mut lz, mut lx) in iproduct!(0..WORLD_BLOCK_HEIGHT as i32, -1..=CHUNK_SIZE as i32, -1..=CHUNK_SIZE as i32) {
-            if lx == lz || (lx == -1 && lz == CHUNK_SIZE as i32) || (lx == CHUNK_SIZE as i32 && lz == -1) {continue};
+            if (lx > 0 && lx < CHUNK_SIZE as i32) && (lz > 0 && lz < CHUNK_SIZE as i32) {continue};
+            if (lx == -1 || lx == CHUNK_SIZE as i32) && (lz == -1 || lz == CHUNK_SIZE as i32) {continue};
             let Some(chunk) = 
                 (if lx == -1 {
                     lx = CHUNK_SIZE as i32 - 1;
@@ -115,7 +116,7 @@ impl<'content> LightSolvers<'content> {
         if chunks.get_sun((x, y+1, z).into()) == MAX_LIGHT || (y+1) as usize == WORLD_HEIGHT*CHUNK_SIZE {
             for i in (0..=y).rev() {
                 if chunks.voxel_global((x, i, z).into()).map_or(true, |v| v.id != 0) {break};
-                self.solver.add_with_emission(chunks, (x, i, z).into(), Light::new(0, 0, 0, MAX_LIGHT));
+                self.solver.add_with_emission(chunks, (x, i, z).into(), Light::with_sun(Light::MAX));
             }
         }
         for (ax, ay, az) in SIDE_COORDS_OFFSET {
@@ -152,7 +153,7 @@ impl<'content> LightSolvers<'content> {
     }
 
     pub fn add_with_emission_rgb(&mut self, chunks: &Chunks, x: i32, y: i32, z: i32, emission: &[u8; 3]) {
-        self.solver.add_with_emission(chunks, (x, y, z).into(), Light::new(emission[0], emission[1], emission[2], 0));
+        self.solver.add_with_emission(chunks, (x, y, z).into(), Light::with_rgb(emission[0], emission[1], emission[2]));
     }
 
     pub fn solve(&mut self, chunks: &Chunks) {

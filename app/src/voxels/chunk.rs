@@ -324,3 +324,10 @@ impl Chunk {
         }
     }
 }
+
+
+unsafe impl Send for Chunk {}
+unsafe impl Sync for Chunk {}
+
+unsafe impl Send for LiveVoxels {}
+unsafe impl Sync for LiveVoxels {}

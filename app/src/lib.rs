@@ -1,3 +1,5 @@
+#![feature(portable_simd)]
+
 use std::{collections::{HashMap, VecDeque}, future::IntoFuture, hash::Hash, os::raw, path::Path, sync::{atomic::AtomicBool, Arc}, time::{Duration, Instant}};
 use app::App;
 use camera::frustum::Frustum;
@@ -54,6 +56,7 @@ pub mod server_engine;
 pub mod common;
 pub mod client_engine;
 pub mod app;
+pub mod physics;
 
 const _GAME_VERSION: u32 = 1;
 
@@ -147,6 +150,7 @@ pub enum Timer {
 }
 
 pub async fn run() {
+    rayon::ThreadPoolBuilder::new().stack_size(10 * 1024 * 1024).build_global().unwrap();
     // println!("{:?}", rayon::max_num_threads());
     // let mut world_loader = WorldLoader::new(Path::new("./data/worlds/"));
     // println!("acd");

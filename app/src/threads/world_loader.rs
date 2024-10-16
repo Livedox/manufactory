@@ -12,11 +12,17 @@ pub fn spawn(
 ) -> JoinHandle<()> {
     let thread = std::thread::Builder::new().name("world_loader".to_owned()).stack_size(32 * 1024 * 1024);
     thread.spawn(move || {
-        let mut light = LightSolvers::new(&world.chunks.content);
+        let mut solvers = vec![
+            LightSolvers::new(&world.chunks.content),
+            LightSolvers::new(&world.chunks.content),
+            LightSolvers::new(&world.chunks.content),
+            LightSolvers::new(&world.chunks.content),
+        ];
         loop {
             if exit.load(Ordering::Relaxed) {break};
-            if let Some((cx, cz)) = world.chunks.find_unloaded() {
-                world.load_column_of_chunks(&world_regions, cx, cz, &mut light);
+            let coords = world.chunks.find_some_unloaded();
+            if !coords.is_empty() {
+                world.load_chunks(&world_regions, &mut solvers, coords);
             } else {
                 thread::sleep(Duration::from_millis(200));
             }

@@ -73,8 +73,8 @@ pub fn render(cc: ChunkCoord, chunks: &Chunks, content: &Content) -> Option<Rend
     let mut models = Models::new();
     let mut animated_models = AnimatedModels::new();
     
-    let mut block_manager = BlockManagers::new(!IS_GREEDY_MESHING);
-    let mut glass_manager = BlockManagers::new(!IS_GREEDY_MESHING);
+    let mut block_manager = BlockManagers::new(IS_GREEDY_MESHING);
+    let mut glass_manager = BlockManagers::new(IS_GREEDY_MESHING);
     
     let mut buffer = Buffer::new();
     let mut glass_buffer = Buffer::new();

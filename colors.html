@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Colors</title>
+	<style type="text/css">
+		td {
+			width: 20px;
+			height: 20px;
+		}
+	</style>
+</head>
+<body>
+	<input type="text" id="color0" value="0, 0, 165">
+	<input type="text" id="color1" value="0, 165, 0">
+	<input type="text" id="color2" value="139, 0, 0">
+	<input type="text" id="color3" value="0, 0, 90">
+	<input type="text" id="color4" value="0, 90, 0">
+	<input type="text" id="color5" value="87, 0, 0">
+	<input type="text" id="color6" value="29, 0, 0">
+	<button onclick="proccess()">enter</button>
+	<div style="display: flex;">
+		<table id="colors0" style="margin-right: 10px;"></table>
+		<table id="colors1"></table>
+	</div>
+	<script type="text/javascript">
+		function proccess() {
+			function toColor(arr) {
+				return {r: arr[0], g: arr[1], b: arr[2]};
+			}
+			function parse(str) {
+				let arr = str.split(',').map(function(item) {
+				    return parseInt(item, 10);
+				});
+				if (arr.lenght < 3 || arr.lenght > 3) {
+					arr = [0, 0 ,0]
+				}
+				return arr;
+			}
+
+			let colors = [];
+			for (let i = 0; i < 7; i++) {
+				let el = document.getElementById(`color${i}`);
+				colors.push(toColor(parse(el.value)));
+			}
+			buildTable(colors);
+		}
+
+		function buildTable(colors) {
+			function removeChildElements(el) {
+				while (el.lastChild) {
+					el.removeChild(el.lastChild);
+				}
+			}
+
+			function getColor(n) {
+				function add(c, i) {
+					c.r += colors[i].r;
+					c.g += colors[i].g;
+					c.b += colors[i].b
+				}
+				let color = {r: 0, g: 0, b: 0};
+				if (n & 0b1_00_00_00) {add(color, 0)};
+				if (n & 0b0_10_00_00) {add(color, 1)};
+				if (n & 0b0_01_00_00) {add(color, 2)};
+				if (n & 0b0_00_10_00) {add(color, 3)};
+				if (n & 0b0_00_01_00) {add(color, 4)};
+				if (n & 0b0_00_00_10) {add(color, 5)};
+				if (n & 0b0_00_00_01) {add(color, 6)};
+				return color;
+			}
+
+			function getColor2(n) {
+				function add(c, i) {
+					c.r = Math.min(255, colors[i].r + c.r);
+					c.g = Math.min(255, colors[i].g + c.g);
+					c.b = Math.min(255, colors[i].b + c.b);
+				}
+				//131, 84, 50; 0, 128, 29; 22, 156, 0; 0, 0, 156
+				let color = {r: 0, g: 0, b: 0};
+				if (n & 0b1_00_00_00) {add(color, 0)};
+				if (n & 0b0_10_00_00) {add(color, 1)};
+				if (n & 0b0_01_00_00) {add(color, 2)};
+				if (n & 0b0_00_10_00) {add(color, 3)};
+				if (n & 0b0_00_01_00) {add(color, 4)};
+				if (n & 0b0_00_00_10) {add(color, 5)};
+				if (n & 0b0_00_00_01) {add(color, 6)};
+				return color;
+			}
+
+			let table0 = document.getElementById("colors0");
+			removeChildElements(table0);
+			let element0 = document.createElement("tr");
+
+			let table1 = document.getElementById("colors1");
+			removeChildElements(table1);
+			let element1 = document.createElement("tr");
+			for (var i = 0; i < 128; i++) {
+				
+				let color0 = getColor(i);
+				let ce0 = document.createElement("td");
+				ce0.setAttribute("style", `background-color: rgb(${color0.r}, ${color0.g}, ${color0.b})`);
+				element0.appendChild(ce0);
+
+				let color1 = getColor2(i);
+				let ce1 = document.createElement("td");
+				ce1.setAttribute("style", `background-color: rgb(${color1.r}, ${color1.g}, ${color1.b})`);
+				element1.appendChild(ce1);
+				if (i % 8 == 7) {
+					table0.appendChild(element0);
+					element0 = document.createElement("tr");
+
+					table1.appendChild(element1);
+					element1 = document.createElement("tr");
+				}
+			}
+		}
+
+		const colors = [
+			{r: 139, g: 0, b: 0}, {r: 87, g: 0, b: 0}, {r: 29, g: 0, b: 0},
+			{r: 0, g: 185, b: 0}, {r: 0, g: 70, b: 0}, 
+			{r: 0, g: 0, b: 180}, {r: 0, g: 0, b: 75}];
+
+		buildTable(colors);
+	</script>
+</body>
+</html>

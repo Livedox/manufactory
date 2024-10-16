@@ -45,7 +45,7 @@ impl<const N: usize> ChunkBuffer<N> {
     }
 
 
-    #[inline(never)]
+    #[inline(always)]
     pub fn push(&mut self, cc: ChunkCoord, chunk: Arc<Chunk>) -> &Arc<Chunk> {
         self.ind += 1;
         if self.ind > N-1 {self.ind = 1};
@@ -115,7 +115,7 @@ impl LightSolver {
 
     #[inline]
     pub fn add_max_sun_to_solve(&mut self, gc: GlobalCoord) {
-        self.add_queue.push_back(LightEntry::new(gc, Light::new(0, 0, 0, Light::MAX)));
+        self.add_queue.push_back(LightEntry::new(gc, Light::with_sun(Light::MAX)));
     }
 
     pub fn add_with_emission_and_chunk(&mut self, chunk: &Arc<Chunk>, lc: LocalCoord, light: Light) {
@@ -190,7 +190,7 @@ impl LightSolver {
 
     fn solve_remove_queue(&mut self, chunks: &Chunks) {
         while let Some(mut entry) = self.remove_queue.pop_front() {
-            let pvsub = entry.light.clone().saturated_sub_one();
+            let pvsub = entry.light.saturated_sub_one();
 
             for offsets in NEIGHBOURS.iter() {
                 entry.coords += offsets;
@@ -199,16 +199,17 @@ impl LightSolver {
                 let Some(chunk) = chunks.chunk(entry.coords.into()) else {continue};
                 let index = LocalCoord::from(entry.coords).index();
 
-                entry.light = chunk.lightmap.0[index].clone();
+                let light = chunk.lightmap.0[index].clone();
 
-                let new = entry.light.zero_if_equal_elements(pvsub.clone());
+                let new = light.zero_if_equal_elements(pvsub.clone());
 
-                if entry.light.to_number() != 0 && entry.light != new {
-                    self.remove_queue.push_back(entry.clone());
-                    chunk.lightmap.0[index].set_light(new);
+                if pvsub.to_number() != 0 && light != new {
+                    self.remove_queue.push_back(LightEntry::new(entry.coords, pvsub.clone()));
+                    chunk.lightmap.0[index].set_light(new.clone());
                     chunk.modify(true);
-                } else if entry.light.has_greater_element(pvsub.clone()) {
-                    self.add_queue.push_back(entry.clone());
+                }
+                if new.has_greater_element(pvsub.clone()) {
+                    self.add_queue.push_back(LightEntry::new(entry.coords, new));
                 }
             }
         }
@@ -238,14 +239,6 @@ impl LightSolver {
                     let Some(chunk) = chunks.chunk(cc) else {continue};
                     buffer.push(cc, chunk)
                 };
-                // let chunk = if cc == chunk_buffer.0 {
-                //     unsafe {chunk_buffer.1.assume_init_ref()}
-                // } else {
-                //     let Some(chunk) = chunks.chunk(cc) else {continue};
-                //     chunk_buffer.0 = cc;
-                //     chunk_buffer.1.write(chunk);
-                //     unsafe {chunk_buffer.1.assume_init_ref()}
-                // };
 
                 let index = LocalCoord::from(entry.coords).index();
                 let light = unsafe {chunk.light_map().0.get_unchecked(index)};

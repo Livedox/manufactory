@@ -50,7 +50,6 @@ impl Chunks {
         self.is_translate.store(value, Ordering::Relaxed);
     }
 
-
     #[inline] pub fn ox(&self) -> i32 {self.ox.load(Ordering::Relaxed)}
     #[inline] pub fn oz(&self) -> i32 {self.oz.load(Ordering::Relaxed)}
     #[inline] pub fn set_ox(&self, value: i32) {self.ox.store(value, Ordering::Relaxed)}
@@ -206,6 +205,30 @@ impl Chunks {
         };
  
         Self::clockwise_square_spiral(self.render_radius as usize * 2, callback)
+    }
+
+    pub fn find_some_unloaded(&self) -> Vec<ChunkCoord> {
+        let mut v = Vec::with_capacity(4);
+        let mut x = 0;
+        let mut y = 0;
+        let mut dx = 0;
+        let mut dy = -1;
+        let n = self.render_radius as usize * 2;
+        let half = n as i32/2;
+        for _ in 0..n.pow(2) {
+            if x >= -half && x <= half && y >= -half && y <= half {
+                if self.chunk((x, y).into()).is_none() {
+                    v.push((x, y).into());
+                    if v.len() == 4 {return v};
+                }
+            }
+            if (x == y) || (x == -y && x < 0) || (x == 1-y && x > 0) {
+                (dx, dy) = (-dy, dx);
+            }
+            x += dx;
+            y += dy;
+        }
+        v
     }
 
     pub fn find_unrendered(&self) -> Option<Arc<Chunk>> {

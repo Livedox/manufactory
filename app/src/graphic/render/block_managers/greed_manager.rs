@@ -1,33 +1,196 @@
 use std::ops::Range;
 use itertools::iproduct;
 
+use crate::voxels::chunks::WORLD_BLOCK_HEIGHT;
 use crate::{graphic::render::Buffer, voxels::chunk::CHUNK_SIZE};
 use crate::graphic::render::block::BlockFace;
 use super::face_managers::{manage_z, manage_y, manage_x};
 
-
-#[derive(Debug)]
-pub struct GreedManager {
-    // nx = 0, px = 1, ny = 2, py = 3, nz = 4, pz = 5
-    sides: [[RowColumn; CHUNK_SIZE]; 6],
-    faces: Vec<BlockFace>,
+#[derive(Debug, Clone)]
+pub struct XRowColumn {
+    row: [Vec<(usize, usize)>; WORLD_BLOCK_HEIGHT],
+    column: [Vec<(usize, usize)>; CHUNK_SIZE],
 }
 
-// Why is there so much unsafe code in this code?
-//     Because it's optimized as fuck.
-//     It's optimized down to the CPU cache usage, I had to optimize the "face.size[0] == 0" in "iter_sides",
-//     because it was using half the CPU time.
-// Why did I optimize this so much?
-//     Because I was having fun.
+impl Default for XRowColumn {
+    fn default() -> Self {
+        Self {
+            row: [const {Vec::new()}; WORLD_BLOCK_HEIGHT],
+            column: Default::default(),
+        }
+    }
+}
+
+
+#[derive(Debug, Clone, Default)]
+pub struct YRowColumn {
+    row: [Vec<(usize, usize)>; CHUNK_SIZE],
+    column: [Vec<(usize, usize)>; CHUNK_SIZE],
+}
+
+impl YRowColumn {
+    pub const fn new() -> Self {
+        Self {
+            row: [const {Vec::new()}; CHUNK_SIZE],
+            column: [const {Vec::new()}; CHUNK_SIZE]
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ZRowColumn {
+    row: [Vec<(usize, usize)>; CHUNK_SIZE],
+    column: [Vec<(usize, usize)>; WORLD_BLOCK_HEIGHT],
+}
+
+impl Default for ZRowColumn {
+    fn default() -> Self {
+        Self {
+            row: Default::default(),
+            column: [const {Vec::new()}; WORLD_BLOCK_HEIGHT],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GreedManager {
+    x: [[XRowColumn; CHUNK_SIZE]; 2], //nx = 0, px = 1
+    y: [[YRowColumn; WORLD_BLOCK_HEIGHT]; 2], // ny = 0, py = 1
+    z: [[ZRowColumn; CHUNK_SIZE]; 2], // nz = 0, pz = 1
+    faces: Vec<BlockFace>,
+}
+impl Default for GreedManager {
+    fn default() -> Self {
+        Self {
+            y: [const {[const {YRowColumn::new()}; WORLD_BLOCK_HEIGHT]}; 2],
+            x: Default::default(),
+            z: Default::default(),
+            faces: Vec::new(),
+        }
+    }
+}
+
 impl GreedManager {
     const INDICES: [[usize; 6]; 2] = [[0,1,2,0,2,3], [3,2,0,2,1,0]];
 
     #[inline]
     pub fn new() -> Self {Self::default()}
 
-    #[inline]
+    /// Sides: nx = 0, px = 1, ny = 2, py = 3, nz = 4, pz = 5
+    pub(crate) fn set(&mut self, side: usize, layer: usize, row: usize, column: usize, face: BlockFace) {
+        let index = self.faces.len();
+        self.faces.push(face);
+        if side < 2 {
+            let layer = self.x[side%2].get_mut(layer).unwrap();
+            layer.row[row].push((column, index));
+            layer.column[column].push((row, index));
+        } else if side < 4 {
+            let layer = self.y[side%2].get_mut(layer).unwrap();
+            layer.row[row].push((column, index));
+            layer.column[column].push((row, index));
+        } else {
+            let layer = self.z[side%2].get_mut(layer).unwrap();
+            layer.row[row].push((column, index));
+            layer.column[column].push((row, index));
+        }
+    }
+
     fn greed(&mut self) {
-        for side in self.sides.iter_mut() {
+        for side in self.x.iter_mut() {
+            for layer in side.iter_mut() {
+                for row in layer.row.iter_mut() {
+                    for s in row.windows(2) {
+                        let (column_prev, index_prev) = unsafe {s.get_unchecked(0)};
+                        let (column_curr, index_curr) = unsafe {s.get_unchecked(1)};
+                        if *column_curr != *column_prev + 1 {continue};
+                        let prev = unsafe {&mut *(self.faces.get_unchecked_mut(*index_prev) as *mut BlockFace)};
+                        let curr = unsafe {self.faces.get_unchecked_mut(*index_curr)};
+                        if prev.layer == curr.layer && prev.light == curr.light && prev.size[1] == curr.size[1] {
+                            curr.size[0] += prev.size[0];
+                            prev.size = [0, 0];
+                        }
+                    }
+                }
+
+                for column in layer.column.iter_mut() {
+                    if column.len() == 1 {
+                        let (_, index) = unsafe {column.get_unchecked_mut(0)};
+                        let face = unsafe {self.faces.get_unchecked(*index)};
+                        if face.size == [0, 0] {*index = usize::MAX}
+                    } else {
+                       for s in column.windows(2) {
+                            let (row_prev, index_prev) = unsafe {s.get_unchecked(0)};
+                            let (row_curr, index_curr) = unsafe {s.get_unchecked(1)};
+                            if *row_curr != *row_prev + 1 {continue};
+
+                            let prev = unsafe {&mut *(self.faces.get_unchecked_mut(*index_prev) as *mut BlockFace)};
+                            let mut_index_prev = unsafe { (index_prev as *const usize as *mut usize).as_mut().unwrap() };
+
+                            if prev.size == [0, 0] {
+                                *mut_index_prev = usize::MAX;
+                                continue;
+                            };
+                            
+                            let curr = unsafe {self.faces.get_unchecked_mut(*index_curr)};
+                            if prev.layer == curr.layer && prev.light == curr.light && prev.size[0] == curr.size[0] {
+                                curr.size[1] += prev.size[1];
+                                prev.size = [0, 0];
+                                *mut_index_prev = usize::MAX;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for side in self.y.iter_mut() {
+            for layer in side.iter_mut() {
+                for row in layer.row.iter_mut() {
+                    for s in row.windows(2) {
+                        let (column_prev, index_prev) = unsafe {s.get_unchecked(0)};
+                        let (column_curr, index_curr) = unsafe {s.get_unchecked(1)};
+                        if *column_curr != *column_prev + 1 {continue};
+                        let prev = unsafe {&mut *(self.faces.get_unchecked_mut(*index_prev) as *mut BlockFace)};
+                        let curr = unsafe {self.faces.get_unchecked_mut(*index_curr)};
+                        if prev.layer == curr.layer && prev.light == curr.light && prev.size[1] == curr.size[1] {
+                            curr.size[0] += prev.size[0];
+                            prev.size = [0, 0];
+                        }
+                    }
+                }
+
+                for column in layer.column.iter_mut() {
+                    if column.len() == 1 {
+                        let (_, index) = unsafe {column.get_unchecked_mut(0)};
+                        let face = unsafe {self.faces.get_unchecked(*index)};
+                        if face.size == [0, 0] {*index = usize::MAX}
+                    } else {
+                       for s in column.windows(2) {
+                            let (row_prev, index_prev) = unsafe {s.get_unchecked(0)};
+                            let (row_curr, index_curr) = unsafe {s.get_unchecked(1)};
+                            if *row_curr != *row_prev + 1 {continue};
+
+                            let prev = unsafe {&mut *(self.faces.get_unchecked_mut(*index_prev) as *mut BlockFace)};
+                            let mut_index_prev = unsafe { (index_prev as *const usize as *mut usize).as_mut().unwrap() };
+
+                            if prev.size == [0, 0] {
+                                *mut_index_prev = usize::MAX;
+                                continue;
+                            };
+                            
+                            let curr = unsafe {self.faces.get_unchecked_mut(*index_curr)};
+                            if prev.layer == curr.layer && prev.light == curr.light && prev.size[0] == curr.size[0] {
+                                curr.size[1] += prev.size[1];
+                                prev.size = [0, 0];
+                                *mut_index_prev = usize::MAX;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        for side in self.z.iter_mut() {
             for layer in side.iter_mut() {
                 for row in layer.row.iter_mut() {
                     for s in row.windows(2) {
@@ -75,9 +238,8 @@ impl GreedManager {
         }
     }
 
-    #[inline]
-    fn iter_sides(&self, range: Range<usize>, mut c: impl FnMut(&BlockFace, (f32, f32, f32), f32, &[usize; 6])) {
-        for ((i, side), layer, column) in iproduct!(self.sides[range].iter().enumerate(), 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
+    fn iter_sides_x(&self, mut c: impl FnMut(&BlockFace, (f32, f32, f32), f32, &[usize; 6])) {
+        for ((i, side), layer, column) in iproduct!(self.x.iter().enumerate(), 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
             for (row, face_index) in unsafe {side.get_unchecked(layer).column.get_unchecked(column)}.iter() {
                 if *face_index == usize::MAX {continue};
                 let face = self.faces.get(*face_index).unwrap();
@@ -86,46 +248,161 @@ impl GreedManager {
         }
     }
 
-    /// Sides: nx = 0, px = 1, ny = 2, py = 3, nz = 4, pz = 5
-    pub(crate) fn set(&mut self, side: usize, layer: usize, row: usize, column: usize, face: BlockFace) {
-        let index = self.faces.len();
-        self.faces.push(face);
-        let layer = self.sides[side].get_mut(layer).unwrap();
-        layer.row[row].push((column, index));
-        layer.column[column].push((row, index));
+    fn iter_sides_y(&self, mut c: impl FnMut(&BlockFace, (f32, f32, f32), f32, &[usize; 6])) {
+        for ((i, side), layer, column) in iproduct!(self.y.iter().enumerate(), 0..WORLD_BLOCK_HEIGHT, 0..CHUNK_SIZE) {
+            for (row, face_index) in unsafe {side.get_unchecked(layer).column.get_unchecked(column)}.iter() {
+                if *face_index == usize::MAX {continue};
+                let face = self.faces.get(*face_index).unwrap();
+                c(face, (layer as f32, *row as f32, column as f32), i as f32, &Self::INDICES[i%2]);
+            }
+        }
+    }
+
+    fn iter_sides_z(&self, mut c: impl FnMut(&BlockFace, (f32, f32, f32), f32, &[usize; 6])) {
+        for ((i, side), layer, column) in iproduct!(self.z.iter().enumerate(), 0..CHUNK_SIZE, 0..WORLD_BLOCK_HEIGHT) {
+            for (row, face_index) in unsafe {side.get_unchecked(layer).column.get_unchecked(column)}.iter() {
+                if *face_index == usize::MAX {continue};
+                let face = self.faces.get(*face_index).unwrap();
+                c(face, (layer as f32, *row as f32, column as f32), i as f32, &Self::INDICES[i%2]);
+            }
+        }
     }
 
     pub(crate) fn manage_vertices(&mut self, buffer: &mut Buffer, global: (f32, f32, f32)) {
         self.greed();
 
-        self.iter_sides(0..2, |face, lrw, offset, indices| {
+        self.iter_sides_x(|face, lrw, offset, indices| {
             manage_x(buffer, global, lrw, offset, indices, face)});
 
-        self.iter_sides(2..4, |face, lrw, offset, indices| {
+        self.iter_sides_y(|face, lrw, offset, indices| {
             manage_y(buffer, global, lrw, offset, indices, face)});
 
-        self.iter_sides(4..6, |face, lrw, offset, indices| {
+        self.iter_sides_z(|face, lrw, offset, indices| {
             manage_z(buffer, global, lrw, offset, indices, face)});
     }
 }
 
-impl Default for GreedManager {
-    #[inline]
-    fn default() -> Self {Self {
-        sides: Default::default(),
-        faces: Vec::new(),
-    }}
-}
 
-#[derive(Debug)]
-struct RowColumn {
-    row: [Vec<(usize, usize)>; CHUNK_SIZE],
-    column: [Vec<(usize, usize)>; CHUNK_SIZE],
-}
+// #[derive(Debug)]
+// pub struct GreedManager {
+//     // nx = 0, px = 1, ny = 2, py = 3, nz = 4, pz = 5
+//     sides: [[RowColumn; CHUNK_SIZE]; 6],
+//     faces: Vec<BlockFace>,
+// }
 
-impl Default for RowColumn {
-    #[inline]
-    fn default() -> Self {
-        Self { row: Default::default(), column: Default::default() }
-    }
-}
+// // Why is there so much unsafe code in this code?
+// //     Because it's optimized as fuck.
+// //     It's optimized down to the CPU cache usage, I had to optimize the "face.size[0] == 0" in "iter_sides",
+// //     because it was using half the CPU time.
+// // Why did I optimize this so much?
+// //     Because I was having fun.
+// impl GreedManager {
+//     const INDICES: [[usize; 6]; 2] = [[0,1,2,0,2,3], [3,2,0,2,1,0]];
+
+//     #[inline]
+//     pub fn new() -> Self {Self::default()}
+
+//     #[inline]
+//     fn greed(&mut self) {
+//         for side in self.sides.iter_mut() {
+//             for layer in side.iter_mut() {
+//                 for row in layer.row.iter_mut() {
+//                     for s in row.windows(2) {
+//                         let (column_prev, index_prev) = unsafe {s.get_unchecked(0)};
+//                         let (column_curr, index_curr) = unsafe {s.get_unchecked(1)};
+//                         if *column_curr != *column_prev + 1 {continue};
+//                         let prev = unsafe {&mut *(self.faces.get_unchecked_mut(*index_prev) as *mut BlockFace)};
+//                         let curr = unsafe {self.faces.get_unchecked_mut(*index_curr)};
+//                         if prev.layer == curr.layer && prev.light == curr.light && prev.size[1] == curr.size[1] {
+//                             curr.size[0] += prev.size[0];
+//                             prev.size = [0, 0];
+//                         }
+//                     }
+//                 }
+
+//                 for column in layer.column.iter_mut() {
+//                     if column.len() == 1 {
+//                         let (_, index) = unsafe {column.get_unchecked_mut(0)};
+//                         let face = unsafe {self.faces.get_unchecked(*index)};
+//                         if face.size == [0, 0] {*index = usize::MAX}
+//                     } else {
+//                        for s in column.windows(2) {
+//                             let (row_prev, index_prev) = unsafe {s.get_unchecked(0)};
+//                             let (row_curr, index_curr) = unsafe {s.get_unchecked(1)};
+//                             if *row_curr != *row_prev + 1 {continue};
+
+//                             let prev = unsafe {&mut *(self.faces.get_unchecked_mut(*index_prev) as *mut BlockFace)};
+//                             let mut_index_prev = unsafe { (index_prev as *const usize as *mut usize).as_mut().unwrap() };
+
+//                             if prev.size == [0, 0] {
+//                                 *mut_index_prev = usize::MAX;
+//                                 continue;
+//                             };
+                            
+//                             let curr = unsafe {self.faces.get_unchecked_mut(*index_curr)};
+//                             if prev.layer == curr.layer && prev.light == curr.light && prev.size[0] == curr.size[0] {
+//                                 curr.size[1] += prev.size[1];
+//                                 prev.size = [0, 0];
+//                                 *mut_index_prev = usize::MAX;
+//                             }
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     }
+
+//     #[inline]
+//     fn iter_sides(&self, range: Range<usize>, mut c: impl FnMut(&BlockFace, (f32, f32, f32), f32, &[usize; 6])) {
+//         for ((i, side), layer, column) in iproduct!(self.sides[range].iter().enumerate(), 0..CHUNK_SIZE, 0..CHUNK_SIZE) {
+//             for (row, face_index) in unsafe {side.get_unchecked(layer).column.get_unchecked(column)}.iter() {
+//                 if *face_index == usize::MAX {continue};
+//                 let face = self.faces.get(*face_index).unwrap();
+//                 c(face, (layer as f32, *row as f32, column as f32), i as f32, &Self::INDICES[i%2]);
+//             }
+//         }
+//     }
+
+//     /// Sides: nx = 0, px = 1, ny = 2, py = 3, nz = 4, pz = 5
+//     pub(crate) fn set(&mut self, side: usize, layer: usize, row: usize, column: usize, face: BlockFace) {
+//         let index = self.faces.len();
+//         self.faces.push(face);
+//         let layer = self.sides[side].get_mut(layer).unwrap();
+//         layer.row[row].push((column, index));
+//         layer.column[column].push((row, index));
+//     }
+
+//     pub(crate) fn manage_vertices(&mut self, buffer: &mut Buffer, global: (f32, f32, f32)) {
+//         self.greed();
+
+//         self.iter_sides(0..2, |face, lrw, offset, indices| {
+//             manage_x(buffer, global, lrw, offset, indices, face)});
+
+//         self.iter_sides(2..4, |face, lrw, offset, indices| {
+//             manage_y(buffer, global, lrw, offset, indices, face)});
+
+//         self.iter_sides(4..6, |face, lrw, offset, indices| {
+//             manage_z(buffer, global, lrw, offset, indices, face)});
+//     }
+// }
+
+// impl Default for GreedManager {
+//     #[inline]
+//     fn default() -> Self {Self {
+//         sides: Default::default(),
+//         faces: Vec::new(),
+//     }}
+// }
+
+// #[derive(Debug)]
+// struct RowColumn {
+//     row: [Vec<(usize, usize)>; CHUNK_SIZE],
+//     column: [Vec<(usize, usize)>; CHUNK_SIZE],
+// }
+
+// impl Default for RowColumn {
+//     #[inline]
+//     fn default() -> Self {
+//         Self { row: Default::default(), column: Default::default() }
+//     }
+// }

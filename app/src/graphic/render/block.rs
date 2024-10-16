@@ -1,3 +1,5 @@
+use std::simd::Simd;
+
 use crate::{content::Content, light::light::Light, voxels::{block::block_test::BlockBase, chunk::Chunk, chunks::{Chunks, WORLD_BLOCK_HEIGHT}}};
 use super::block_managers::BlockManagers;
 
@@ -16,19 +18,20 @@ impl BlockFaceLight {
         [7,   8,   5],
         [7,   6,   3]
     ];
-    const CHANNELS: [usize; 4] = [0, 1, 2, 3];
     const CENTER_INFLUENCE: f32 = 1.5;
-    const MAX_LIGHT_COUNT: f32 = 15.0;
-    const COEFFICIENT: f32 = Self::MAX_LIGHT_COUNT * (Self::CENTER_INFLUENCE + 3.0);
+    const COEFFICIENT: f32 = Self::CENTER_INFLUENCE + 3.0;
     pub fn get(&self) -> [[f32; 4]; 4] {
-        let center = &self.0[4];
-        Self::ANGLE_INDICES.map(|inds| {
-            Self::CHANNELS.map(|i| {unsafe {
-                (self.0.get_unchecked(inds[0]).get_channel(i) as f32 +
-                 self.0.get_unchecked(inds[1]).get_channel(i) as f32 +
-                 self.0.get_unchecked(inds[2]).get_channel(i) as f32 +
-                 (center.get_channel(i) as f32 * Self::CENTER_INFLUENCE)) / Self::COEFFICIENT
-            }})
+        let normalized: [Simd<f32, 4>; 9] = self.0.clone().map(|l| l.get_normalized().into());
+        let center = &normalized[4] * Simd::<f32, 4>::from_array([Self::CENTER_INFLUENCE; 4]);
+
+        Self::ANGLE_INDICES.map(|idx| {
+            (unsafe {
+                (normalized.get_unchecked(idx[0]) +
+                normalized.get_unchecked(idx[1]) +
+                normalized.get_unchecked(idx[2]) +
+                center) /
+                Simd::<f32, 4>::from_array([Self::COEFFICIENT; 4])
+            }).into()
         })
     }
 }
